@@ -17,7 +17,6 @@ if (!StudentLogsModel) {
   try {
     StudentLogsModel = require('../models/StudentLogs');
   } catch (err) {
-    // keep it undefined so the code still surfaces a meaningful error later
     console.warn('Warning: StudentLogs model not found via direct require:', err.message);
     StudentLogsModel = undefined;
   }
@@ -400,41 +399,66 @@ const authController = {
       }
 
       if (!user) {
+        // If StudentLogsModel missing -> explicit helpful error
         if (!StudentLogsModel) {
-          // explicit, helpful error if StudentLogs truly isn't available
           throw new Error('StudentLogs model is not available. Ensure it is exported from ../models or exists at models/StudentLogs.js');
         }
 
-        // Instead of creating a record in Users, create in StudentLogs
-        const maxUserID = await User.max('UserID') || 0;
-        const newUserID = maxUserID + 1;
+        // First check if a StudentLogs row already exists for this email
+        let existingStudentLog = await StudentLogsModel.findOne({ where: { email: googleEmail } });
 
-        // Create on StudentLogsModel
-        const created = await StudentLogsModel.create({
-          UserID: newUserID,
-          username: studentData.StudentName,
-          email: googleEmail,
-          password: null,
-          RoleId: studentRole.id,
-        });
+        if (existingStudentLog) {
+          // If exists, just update fields if needed and use it (NO INSERT)
+          try {
+            const fieldsToUpdate = {};
+            if (existingStudentLog.username !== studentData.StudentName) fieldsToUpdate.username = studentData.StudentName;
+            if (existingStudentLog.RoleId !== studentRole.id) fieldsToUpdate.RoleId = studentRole.id;
 
-        // Try to reload including Role so downstream code expecting user.Role works unchanged
-        let studentLog;
-        try {
-          studentLog = await StudentLogsModel.findByPk(created.id, { include: [{ model: Role }] });
-        } catch (err) {
-          // If include fails (associations not set up), fall back to the raw created instance
-          console.warn('Warning: could not include Role on StudentLogs fetch - falling back to attaching Role manually.', err.message);
-          studentLog = created;
+            if (Object.keys(fieldsToUpdate).length > 0) {
+              await existingStudentLog.update(fieldsToUpdate);
+            }
+
+            // reload with Role association if possible
+            try {
+              existingStudentLog = await StudentLogsModel.findByPk(existingStudentLog.id, { include: [{ model: Role }] });
+            } catch (err) {
+              // ignore - we'll attach Role manually if missing
+            }
+            if (!existingStudentLog.Role) existingStudentLog.Role = studentRole;
+
+            user = existingStudentLog;
+          } catch (err) {
+            console.warn('Failed to update existing StudentLogs row, falling back to using raw instance:', err.message);
+            // still use the instance
+            user = existingStudentLog;
+            if (!user.Role) user.Role = studentRole;
+          }
+        } else {
+          // No StudentLogs row exists — create one.
+          // To avoid UserID collision compute max across both tables
+          const maxUserIDUsers = await User.max('UserID') || 0;
+          const maxUserIDStudentLogs = await StudentLogsModel.max('UserID') || 0;
+          const newUserID = Math.max(maxUserIDUsers, maxUserIDStudentLogs) + 1;
+
+          const created = await StudentLogsModel.create({
+            UserID: newUserID,
+            username: studentData.StudentName,
+            email: googleEmail,
+            password: null,
+            RoleId: studentRole.id,
+          });
+
+          // Try to reload including Role so downstream code expecting user.Role works unchanged
+          let studentLog;
+          try {
+            studentLog = await StudentLogsModel.findByPk(created.id, { include: [{ model: Role }] });
+          } catch (err) {
+            console.warn('Warning: could not include Role on StudentLogs fetch - falling back to the created instance.', err.message);
+            studentLog = created;
+          }
+          if (!studentLog.Role) studentLog.Role = studentRole;
+          user = studentLog;
         }
-
-        // If Role wasn't included for any reason, attach it manually
-        if (!studentLog.Role) {
-          studentLog.Role = studentRole;
-        }
-
-        // Use studentLog as the "user" moving forward
-        user = studentLog;
       }
 
       if (user.Role.name !== 'Student') {
@@ -442,7 +466,7 @@ const authController = {
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
       }
 
-      // Update access tokens; handle both real Sequelize instances and plain objects
+      // Update access tokens; handle both Sequelize instances and plain objects
       if (typeof user.update === 'function') {
         await user.update({
           access_token: tokens.access_token,
@@ -450,7 +474,6 @@ const authController = {
           expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : null
         });
       } else {
-        // plain object (shouldn't normally happen) — just set fields so later code sees them
         user.access_token = tokens.access_token;
         user.refresh_token = tokens.refresh_token || null;
         user.expiry_date = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
