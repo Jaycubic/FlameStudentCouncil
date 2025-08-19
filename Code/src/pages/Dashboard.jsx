@@ -135,8 +135,13 @@ function ApplicationFormDashboard() {
 
   // Keep refs for heights (tweakable)
   const collapsedHeight = 96; // px - matches original rows={3} feel (keeps original size when not active)
-  const communityMaxHeight = 360; // px when expanded — change to taste
-  const sopMaxHeight = 360;
+  // *** Doubled expansion heights per your request (was 360) ***
+  const communityMaxHeight = 720; // px when expanded — doubled
+  const sopMaxHeight = 720; // px when expanded — doubled
+
+  // compute textarea max-heights to allow internal scrollbars (subtract container padding)
+  const communityTextareaMaxH = communityMaxHeight - 16; // allow for container padding
+  const sopTextareaMaxH = sopMaxHeight - 16;
 
   // Instructions
   const instructions = [
@@ -511,16 +516,32 @@ function ApplicationFormDashboard() {
                 communityRef.current?.focus?.();
               }}
             >
-              <Box p={2} {...borderBoxStyle}>
+              {/* Container has the single border; the textarea itself will NOT have its own border
+                  so there will be a single uniform border line as requested. */}
+              <Box
+                p={2}
+                {...borderBoxStyle}
+                display="flex"
+                flexDirection="column"
+                height="100%"
+              >
                 <Textarea
                   ref={communityRef}
                   value={communityService}
                   onChange={(e) => setCommunityService(e.target.value)}
                   onFocus={() => setCommunityFocusExpanded(true)}
                   onBlur={() => setCommunityFocusExpanded(false)}
-                  rows={3} // original collapsed appearance: rows=3
-                  {...inputStyleProps}
+                  rows={3} // keeps the collapsed visual similar to original
+                  /* remove textarea's border so we have only the container border (single-line look) */
+                  borderWidth="0"
+                  boxShadow="none"
+                  _focus={{ boxShadow: 'none', outline: 'none' }}
                   resize="vertical"
+                  /* allow internal scrolling when content grows beyond visible area */
+                  overflowY="auto"
+                  maxH={`${communityTextareaMaxH}px`}
+                  /* ensure textarea fills available vertical space inside the animated container */
+                  flex="1 1 auto"
                 />
               </Box>
             </motion.div>
@@ -554,7 +575,13 @@ function ApplicationFormDashboard() {
                 sopRef.current?.focus?.();
               }}
             >
-              <Box p={2} {...borderBoxStyle}>
+              <Box
+                p={2}
+                {...borderBoxStyle}
+                display="flex"
+                flexDirection="column"
+                height="100%"
+              >
                 <Textarea
                   ref={sopRef}
                   value={statementOfPurpose}
@@ -562,8 +589,13 @@ function ApplicationFormDashboard() {
                   onFocus={() => setSopFocusExpanded(true)}
                   onBlur={() => setSopFocusExpanded(false)}
                   rows={3}
-                  {...inputStyleProps}
+                  borderWidth="0"
+                  boxShadow="none"
+                  _focus={{ boxShadow: 'none', outline: 'none' }}
                   resize="vertical"
+                  overflowY="auto"
+                  maxH={`${sopTextareaMaxH}px`}
+                  flex="1 1 auto"
                 />
               </Box>
             </motion.div>
