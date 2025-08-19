@@ -24,14 +24,8 @@ const StudentRoute = require("./routes/studentRoutes.js");
 const departmentRoutes = require("./routes/departmentRoutes.js");
 const locationRoutes = require("./routes/locationRoutes.js");
 const organizationRoutes = require("./routes/organizationRoutes.js");
-const pdfRoute = require("./routes/pdfRoutes.js");
-const queueRoutes = require("./routes/queueRoutes.js");
-const queueDashboardRoutes = require('./routes/queueDashboardRoutes.js');
 const legalRoutes = require(`./routes/LegalDocumentRoutes.js`);
 const footerRoutes = require(`./routes/footerRoutes.js`);
-const reportRoutes = require('./routes/reportRoutes.js');
-const simpleAuthRoutes = require('./routes/simpleauth.js');
-const queueCountRoutes = require('./routes/queueCountRoutes.js');
 const formSubmissionRoutes = require('./routes/formSubmissionRoutes.js'); // Assuming this is the route file name
 const formSubmissionController = require('./controllers/formSubmissionController.js');
 
@@ -71,12 +65,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/organizations', organizationRoutes);
-app.use('/api/simpleauth', simpleAuthRoutes);
-app.use("/students", StudentRoute);
-app.use("/api/pdf", pdfRoute);
+
+
 app.use("/api/footer",footerRoutes);
-app.use('/api/queue-dashboard', queueDashboardRoutes);
-app.use('/api/queue-count', queueCountRoutes);
+
 app.use('/api/photo', require('./routes/photoRoutes.js'));
 app.use(EmployeeRoute);
 app.use("/keys", require("./routes/keyRoutes.js"));
@@ -86,9 +78,7 @@ app.use('/api/activity-tracker', require('./routes/activityTrackerRoutes.js'));
 app.use('/api/formauth', require('./routes/formauthRoutes.js'));
 app.use('/api/settings', require('./routes/settingsRoutes.js'));
 app.use('/api/wellbeing-form', require('./routes/wellbeingFormRoutes.js'));
-app.use('/api/queues', queueRoutes);
 app.use('/legal-documents', legalRoutes);
-app.use('/api/reports', reportRoutes);
 app.use('/api/form-submissions', formSubmissionRoutes);
 // Serve generated PDFs statically
 app.use('/generated_pdfs', express.static('/opt/View/StudentTrackingSystem/server/generated_pdfs'));
