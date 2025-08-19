@@ -20,7 +20,6 @@ const EmployeeRoute = require("./routes/employeeRoutes.js");
 const authRoutes = require('./routes/authRoutes.js');
 const roleRoutes = require('./routes/roleRoutes.js');
 const userRoutes = require('./routes/userRoutes.js');
-const StudentRoute = require("./routes/studentRoutes.js");
 const departmentRoutes = require("./routes/departmentRoutes.js");
 const locationRoutes = require("./routes/locationRoutes.js");
 const organizationRoutes = require("./routes/organizationRoutes.js");
@@ -71,16 +70,11 @@ app.use("/api/footer",footerRoutes);
 
 app.use('/api/photo', require('./routes/photoRoutes.js'));
 app.use(EmployeeRoute);
-app.use('/api/counters', require('./routes/counterRoutes.js'));
 app.use('/api/student-status', require('./routes/studentStatusRoutes.js'));
 app.use('/api/activity-tracker', require('./routes/activityTrackerRoutes.js'));
-app.use('/api/formauth', require('./routes/formauthRoutes.js'));
 app.use('/api/settings', require('./routes/settingsRoutes.js'));
-app.use('/api/wellbeing-form', require('./routes/wellbeingFormRoutes.js'));
 app.use('/legal-documents', legalRoutes);
 app.use('/api/form-submissions', formSubmissionRoutes);
-// Serve generated PDFs statically
-app.use('/generated_pdfs', express.static('/opt/View/StudentTrackingSystem/server/generated_pdfs'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
