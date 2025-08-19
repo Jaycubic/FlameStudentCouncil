@@ -3,18 +3,11 @@ import axios from 'axios';
 
 const BASE_API = process.env.REACT_APP_API_BASE || 'https://flamestudentcouncil.in:5050';
 
-function getCookie(name) {
-  let matches = document.cookie.match(new RegExp(
-    "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
-  ));
-  return matches ? decodeURIComponent(matches[1]) : null;
-}
-
 class PhotoService {
   getAuthHeaders() {
-    const token = getCookie('token');
+    const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('PhotoService: no token found in cookie');
+      console.warn('PhotoService: no token found in localStorage');
     }
     return {
       Authorization: token ? `Bearer ${token}` : '',

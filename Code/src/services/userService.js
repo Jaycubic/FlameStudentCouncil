@@ -3,33 +3,14 @@ import axios from 'axios';
 const API_URL = 'https://flamestudentcouncil.in:5050/api/users';
 const EMPLOYEE_API_URL = 'https://flamestudentcouncil.in:5050/employee';
 
-function getCookie(name) {
-  let matches = document.cookie.match(new RegExp(
-    "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
-  ));
-  return matches ? decodeURIComponent(matches[1]) : null;
-}
-
 class UserService {
   getAuthHeaders() {
-    const token = getCookie('token');
-    console.log('Retrieved token from cookie:', token);
+    const token = localStorage.getItem('token');
+    console.log('Retrieved token from localStorage:', token);
     if (!token) {
-      console.warn('No token found in cookie');
+      console.warn('No token found in localStorage');
     }
     return { Authorization: `Bearer ${token}` };
-  }
-
-  async getUsers() {
-    const headers = this.getAuthHeaders();
-    console.log('Sending request with headers:', headers);
-    try {
-      const response = await axios.get(API_URL, { headers });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching users:', error.response?.data || error.message);
-      throw error;
-    }
   }
 
   async getUsers() {

@@ -3,18 +3,11 @@ import { userService } from './userService';
 
 const API_URL = 'https://flamestudentcouncil.in:5050/api/roles';
 
-function getCookie(name) {
-  let matches = document.cookie.match(new RegExp(
-    "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
-  ));
-  return matches ? decodeURIComponent(matches[1]) : null;
-}
-
 class RoleService {
   getAuthHeaders() {
-    const token = getCookie('token');
+    const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('No token found in cookie. Authentication may fail.');
+      console.warn('No token found in localStorage. Authentication may fail.');
     }
     return { Authorization: `Bearer ${token || ''}` };
   }
