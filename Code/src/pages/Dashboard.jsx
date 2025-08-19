@@ -1,6 +1,6 @@
 // src/pages/Dashboard.jsx
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Box,
   VStack,
@@ -58,7 +58,7 @@ const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.p
 const MotionBox = motion(Box);
 const MotionButton = motion(Button);
 
-// A small helper to animate height between collapsed and expanded values
+// springy height animation for smoother UX
 const heightTransition = { type: 'spring', damping: 22, stiffness: 160 };
 
 function ApplicationFormDashboard() {
@@ -115,11 +115,26 @@ function ApplicationFormDashboard() {
   // Positions from backend
   const [positions, setPositions] = useState([]);
 
-  // Expanded states for animated sections
-  const [communityExpanded, setCommunityExpanded] = useState(false);
-  const [sopExpanded, setSopExpanded] = useState(false);
+  // --- Expansion control logic for Community & SOP ---
+  // Two flags per section:
+  // - requested...: toggled by header click (persistent)
+  // - focus...: set while textarea has focus (temporary)
+  const [communityRequestedExpanded, setCommunityRequestedExpanded] = useState(false);
+  const [communityFocusExpanded, setCommunityFocusExpanded] = useState(false);
 
-  // Keep refs for max heights (tweakable)
+  const [sopRequestedExpanded, setSopRequestedExpanded] = useState(false);
+  const [sopFocusExpanded, setSopFocusExpanded] = useState(false);
+
+  // combine to final expansion state
+  const communityExpanded = communityRequestedExpanded || communityFocusExpanded;
+  const sopExpanded = sopRequestedExpanded || sopFocusExpanded;
+
+  // Refs to textareas so we can focus them on container click
+  const communityRef = useRef(null);
+  const sopRef = useRef(null);
+
+  // Keep refs for heights (tweakable)
+  const collapsedHeight = 96; // px - matches original rows={3} feel (keeps original size when not active)
   const communityMaxHeight = 360; // px when expanded — change to taste
   const sopMaxHeight = 360;
 
@@ -154,7 +169,7 @@ function ApplicationFormDashboard() {
           email: currentUser?.email || '',
           batch: currentUser?.batch || '',
           gender: currentUser?.gender || '',
-          // use same-origin proxied photo path per your server change
+          // same-origin proxied photo path per your server
           photoUrl: currentUser?.photo ? `/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
         });
       } catch (err) {
@@ -202,21 +217,17 @@ function ApplicationFormDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // show local preview immediately
     try {
       setPhotoFile(file);
       const localUrl = URL.createObjectURL(file);
       setUser((u) => ({ ...(u || {}), photoUrl: localUrl }));
 
-      // upload to backend
       const resp = await photoService.uploadPhoto(file);
-      // backend should return a filename, adjust if your response differs
       const filename = resp?.filename || resp?.data?.filename || resp?.fileName;
       if (!filename) {
         toast({ title: 'Uploaded but backend did not return filename', status: 'warning' });
         return;
       }
-      // set same-origin proxied url
       const proxied = photoService.getPhotoUrl(filename);
       setUser((u) => ({ ...(u || {}), photoUrl: proxied }));
       toast({ title: 'Photo uploaded', status: 'success', duration: 2500 });
@@ -468,7 +479,8 @@ function ApplicationFormDashboard() {
             </FormControl>
           </SimpleGrid>
 
-          {/* Animated Community Service */}
+          {/* Community Service - header click toggles persistent expansion,
+              focus inside textarea expands while focused */}
           <Box mt={4}>
             <Box
               as="button"
@@ -476,7 +488,12 @@ function ApplicationFormDashboard() {
               textAlign="left"
               px={0}
               py={0}
-              onClick={() => setCommunityExpanded((s) => !s)}
+              onClick={() => {
+                // toggle persistent expansion
+                setCommunityRequestedExpanded((s) => !s);
+                // focus textarea for discoverability
+                setTimeout(() => communityRef.current?.focus?.(), 0);
+              }}
               aria-expanded={communityExpanded}
               style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
             >
@@ -486,15 +503,22 @@ function ApplicationFormDashboard() {
             <motion.div
               layout
               initial={false}
-              animate={{ maxHeight: communityExpanded ? communityMaxHeight : 90 }}
+              animate={{ maxHeight: communityExpanded ? communityMaxHeight : collapsedHeight }}
               transition={heightTransition}
               style={{ overflow: 'hidden', width: '100%' }}
+              onClick={() => {
+                // click anywhere in container should focus textarea (discoverability)
+                communityRef.current?.focus?.();
+              }}
             >
               <Box p={2} {...borderBoxStyle}>
                 <Textarea
+                  ref={communityRef}
                   value={communityService}
                   onChange={(e) => setCommunityService(e.target.value)}
-                  rows={communityExpanded ? 10 : 3}
+                  onFocus={() => setCommunityFocusExpanded(true)}
+                  onBlur={() => setCommunityFocusExpanded(false)}
+                  rows={3} // original collapsed appearance: rows=3
                   {...inputStyleProps}
                   resize="vertical"
                 />
@@ -502,7 +526,7 @@ function ApplicationFormDashboard() {
             </motion.div>
           </Box>
 
-          {/* Animated Statement of Purpose */}
+          {/* Statement of Purpose - same behaviour */}
           <Box mt={4}>
             <Box
               as="button"
@@ -510,7 +534,10 @@ function ApplicationFormDashboard() {
               textAlign="left"
               px={0}
               py={0}
-              onClick={() => setSopExpanded((s) => !s)}
+              onClick={() => {
+                setSopRequestedExpanded((s) => !s);
+                setTimeout(() => sopRef.current?.focus?.(), 0);
+              }}
               aria-expanded={sopExpanded}
               style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
             >
@@ -520,15 +547,21 @@ function ApplicationFormDashboard() {
             <motion.div
               layout
               initial={false}
-              animate={{ maxHeight: sopExpanded ? sopMaxHeight : 90 }}
+              animate={{ maxHeight: sopExpanded ? sopMaxHeight : collapsedHeight }}
               transition={heightTransition}
               style={{ overflow: 'hidden', width: '100%' }}
+              onClick={() => {
+                sopRef.current?.focus?.();
+              }}
             >
               <Box p={2} {...borderBoxStyle}>
                 <Textarea
+                  ref={sopRef}
                   value={statementOfPurpose}
                   onChange={(e) => setStatementOfPurpose(e.target.value)}
-                  rows={sopExpanded ? 10 : 3}
+                  onFocus={() => setSopFocusExpanded(true)}
+                  onBlur={() => setSopFocusExpanded(false)}
+                  rows={3}
                   {...inputStyleProps}
                   resize="vertical"
                 />
