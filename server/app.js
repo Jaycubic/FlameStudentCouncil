@@ -71,7 +71,6 @@ app.use("/api/footer",footerRoutes);
 
 app.use('/api/photo', require('./routes/photoRoutes.js'));
 app.use(EmployeeRoute);
-app.use("/keys", require("./routes/keyRoutes.js"));
 app.use('/api/counters', require('./routes/counterRoutes.js'));
 app.use('/api/student-status', require('./routes/studentStatusRoutes.js'));
 app.use('/api/activity-tracker', require('./routes/activityTrackerRoutes.js'));
