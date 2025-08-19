@@ -1,4 +1,39 @@
 // services/authService.js
+
+function getCookie(name) {
+  let matches = document.cookie.match(new RegExp(
+    "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+  ));
+  return matches ? decodeURIComponent(matches[1]) : null;
+}
+
+function setCookie(name, value, expiresInSeconds) {
+  let expires = "";
+  if (expiresInSeconds > 0) {
+    let date = new Date();
+    date.setTime(date.getTime() + (expiresInSeconds * 1000));
+    expires = "; expires=" + date.toUTCString();
+  }
+  document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
+}
+
+function deleteCookie(name) {
+  setCookie(name, "", -1);
+}
+
+function parseJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    throw new Error('Invalid token');
+  }
+}
+
 class AuthService {
   async login(email, password) {
     try {
@@ -15,9 +50,10 @@ class AuthService {
         if (data.message === 'verify' || data.message === 'redirect') {
           return data;
         } else if (data.message === 'success') {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('expiresAt', data.expiresAt);
-          localStorage.setItem('user', JSON.stringify(data.user));
+          const now = Math.floor(Date.now() / 1000);
+          const expiresIn = data.expiresAt - now;
+          setCookie('token', data.token, expiresIn);
+          setCookie('user', JSON.stringify(data.user), expiresIn);
           this.setAutoLogout();
           return data;
         } else {
@@ -46,18 +82,17 @@ class AuthService {
   }
 
   logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('expiresAt');
+    deleteCookie('token');
+    deleteCookie('user');
   }
 
   getCurrentUser() {
-    const user = localStorage.getItem('user');
+    const user = getCookie('user');
     return user ? JSON.parse(user) : null;
   }
 
   isAuthenticated() {
-    const token = localStorage.getItem('token');
+    const token = getCookie('token');
     const user = this.getCurrentUser();
     if (this.isTokenExpired()) {
       this.logout();
@@ -72,21 +107,31 @@ class AuthService {
   }
 
   isTokenExpired() {
-    const expiresAt = localStorage.getItem('expiresAt');
-    if (!expiresAt) return true;
-    return parseInt(expiresAt, 10) < Date.now() / 1000;
+    const token = getCookie('token');
+    if (!token) return true;
+    try {
+      const decoded = parseJwt(token);
+      return decoded.exp < Math.floor(Date.now() / 1000);
+    } catch (e) {
+      return true;
+    }
   }
 
   setAutoLogout() {
-    const expiresAt = localStorage.getItem('expiresAt');
-    if (expiresAt) {
-      const exp = parseInt(expiresAt, 10);
-      const now = Date.now() / 1000;
-      const timeLeft = (exp - now) * 1000;
-      if (timeLeft > 0) {
-        setTimeout(() => {
+    const token = getCookie('token');
+    if (token) {
+      try {
+        const decoded = parseJwt(token);
+        const timeLeft = (decoded.exp * 1000) - Date.now();
+        if (timeLeft > 0) {
+          setTimeout(() => {
+            this.logout();
+          }, timeLeft);
+        } else {
           this.logout();
-        }, timeLeft);
+        }
+      } catch (e) {
+        this.logout();
       }
     }
   }

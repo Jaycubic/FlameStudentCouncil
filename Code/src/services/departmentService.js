@@ -2,11 +2,18 @@ import axios from 'axios';
 
 const API_URL = 'https://flamestudentcouncil.in:5050/api/departments';
 
+function getCookie(name) {
+  let matches = document.cookie.match(new RegExp(
+    "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+  ));
+  return matches ? decodeURIComponent(matches[1]) : null;
+}
+
 class DepartmentService {
   getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = getCookie('token');
     if (!token) {
-      console.warn('No token found in localStorage. Authentication may fail.');
+      console.warn('No token found in cookie. Authentication may fail.');
     }
     return { Authorization: `Bearer ${token || ''}` };
   }
@@ -78,4 +85,3 @@ class DepartmentService {
 }
 
 export const departmentService = new DepartmentService();
-
