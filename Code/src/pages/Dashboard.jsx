@@ -40,7 +40,7 @@ import {
 } from '@chakra-ui/react';
 import { CheckIcon, ArrowRightIcon, UserIcon } from '@heroicons/react/24/outline';
 import { ChevronDownIcon } from '@chakra-ui/icons';
-import { MaleIcon, FemaleIcon } from '@heroicons/react/24/solid'; // Assuming you have male/female icons, or import appropriate
+import { FaMale, FaFemale } from 'react-icons/fa'; // Updated imports for gender icons
 import PageHeader from '../components/layout/PageHeader'; // Assuming this is available
 import { formSubmissionService } from '../services/formSubmissionService'; // As provided
 import { authService } from '../services/authService'; // Import the modified authService
@@ -224,9 +224,9 @@ function ApplicationFormDashboard() {
 
   const GenderIcon = () => {
     if (user?.gender === 'Male') {
-      return <Icon as={MaleIcon} color="blue.500" boxSize={6} />;
+      return <Icon as={FaMale} color="blue.500" boxSize={6} />;
     } else if (user?.gender === 'Female') {
-      return <Icon as={FemaleIcon} color="pink.500" boxSize={6} />;
+      return <Icon as={FaFemale} color="pink.500" boxSize={6} />;
     }
     return <Icon as={UserIcon} color="gray.500" boxSize={6} />;
   };
