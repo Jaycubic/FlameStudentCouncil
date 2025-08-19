@@ -81,6 +81,18 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
   },
+  Gender: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  Batch: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  Photo: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   tableName: 'form_submissions',
   timestamps: false,

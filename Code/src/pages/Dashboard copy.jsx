@@ -81,7 +81,7 @@ function Dashboard() {
   const cityGraphModal = useDisclosure();
 
   useEffect(() => {
-    const socket = io("http://localhost:5000");
+    const socket = io("https://flamestudentcouncil.in:5050");
     socket.on("connect", () => {
       console.log("Connected to Socket.IO server:", socket.id);
       socket.emit("requestData");
@@ -343,7 +343,7 @@ function Dashboard() {
   return (
     <Box p={8}>
       <PageHeader
-        title={`Welcome back, ${user?.name || 'Admin'}`}
+        title={`Welcome back, ${user?.username || 'Admin'}`}
         description="Here's an overview of the student tracking system"
       />
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
@@ -606,8 +606,14 @@ function Dashboard() {
           <ModalCloseButton />
           <ModalBody>
             {renderFullTable(
-              inOutBatchCount.data.map(({ batch, in: inCount, out, total }) => ({ batch, in: inCount, out, total })),
-              ['Batch', 'IN', 'OUT',  'Total'],
+              inOutBatchCount.data.map((item) => ({
+                batch: item.batch,
+                in: item.in || 0,
+                out: item.out || 0,
+                noPunch: item.noPunch || 0,
+                total: item.total || 0,
+              })),
+              ['Batch', 'IN', 'OUT', 'NO PUNCH', 'Total'],
               inOutBatchCount.grandTotal,
               COLORS.warning
             )}

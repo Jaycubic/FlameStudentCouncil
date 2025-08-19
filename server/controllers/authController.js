@@ -45,7 +45,7 @@ const generateVerificationCode = () => {
 const sendVerificationEmail = async (email, code) => {
   try {
     await transporter.sendMail({
-      from: `"FLAME STS" <${process.env.EMAIL_USER}>`,
+      from: `"FLAME Student Council System" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Verification Code',
       html: `

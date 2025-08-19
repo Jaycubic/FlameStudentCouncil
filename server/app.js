@@ -32,6 +32,8 @@ const footerRoutes = require(`./routes/footerRoutes.js`);
 const reportRoutes = require('./routes/reportRoutes.js');
 const simpleAuthRoutes = require('./routes/simpleauth.js');
 const queueCountRoutes = require('./routes/queueCountRoutes.js');
+const formSubmissionRoutes = require('./routes/formSubmissionRoutes.js'); // Assuming this is the route file name
+const formSubmissionController = require('./controllers/formSubmissionController.js');
 
 const app = express();
 
@@ -53,6 +55,7 @@ const queueDashboardController = require('./controllers/queueDashboardController
 queueDashboardController.setIo(io);
 
 // Middleware
+app.use(helmet());
 app.use(cors({
   origin: 'https://flamestudentcouncil.in:3030', // Allow frontend origin
   credentials: true // Allow credentials (cookies) if needed
@@ -86,6 +89,7 @@ app.use('/api/wellbeing-form', require('./routes/wellbeingFormRoutes.js'));
 app.use('/api/queues', queueRoutes);
 app.use('/legal-documents', legalRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/form-submissions', formSubmissionRoutes);
 // Serve generated PDFs statically
 app.use('/generated_pdfs', express.static('/opt/View/StudentTrackingSystem/server/generated_pdfs'));
 
@@ -109,6 +113,7 @@ const startServer = async () => {
   const PORT = process.env.PORT || 5050;
   _server = server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+    formSubmissionController.startQueueWorker();
   });
   return _server;
 };
