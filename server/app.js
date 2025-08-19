@@ -64,7 +64,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/organizations', organizationRoutes);
-
+app.use('/api/positions', require('./routes/positions'));
 
 app.use("/api/footer",footerRoutes);
 
