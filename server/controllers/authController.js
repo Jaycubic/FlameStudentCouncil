@@ -144,7 +144,10 @@ const authController = {
       if (!defaultRole) {
         return res.status(500).json({ message: 'Default role not found' });
       }
+      const maxUserID = await User.max('UserID') || 0;
+      const newUserID = maxUserID + 1;
       const user = await User.create({
+        UserID: newUserID,
         username,
         email,
         password,
@@ -384,7 +387,10 @@ const authController = {
         throw new Error('Student role not found');
       }
       if (!user) {
+        const maxUserID = await User.max('UserID') || 0;
+        const newUserID = maxUserID + 1;
         user = await User.create({
+          UserID: newUserID,
           username: studentData.StudentName,
           email: googleEmail,
           password: null,
