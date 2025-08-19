@@ -510,7 +510,7 @@ function ApplicationFormDashboard() {
               initial={false}
               animate={{ maxHeight: communityExpanded ? communityMaxHeight : collapsedHeight }}
               transition={heightTransition}
-              style={{ overflow: 'hidden', width: '100%' }}
+              style={{ overflow: 'hidden', width: '100%', background: 'transparent' }} // Removed white background
               onClick={() => {
                 // click anywhere in container should focus textarea (discoverability)
                 communityRef.current?.focus?.();
@@ -570,7 +570,7 @@ function ApplicationFormDashboard() {
               initial={false}
               animate={{ maxHeight: sopExpanded ? sopMaxHeight : collapsedHeight }}
               transition={heightTransition}
-              style={{ overflow: 'hidden', width: '100%' }}
+              style={{ overflow: 'hidden', width: '100%', background: 'transparent' }} // Removed white background
               onClick={() => {
                 sopRef.current?.focus?.();
               }}
