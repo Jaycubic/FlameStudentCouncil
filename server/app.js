@@ -109,9 +109,6 @@ const startServer = async () => {
   const PORT = process.env.PORT || 5050;
   _server = server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    // Start syncAttendance with Socket.IO
-    syncAttendance.setIo(io);
-    syncAttendance.startSyncAttendance();
   });
   return _server;
 };
