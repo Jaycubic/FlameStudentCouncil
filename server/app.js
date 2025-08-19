@@ -67,8 +67,6 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/positions', require('./routes/positions'));
 
 app.use("/api/footer",footerRoutes);
-
-app.use('/api/photo', require('./routes/photoRoutes.js'));
 app.use(EmployeeRoute);
 app.use('/api/student-status', require('./routes/studentStatusRoutes.js'));
 app.use('/api/activity-tracker', require('./routes/activityTrackerRoutes.js'));
