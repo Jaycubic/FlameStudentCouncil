@@ -38,12 +38,12 @@ import {
   MenuList,
   MenuItem,
 } from '@chakra-ui/react';
-import { CheckIcon, ArrowRightIcon, UserIcon } from '@heroicons/react/24/outline';
-import { ChevronDownIcon } from '@chakra-ui/icons';
-import { FaMale, FaFemale } from 'react-icons/fa'; // Updated imports for gender icons
-import PageHeader from '../components/layout/PageHeader'; // Assuming this is available
-import { formSubmissionService } from '../services/formSubmissionService'; // As provided
-import { authService } from '../services/authService'; // Import the modified authService
+import { CheckIcon, ArrowRightIcon, UserIcon, ChevronExpandIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, AddIcon } from '@chakra-ui/icons';
+import { FaMale, FaFemale } from 'react-icons/fa';
+import PageHeader from '../components/layout/PageHeader';
+import { formSubmissionService } from '../services/formSubmissionService';
+import { authService } from '../services/authService';
 import { positionService } from '../services/positionService';
 
 // Import logo
@@ -56,15 +56,30 @@ function ApplicationFormDashboard() {
   const toast = useToast();
   const { isOpen: isSportModalOpen, onOpen: onSportModalOpen, onClose: onSportModalClose } = useDisclosure();
   const { isOpen: isCulturalModalOpen, onOpen: onCulturalModalOpen, onClose: onCulturalModalClose } = useDisclosure();
+  const { isOpen: isCommunityExpanded, onOpen: onCommunityExpand, onClose: onCommunityCollapse } = useDisclosure();
+  const { isOpen: isSopExpanded, onOpen: onSopExpand, onClose: onSopCollapse } = useDisclosure();
+  const { isOpen: isPhotoModalOpen, onOpen: onPhotoModalOpen, onClose: onPhotoModalClose } = useDisclosure();
   const bgColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const gradientBorder = useColorModeValue(
+    'linear-gradient(135deg, #1e40af 0%, #2563eb 100%, #38bdf8 50%)',
+    'linear(to-b, purple.700, pink.500)'
+  );
+  const hoverGradient = useColorModeValue(
+    'linear(to-r, blue.300, blue.200)',
+    'linear(to-r, purple.500, pink.300)'
+  );
+  const activeGradient = useColorModeValue(
+    'linear(to-r, blue.500, blue.400)',
+    'linear(to-r, purple.600, pink.400)'
+  );
 
   // User data from API
   const [user, setUser] = useState(null);
   const [agreedToInstructions, setAgreedToInstructions] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [isApplicationOpen, setIsApplicationOpen] = useState(true); // Placeholder, fetch from API
+  const [isApplicationOpen, setIsApplicationOpen] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -96,6 +111,15 @@ function ApplicationFormDashboard() {
     'Submission: Ensure all required sections are complete before submission.',
   ];
 
+  const photoInstructions = [
+    'Upload a formal passport-sized photo.',
+    'File size must be less than 1MB.',
+    'Accepted formats: JPEG, JPG, PNG.',
+    'Photo should be recent, clear, and against a plain background.',
+    'Ensure the photo is well-lit and shows your full face without accessories like hats or sunglasses.',
+    'Professional attire is recommended.',
+  ];
+
   useEffect(() => {
     async function loadUser() {
       setLoading(true);
@@ -112,7 +136,6 @@ function ApplicationFormDashboard() {
         });
       } catch (err) {
         console.error('Failed to load user profile:', err);
-        // Proceed with empty user object to avoid white screen
         setUser({});
         toast({ title: 'Failed to load user details', status: 'warning', duration: 3000 });
       } finally {
@@ -139,8 +162,6 @@ function ApplicationFormDashboard() {
       setShowForm(true);
     }
 
-    // Fetch application time settings (simulate or use API)
-    // For now, assume open
     setIsApplicationOpen(true);
   }, []);
 
@@ -206,15 +227,12 @@ function ApplicationFormDashboard() {
       tru_statement: trueStatement ? 1 : 0,
       Gender: user?.gender,
       Batch: user?.batch,
-      Photo: photo ? photo.name : user?.photoUrl.split('/').pop().split('.jpg')[0], // Extract filename if uploading new, else keep existing
-      // Files would need separate upload, perhaps to a file API, then save paths
-      // For simplicity, assume service handles formData with files
+      Photo: photo ? photo.name : user?.photoUrl.split('/').pop().split('.jpg')[0],
     };
 
     try {
       await formSubmissionService.create(formData);
       toast({ title: 'Form submitted successfully', status: 'success', duration: 3000 });
-      // Redirect or something
     } catch (error) {
       toast({ title: 'Submission failed', status: 'error', duration: 3000 });
     } finally {
@@ -252,14 +270,14 @@ function ApplicationFormDashboard() {
   }
 
   return (
-    <Box p={8} bg={bgColor} color={textColor}>
+    <Box p={{ base: 4, md: 8 }} bg={bgColor} color={textColor} borderRadius="xl" boxShadow="xl">
       <PageHeader title="Candidate Application Form" description="Apply for student council positions" />
 
       {!showForm ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <Card bg={bgColor} border="1px" borderColor={borderColor} mb={6}>
+          <Card bg={bgColor} border="1px" borderColor={borderColor} mb={6} borderRadius="lg" bgGradient={gradientBorder} p={4}>
             <CardHeader>
-              <Text fontSize="xl" fontWeight="bold">Instructions</Text>
+              <Text fontSize="xl" fontWeight="bold" color="white">Instructions</Text>
             </CardHeader>
             <CardBody>
               <List spacing={3}>
@@ -272,34 +290,37 @@ function ApplicationFormDashboard() {
               </List>
             </CardBody>
           </Card>
-          <Checkbox isChecked={agreedToInstructions} onChange={handleAgreementChange}>
+          <Checkbox isChecked={agreedToInstructions} onChange={handleAgreementChange} colorScheme="blue">
             I have read and agree to the instructions and terms outlined above.
           </Checkbox>
         </motion.div>
       ) : (
         <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
           {/* Top Section */}
-          <HStack justify="space-between" mb={8} p={4} bg={useColorModeValue('gray.50', 'gray.700')} borderRadius="md" border="1px" borderColor={borderColor}>
-            <HStack spacing={4}>
+          <HStack justify="space-between" mb={8} p={4} bg={useColorModeValue('gray.50', 'gray.700')} borderRadius="md" border="1px" borderColor={borderColor} bgGradient={gradientBorder} flexWrap={{ base: 'wrap', md: 'nowrap' }}>
+            <HStack spacing={4} flex="1" justify={{ base: 'center', md: 'flex-start' }} w="full">
               <Image
                 src={photo ? URL.createObjectURL(photo) : user?.photoUrl || defaultProfilePhoto}
                 alt="Profile Photo"
                 borderRadius="full"
-                boxSize="100px"
+                boxSize={{ base: '80px', md: '100px' }}
                 objectFit="cover"
+                cursor={user?.photoUrl === defaultProfilePhoto ? 'pointer' : 'default'}
+                onClick={user?.photoUrl === defaultProfilePhoto ? onPhotoModalOpen : undefined}
+                _hover={{ transform: 'scale(1.05)', transition: '0.2s' }}
               />
               <VStack align="start">
                 <HStack>
-                  <Text fontSize="2xl" fontWeight="bold">{user?.name || 'Name'}</Text>
+                  <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold">{user?.name || 'Name'}</Text>
                   <GenderIcon />
                 </HStack>
-                <Text fontSize="md">{user?.email || 'Email'}</Text>
-                <Text fontSize="md">{user?.mobileNumber || 'Mobile Number'}</Text>
+                <Text fontSize={{ base: 'sm', md: 'md' }}>{user?.email || 'Email'}</Text>
+                <Text fontSize={{ base: 'sm', md: 'md' }}>{user?.mobileNumber || 'Mobile Number'}</Text>
                 <Text fontSize="sm" color="gray.500">Student ID: {user?.studentId || 'ID'}</Text>
                 <Text fontSize="sm" color="gray.500">Batch: {user?.batch || 'Batch'}</Text>
               </VStack>
             </HStack>
-            <Image src={flameLogo} alt="FLAME University Logo" boxSize="100px" />
+            <Image src={flameLogo} alt="FLAME University Logo" boxSize={{ base: '80px', md: '120px' }} mt={{ base: 4, md: 0 }} alignSelf="center" />
           </HStack>
 
           {/* Form Fields */}
@@ -307,12 +328,12 @@ function ApplicationFormDashboard() {
             <FormControl>
               <FormLabel>Position Interested</FormLabel>
               <Menu>
-                <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
+                <MenuButton as={Button} rightIcon={<ChevronDownIcon />} bgGradient={gradientBorder} color="white" _hover={{ bgGradient: hoverGradient }} _active={{ bgGradient: activeGradient }}>
                   {position || 'Select a position'}
                 </MenuButton>
                 <MenuList maxH="200px" overflowY="auto">
                   {positions.map((pos) => (
-                    <MenuItem key={pos.id} onClick={() => setPosition(pos.description)}>
+                    <MenuItem key={pos.id} onClick={() => setPosition(pos.description)} _hover={{ bgGradient: hoverGradient }}>
                       {pos.description}
                     </MenuItem>
                   ))}
@@ -321,41 +342,43 @@ function ApplicationFormDashboard() {
             </FormControl>
             <FormControl>
               <FormLabel>CGPA - Academics Score</FormLabel>
-              <Input type="number" value={cgpa} onChange={(e) => setCgpa(e.target.value)} />
+              <Input type="number" value={cgpa} onChange={(e) => setCgpa(e.target.value)} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
             </FormControl>
           </SimpleGrid>
 
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={4}>
             <FormControl>
               <FormLabel>Sports Score</FormLabel>
-              <Button onClick={onSportModalOpen} leftIcon={<Icon as={ArrowRightIcon} />}>Open Sport Sheet</Button>
-              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleSportsScoreChange} />
+              <Button onClick={onSportModalOpen} leftIcon={<Icon as={ArrowRightIcon} />} bgGradient={gradientBorder} color="white" _hover={{ bgGradient: hoverGradient, transform: 'translateX(4px)' }} transition="0.2s">Open Sport Sheet</Button>
+              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleSportsScoreChange} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
               <Text mt={1}>Calculated: {sportsScore}/10</Text>
             </FormControl>
             <FormControl>
               <FormLabel>Cultural Score</FormLabel>
-              <Button onClick={onCulturalModalOpen} leftIcon={<Icon as={ArrowRightIcon} />}>Open Cultural Sheet</Button>
-              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleCulturalScoreChange} />
+              <Button onClick={onCulturalModalOpen} leftIcon={<Icon as={ArrowRightIcon} />} bgGradient={gradientBorder} color="white" _hover={{ bgGradient: hoverGradient, transform: 'translateX(4px)' }} transition="0.2s">Open Cultural Sheet</Button>
+              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleCulturalScoreChange} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
               <Text mt={1}>Calculated: {culturalScore}/10</Text>
             </FormControl>
           </SimpleGrid>
 
-          <FormControl mt={4}>
+          <FormControl mt={4} position="relative">
             <FormLabel>Community Service</FormLabel>
-            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} />
+            <IconButton icon={<Icon as={ChevronExpandIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onCommunityExpand} aria-label="Expand Community Service" />
+            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
           </FormControl>
 
-          <FormControl mt={4}>
+          <FormControl mt={4} position="relative">
             <FormLabel>Statement of Purpose</FormLabel>
-            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} />
+            <IconButton icon={<Icon as={ChevronExpandIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onSopExpand} aria-label="Expand Statement of Purpose" />
+            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
           </FormControl>
 
           {/* Uploads */}
-          <Card mt={6}>
+          <Card mt={6} borderRadius="lg" bgGradient={gradientBorder} p={4} color="white">
             <CardHeader>Uploads</CardHeader>
             <CardBody>
-              <Alert status="warning" mb={4}>
-                <AlertIcon />
+              <Alert status="warning" mb={4} variant="subtle" bg="transparent" color="white">
+                <AlertIcon color="yellow.300" />
                 Mandatory: Sport and Cultural (PDF/JPG)
               </Alert>
               <FormControl>
@@ -382,33 +405,32 @@ function ApplicationFormDashboard() {
           </Card>
 
           {/* Checkboxes */}
-          <VStack mt={4} align="start">
-            <Checkbox isChecked={notOnProbation} onChange={(e) => setNotOnProbation(e.target.checked)}>(I am) Not on Probation</Checkbox>
-            <Checkbox isChecked={readHandbook} onChange={(e) => setReadHandbook(e.target.checked)}>I Read the Handbook</Checkbox>
-            <Checkbox isChecked={trueStatement} onChange={(e) => setTrueStatement(e.target.checked)}>I confirm that the above statements are true</Checkbox>
+          <VStack mt={4} align="start" spacing={3}>
+            <Checkbox isChecked={notOnProbation} onChange={(e) => setNotOnProbation(e.target.checked)} colorScheme="blue">(I am) Not on Probation</Checkbox>
+            <Checkbox isChecked={readHandbook} onChange={(e) => setReadHandbook(e.target.checked)} colorScheme="blue">I Read the Handbook</Checkbox>
+            <Checkbox isChecked={trueStatement} onChange={(e) => setTrueStatement(e.target.checked)} colorScheme="blue">I confirm that the above statements are true</Checkbox>
           </VStack>
 
-          <Button mt={6} colorScheme="blue" onClick={handleSubmit} isLoading={loading}>Submit</Button>
+          <Button mt={6} colorScheme="blue" onClick={handleSubmit} isLoading={loading} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }} transition="0.2s">Submit</Button>
         </motion.div>
       )}
 
       {/* Modals for Sheets */}
-      <Modal isOpen={isSportModalOpen} onClose={onSportModalClose}>
+      <Modal isOpen={isSportModalOpen} onClose={onSportModalClose} size={{ base: 'full', md: 'xl' }}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Sport Score Sheet</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {/* Fetch and display sheet, perhaps iframe or content */}
             <Text>Sheet content here (fetch via API)</Text>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onSportModalClose}>Close</Button>
+            <Button onClick={onSportModalClose} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
 
-      <Modal isOpen={isCulturalModalOpen} onClose={onCulturalModalClose}>
+      <Modal isOpen={isCulturalModalOpen} onClose={onCulturalModalClose} size={{ base: 'full', md: 'xl' }}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Cultural Score Sheet</ModalHeader>
@@ -417,7 +439,57 @@ function ApplicationFormDashboard() {
             <Text>Sheet content here (fetch via API)</Text>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onCulturalModalClose}>Close</Button>
+            <Button onClick={onCulturalModalClose} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Expanded Community Service */}
+      <Modal isOpen={isCommunityExpanded} onClose={onCommunityCollapse} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Community Service</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={15} />
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={onCommunityCollapse} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Expanded SOP */}
+      <Modal isOpen={isSopExpanded} onClose={onSopCollapse} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Statement of Purpose</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={15} />
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={onSopCollapse} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Photo Upload Modal */}
+      <Modal isOpen={isPhotoModalOpen} onClose={onPhotoModalClose} size="sm">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Upload Photo</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={2} align="start">
+              {photoInstructions.map((instr, idx) => (
+                <Text key={idx}>{instr}</Text>
+              ))}
+              <Input type="file" accept="image/jpeg,image/jpg,image/png" onChange={handlePhotoChange} />
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={onPhotoModalClose} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
