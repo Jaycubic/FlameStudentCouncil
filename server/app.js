@@ -13,10 +13,10 @@ const cookieParser = require('cookie-parser');
 const sequelize = require("./config/database.js");
 
 // Import cron functions
-const { cacheInOutData } = require("./service/cronInOut.js");
-const cacheGenderBatchData = require("./service/cronGenderBatch.js");
-const startCityRCCron = require("./service/cronCityRC.js");
-const startStudentDetailsCron = require("./service/cronStudentDetails.js");
+// const { cacheInOutData } = require("./service/cronInOut.js");
+// const cacheGenderBatchData = require("./service/cronGenderBatch.js");
+// const startCityRCCron = require("./service/cronCityRC.js");
+// const startStudentDetailsCron = require("./service/cronStudentDetails.js");
 
 // Import syncAttendance service
 const syncAttendance = require("./service/syncAttendance.js");
@@ -108,46 +108,48 @@ app.get("/", (req, res) => {
   res.send("Hello World");
 });
 
-// Start unified cron job for cacheInOutData and cacheGenderBatchData
-console.log('Starting unified cron job: Caching IN-OUT and gender/batch data every 10 seconds.');
-cron.schedule('*/10 * * * * *', async () => {
-  cacheInOutData();
-  const updatedData = await cacheGenderBatchData();
-  if (updatedData) {
-    io.emit("updateData", updatedData);
-  }
-});
-cacheInOutData(); // Run immediately on start
-cacheGenderBatchData().then((updatedData) => {
-  if (updatedData) {
-    io.emit("updateData", updatedData);
-  }
-});
+// Commenting out cron functionalities
+// const { cacheInOutData } = require("./service/cronInOut.js");
+// const cacheGenderBatchData = require("./service/cronGenderBatch.js");
+// const startCityRCCron = require("./service/cronCityRC.js");
+// const startStudentDetailsCron = require("./service/cronStudentDetails.js");
 
-// Start other cron jobs
-startCityRCCron(io);
-startStudentDetailsCron(io);
+// console.log('Starting unified cron job: Caching IN-OUT and gender/batch data every 10 seconds.');
+// cron.schedule('*/10 * * * * *', async () => {
+//   cacheInOutData();
+//   const updatedData = await cacheGenderBatchData();
+//   if (updatedData) {
+//     io.emit("updateData", updatedData);
+//   }
+// });
+// cacheInOutData(); // Run immediately on start
+// cacheGenderBatchData().then((updatedData) => {
+//   if (updatedData) {
+//     io.emit("updateData", updatedData);
+//   }
+// });
 
-// Cleanup old PDFs at midnight every day
-const PDF_DIR = '/opt/View/StudentTrackingSystem/server/generated_pdfs';
-cron.schedule('0 0 * * *', async () => {
-  try {
-    const files = await fs.promises.readdir(PDF_DIR);
-    const now = new Date();
-    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const cutoffTime = todayMidnight.getTime();
-    for (const file of files) {
-      const filePath = path.join(PDF_DIR, file);
-      const stats = await fs.promises.stat(filePath);
-      if (stats.mtime.getTime() < cutoffTime) {
-        await fs.promises.unlink(filePath);
-        console.log(`Deleted old PDF: ${file}`);
-      }
-    }
-  } catch (error) {
-    console.error('Error cleaning up PDFs:', error);
-  }
-});
+// startCityRCCron(io);
+// startStudentDetailsCron(io);
+
+// cron.schedule('0 0 * * *', async () => {
+//   try {
+//     const files = await fs.promises.readdir(PDF_DIR);
+//     const now = new Date();
+//     const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+//     const cutoffTime = todayMidnight.getTime();
+//     for (const file of files) {
+//       const filePath = path.join(PDF_DIR, file);
+//       const stats = await fs.promises.stat(filePath);
+//       if (stats.mtime.getTime() < cutoffTime) {
+//         await fs.promises.unlink(filePath);
+//         console.log(`Deleted old PDF: ${file}`);
+//       }
+//     }
+//   } catch (error) {
+//     console.error('Error cleaning up PDFs:', error);
+//   }
+// });
 
 let _server; // will hold our running server
 
