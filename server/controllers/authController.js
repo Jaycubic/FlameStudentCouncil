@@ -1,5 +1,5 @@
 // controllers/authController.js
-const { User, Role, Setting, RoleSetting } = require('../models');
+const { User, Role, Setting, RoleSetting, StudentLogs } = require('../models');
 const StudentData = require('../models/StudentData');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -380,23 +380,27 @@ const authController = {
         await redisClient.set(cacheKey, JSON.stringify(studentData), { EX: 3600 });
       }
 
-      // Find or create User
+      // Find or create User (but create StudentLogs when user not present)
       let user = await User.findOne({ where: { email: googleEmail }, include: [{ model: Role }] });
       const studentRole = await Role.findOne({ where: { name: 'Student' } });
       if (!studentRole) {
         throw new Error('Student role not found');
       }
       if (!user) {
+        // Instead of creating a record in Users, create in StudentLogs
         const maxUserID = await User.max('UserID') || 0;
         const newUserID = maxUserID + 1;
-        user = await User.create({
+        const studentLog = await StudentLogs.create({
           UserID: newUserID,
           username: studentData.StudentName,
           email: googleEmail,
           password: null,
           RoleId: studentRole.id,
         });
-        user = await User.findOne({ where: { id: user.id }, include: [{ model: Role }] });
+        // Attach Role so downstream code expecting user.Role works unchanged
+        studentLog.Role = studentRole;
+        // Use studentLog as the "user" moving forward
+        user = studentLog;
       }
       if (user.Role.name !== 'Student') {
         const errorMessage = "Your role does not support Google Sign-In. Please use email and password to log in.";

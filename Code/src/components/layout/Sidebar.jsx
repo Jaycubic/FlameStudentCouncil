@@ -98,12 +98,12 @@ function Sidebar() {
   const activeIndicatorColor = useColorModeValue('white', 'white')
 
   const allNavigation = [
-    { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    { name: 'StudentInfo', href: '/roles', icon: AcademicCapIcon, roles: ['admin', 'RC', 'Council', 'user', 'AdminLite'] },
-    { name: 'Student Housing', href: '/departments', icon: BuildingOfficeIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    { name: 'Parent Info', href: '/parentsinfo', icon: UsersIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    { name: 'Tracking Info', href: '/trackinginfo', icon: MapPinIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    { name: 'StudentStatus', href: '/studentStatus', icon: BuildingOfficeIcon, roles: ['admin', 'RC', 'user', 'AdminLite'] },
+    { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'Student', 'user', 'Council', 'AdminLite'] },
+    { name: 'StudentInfo', href: '/roles', icon: AcademicCapIcon, roles: ['admin', 'Student', 'Council', 'user', 'AdminLite'] },
+    { name: 'Student Housing', href: '/departments', icon: BuildingOfficeIcon, roles: ['admin', 'Student', 'user', 'Council', 'AdminLite'] },
+    { name: 'Parent Info', href: '/parentsinfo', icon: UsersIcon, roles: ['admin', 'Student', 'user', 'Council', 'AdminLite'] },
+    { name: 'Tracking Info', href: '/trackinginfo', icon: MapPinIcon, roles: ['admin', 'Student', 'user', 'Council', 'AdminLite'] },
+    { name: 'StudentStatus', href: '/studentStatus', icon: BuildingOfficeIcon, roles: ['admin', 'Student', 'user', 'AdminLite'] },
     { name: 'Declaration Form', href: '/declaration-form', icon: UserGroupIcon, roles: ['admin', 'Council'] },
     { name: 'IDcard generation', href: '/analytics', icon: IdentificationIcon, roles: ['admin', 'AdminLite'] },
     { name: 'Queue Management', href: '/calendar', icon: QueueListIcon, roles: ['admin', 'AdminLite'] },
@@ -112,7 +112,7 @@ function Sidebar() {
     { name: 'Queue Grabber', href: '/queue-grabber', icon: QueueListIcon, roles: ['user'] },
     { name: 'Report Day', href: '/report-day', icon: ClipboardDocumentIcon, roles: ['admin', 'AdminLite', 'user'] },
     { name: 'Report Day Dashboard', href: '/report-day-dashboard', icon: ChartBarIcon, roles: ['admin', 'AdminLite', 'user'] },
-    { name: 'Documentation & License', href: '/profile', icon: QueueListIcon, roles: ['admin', 'RC', 'user', 'AdminLite', 'Council'] },
+    { name: 'Documentation & License', href: '/profile', icon: QueueListIcon, roles: ['admin', 'Student', 'user', 'AdminLite', 'Council'] },
   ]
 
   const mainNavigation = user?.role
@@ -124,7 +124,7 @@ function Sidebar() {
   const secondaryNavigation = user?.role
     ? [
         { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
-        { name: 'Logout', href: '#', icon: ArrowLeftOnRectangleIcon, onClick: () => { authService.logout(); navigate('/login') }, roles: ['admin', 'RC', 'user'] },
+        { name: 'Logout', href: '#', icon: ArrowLeftOnRectangleIcon, onClick: () => { authService.logout(); navigate('/login') }, roles: ['admin', 'Student', 'user'] },
       ].filter(item => item.roles.includes(user.role))
     : [];
 
