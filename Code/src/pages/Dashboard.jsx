@@ -1,6 +1,6 @@
 // src/pages/Dashboard.jsx
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
   VStack,
@@ -29,7 +29,6 @@ import {
   Alert,
   AlertIcon,
   CircularProgress,
-  IconButton,
   List,
   ListItem,
   Menu,
@@ -47,6 +46,7 @@ import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
 import { authService } from '../services/authService';
 import { positionService } from '../services/positionService';
+import { photoService } from '../services/photoService';
 
 // Import logo
 import flameLogo from '../assets/img/FLAME.png';
@@ -54,16 +54,17 @@ import flameLogo from '../assets/img/FLAME.png';
 // Placeholder for profile photo if none
 const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
-// Motion-wrapped Chakra Box/Button for hover animations
+// Motion-wrapped Chakra components
 const MotionBox = motion(Box);
 const MotionButton = motion(Button);
+
+// A small helper to animate height between collapsed and expanded values
+const heightTransition = { type: 'spring', damping: 22, stiffness: 160 };
 
 function ApplicationFormDashboard() {
   const toast = useToast();
   const { isOpen: isSportModalOpen, onOpen: onSportModalOpen, onClose: onSportModalClose } = useDisclosure();
   const { isOpen: isCulturalModalOpen, onOpen: onCulturalModalOpen, onClose: onCulturalModalClose } = useDisclosure();
-  const { isOpen: isCommunityExpanded, onOpen: onCommunityExpand, onClose: onCommunityCollapse } = useDisclosure();
-  const { isOpen: isSopExpanded, onOpen: onSopExpand, onClose: onSopCollapse } = useDisclosure();
   const { isOpen: isPhotoModalOpen, onOpen: onPhotoModalOpen, onClose: onPhotoModalClose } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -74,7 +75,7 @@ function ApplicationFormDashboard() {
   const inputBorderColor = useColorModeValue('blue.400', 'pink.500'); // inputs
   const inputHoverBorderColor = useColorModeValue('blue.500', 'pink.600');
 
-  // Gradient strings used only for dark-mode buttons (kept existing dark look)
+  // Dark-mode gradient kept for dark buttons only
   const hoverGradient = useColorModeValue(
     'linear-gradient(90deg,#60a5fa,#93c5fd)',
     'linear-gradient(90deg,#9f7aea,#f472b6)'
@@ -84,7 +85,7 @@ function ApplicationFormDashboard() {
     'linear-gradient(90deg,#7c3aed,#ec4899)'
   );
 
-  // Solid button color for light mode (no gradient)
+  // Light-mode primary color (solid)
   const primaryLightColor = 'blue.500';
   const primaryLightHover = 'blue.600';
 
@@ -105,7 +106,7 @@ function ApplicationFormDashboard() {
   const [notOnProbation, setNotOnProbation] = useState(false);
   const [readHandbook, setReadHandbook] = useState(false);
   const [trueStatement, setTrueStatement] = useState(false);
-  const [photo, setPhoto] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [sportFiles, setSportFiles] = useState([]);
   const [culturalFiles, setCulturalFiles] = useState([]);
   const [academicFiles, setAcademicFiles] = useState([]);
@@ -113,6 +114,14 @@ function ApplicationFormDashboard() {
 
   // Positions from backend
   const [positions, setPositions] = useState([]);
+
+  // Expanded states for animated sections
+  const [communityExpanded, setCommunityExpanded] = useState(false);
+  const [sopExpanded, setSopExpanded] = useState(false);
+
+  // Keep refs for max heights (tweakable)
+  const communityMaxHeight = 360; // px when expanded — change to taste
+  const sopMaxHeight = 360;
 
   // Instructions
   const instructions = [
@@ -139,14 +148,14 @@ function ApplicationFormDashboard() {
       try {
         const currentUser = authService.getCurrentUser();
         setUser({
-          name: currentUser.studentName || '',
-          studentId: currentUser.studentCvueNo || '',
-          mobileNumber: currentUser.contactNo || '',
-          email: currentUser.email || '',
-          batch: currentUser.batch || '',
-          gender: currentUser.gender || '',
+          name: currentUser?.studentName || '',
+          studentId: currentUser?.studentCvueNo || '',
+          mobileNumber: currentUser?.contactNo || '',
+          email: currentUser?.email || '',
+          batch: currentUser?.batch || '',
+          gender: currentUser?.gender || '',
           // use same-origin proxied photo path per your server change
-          photoUrl: currentUser.photo ? `/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
+          photoUrl: currentUser?.photo ? `/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
         });
       } catch (err) {
         console.error('Failed to load user profile:', err);
@@ -188,12 +197,37 @@ function ApplicationFormDashboard() {
     }
   };
 
-  const handlePhotoChange = (e) => {
-    setPhoto(e.target.files[0]);
+  // PHOTO HANDLING: use photoService for upload
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // show local preview immediately
+    try {
+      setPhotoFile(file);
+      const localUrl = URL.createObjectURL(file);
+      setUser((u) => ({ ...(u || {}), photoUrl: localUrl }));
+
+      // upload to backend
+      const resp = await photoService.uploadPhoto(file);
+      // backend should return a filename, adjust if your response differs
+      const filename = resp?.filename || resp?.data?.filename || resp?.fileName;
+      if (!filename) {
+        toast({ title: 'Uploaded but backend did not return filename', status: 'warning' });
+        return;
+      }
+      // set same-origin proxied url
+      const proxied = photoService.getPhotoUrl(filename);
+      setUser((u) => ({ ...(u || {}), photoUrl: proxied }));
+      toast({ title: 'Photo uploaded', status: 'success', duration: 2500 });
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      toast({ title: 'Photo upload failed', status: 'error', duration: 4000 });
+    }
   };
 
   const handleFileChange = (e, setter) => {
-    setter(Array.from(e.target.files));
+    setter(Array.from(e.target.files || []));
   };
 
   const calculateScore = (score) => {
@@ -244,7 +278,7 @@ function ApplicationFormDashboard() {
       tru_statement: trueStatement ? 1 : 0,
       Gender: user?.gender,
       Batch: user?.batch,
-      Photo: photo ? photo.name : user?.photoUrl.split('/').pop().split('.jpg')[0],
+      Photo: photoFile ? photoFile.name : user?.photoUrl.split('/').pop().split('.jpg')[0],
     };
 
     try {
@@ -295,7 +329,6 @@ function ApplicationFormDashboard() {
     borderRadius: 'lg',
   };
 
-  // Input style props to enforce thin blue/pink border and hover color
   const inputStyleProps = {
     borderWidth: '1px',
     borderStyle: 'solid',
@@ -304,7 +337,6 @@ function ApplicationFormDashboard() {
     transition: 'border-color 0.15s ease',
   };
 
-  // Button props: solid color in light, gradient in dark
   const primaryButtonLight = {
     bg: primaryLightColor,
     color: 'white',
@@ -317,7 +349,7 @@ function ApplicationFormDashboard() {
   };
 
   const menuButtonStyle = {
-    // User asked to leave the Select as white (no color fill)
+    // leave select white per request
     bg: 'white',
     color: 'gray.800',
     borderWidth: '1px',
@@ -332,13 +364,7 @@ function ApplicationFormDashboard() {
 
       {!showForm ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <MotionBox
-            {...borderBoxStyle}
-            mb={6}
-            p={4}
-            whileHover={{ scale: 1.01 }}
-            transition={{ type: 'spring', stiffness: 200 }}
-          >
+          <MotionBox {...borderBoxStyle} mb={6} p={4} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 200 }}>
             <CardBody p={0}>
               <Text fontSize="xl" fontWeight="bold" mb={3}>Instructions</Text>
               <List spacing={3}>
@@ -359,17 +385,10 @@ function ApplicationFormDashboard() {
       ) : (
         <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
           {/* Top Section */}
-          <HStack
-            justify="space-between"
-            mb={8}
-            p={4}
-            alignItems="center"
-            flexWrap={{ base: 'wrap', md: 'nowrap' }}
-            {...borderBoxStyle}
-          >
+          <HStack justify="space-between" mb={8} p={4} alignItems="center" flexWrap={{ base: 'wrap', md: 'nowrap' }} {...borderBoxStyle}>
             <HStack spacing={4} flex="1" justify={{ base: 'center', md: 'flex-start' }} w="full">
               <Image
-                src={photo ? URL.createObjectURL(photo) : user?.photoUrl || defaultProfilePhoto}
+                src={photoFile ? URL.createObjectURL(photoFile) : user?.photoUrl || defaultProfilePhoto}
                 alt="Profile Photo"
                 borderRadius="full"
                 boxSize={{ base: '80px', md: '100px' }}
@@ -398,12 +417,7 @@ function ApplicationFormDashboard() {
             <FormControl>
               <FormLabel>Position Interested</FormLabel>
               <Menu>
-                <MenuButton
-                  as={MotionButton}
-                  rightIcon={<ChevronDownIcon />}
-                  whileHover={{ scale: 1.02 }}
-                  {...menuButtonStyle}
-                >
+                <MenuButton as={MotionButton} rightIcon={<ChevronDownIcon />} whileHover={{ scale: 1.02 }} {...menuButtonStyle}>
                   {position || 'Select a position'}
                 </MenuButton>
                 <MenuList maxH="200px" overflowY="auto">
@@ -415,14 +429,10 @@ function ApplicationFormDashboard() {
                 </MenuList>
               </Menu>
             </FormControl>
+
             <FormControl>
               <FormLabel>CGPA - Academics Score</FormLabel>
-              <Input
-                type="number"
-                value={cgpa}
-                onChange={(e) => setCgpa(e.target.value)}
-                {...inputStyleProps}
-              />
+              <Input type="number" value={cgpa} onChange={(e) => setCgpa(e.target.value)} {...inputStyleProps} />
             </FormControl>
           </SimpleGrid>
 
@@ -458,37 +468,73 @@ function ApplicationFormDashboard() {
             </FormControl>
           </SimpleGrid>
 
-          <FormControl mt={4} position="relative">
-            <FormLabel>Community Service</FormLabel>
-            <IconButton
-              icon={<ChevronDownIcon />}
-              position="absolute"
-              right="2"
-              top="8"
-              size="sm"
-              onClick={() => (isCommunityExpanded ? onCommunityCollapse() : onCommunityExpand())}
-              aria-label="Expand Community Service"
-              transform={isCommunityExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
-              transition="transform 0.2s"
-            />
-            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={3} {...inputStyleProps} />
-          </FormControl>
+          {/* Animated Community Service */}
+          <Box mt={4}>
+            <Box
+              as="button"
+              width="100%"
+              textAlign="left"
+              px={0}
+              py={0}
+              onClick={() => setCommunityExpanded((s) => !s)}
+              aria-expanded={communityExpanded}
+              style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
+            >
+              <FormLabel mb={2} cursor="pointer">Community Service</FormLabel>
+            </Box>
 
-          <FormControl mt={4} position="relative">
-            <FormLabel>Statement of Purpose</FormLabel>
-            <IconButton
-              icon={<ChevronDownIcon />}
-              position="absolute"
-              right="2"
-              top="8"
-              size="sm"
-              onClick={() => (isSopExpanded ? onSopCollapse() : onSopExpand())}
-              aria-label="Expand Statement of Purpose"
-              transform={isSopExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
-              transition="transform 0.2s"
-            />
-            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={3} {...inputStyleProps} />
-          </FormControl>
+            <motion.div
+              layout
+              initial={false}
+              animate={{ maxHeight: communityExpanded ? communityMaxHeight : 90 }}
+              transition={heightTransition}
+              style={{ overflow: 'hidden', width: '100%' }}
+            >
+              <Box p={2} {...borderBoxStyle}>
+                <Textarea
+                  value={communityService}
+                  onChange={(e) => setCommunityService(e.target.value)}
+                  rows={communityExpanded ? 10 : 3}
+                  {...inputStyleProps}
+                  resize="vertical"
+                />
+              </Box>
+            </motion.div>
+          </Box>
+
+          {/* Animated Statement of Purpose */}
+          <Box mt={4}>
+            <Box
+              as="button"
+              width="100%"
+              textAlign="left"
+              px={0}
+              py={0}
+              onClick={() => setSopExpanded((s) => !s)}
+              aria-expanded={sopExpanded}
+              style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
+            >
+              <FormLabel mb={2} cursor="pointer">Statement of Purpose</FormLabel>
+            </Box>
+
+            <motion.div
+              layout
+              initial={false}
+              animate={{ maxHeight: sopExpanded ? sopMaxHeight : 90 }}
+              transition={heightTransition}
+              style={{ overflow: 'hidden', width: '100%' }}
+            >
+              <Box p={2} {...borderBoxStyle}>
+                <Textarea
+                  value={statementOfPurpose}
+                  onChange={(e) => setStatementOfPurpose(e.target.value)}
+                  rows={sopExpanded ? 10 : 3}
+                  {...inputStyleProps}
+                  resize="vertical"
+                />
+              </Box>
+            </motion.div>
+          </Box>
 
           {/* Uploads */}
           <Box mt={6} p={4} {...borderBoxStyle}>
@@ -502,18 +548,22 @@ function ApplicationFormDashboard() {
               <FormLabel>Photo</FormLabel>
               <Input type="file" accept="image/*" onChange={handlePhotoChange} />
             </FormControl>
+
             <FormControl mt={4}>
               <FormLabel>Sport Files (Mandatory)</FormLabel>
               <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setSportFiles)} />
             </FormControl>
+
             <FormControl mt={4}>
               <FormLabel>Cultural Files (Mandatory)</FormLabel>
               <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setCulturalFiles)} />
             </FormControl>
+
             <FormControl mt={4}>
               <FormLabel>Academic Files (Optional)</FormLabel>
               <Input type="file" multiple onChange={(e) => handleFileChange(e, setAcademicFiles)} />
             </FormControl>
+
             <FormControl mt={4}>
               <FormLabel>Other Files (Optional)</FormLabel>
               <Input type="file" multiple onChange={(e) => handleFileChange(e, setOtherFiles)} />
@@ -541,7 +591,7 @@ function ApplicationFormDashboard() {
         </motion.div>
       )}
 
-      {/* Modals for Sheets */}
+      {/* Sport modal */}
       <Modal isOpen={isSportModalOpen} onClose={onSportModalClose} size={{ base: 'full', md: 'xl' }}>
         <ModalOverlay />
         <ModalContent>
@@ -556,6 +606,7 @@ function ApplicationFormDashboard() {
         </ModalContent>
       </Modal>
 
+      {/* Cultural modal */}
       <Modal isOpen={isCulturalModalOpen} onClose={onCulturalModalClose} size={{ base: 'full', md: 'xl' }}>
         <ModalOverlay />
         <ModalContent>
@@ -566,36 +617,6 @@ function ApplicationFormDashboard() {
           </ModalBody>
           <ModalFooter>
             <Button onClick={onCulturalModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Expanded Community Service */}
-      <Modal isOpen={isCommunityExpanded} onClose={onCommunityCollapse} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Community Service</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={15} {...inputStyleProps} />
-          </ModalBody>
-          <ModalFooter>
-            <Button onClick={onCommunityCollapse} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Expanded SOP */}
-      <Modal isOpen={isSopExpanded} onClose={onSopCollapse} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Statement of Purpose</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={15} {...inputStyleProps} />
-          </ModalBody>
-          <ModalFooter>
-            <Button onClick={onSopCollapse} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
