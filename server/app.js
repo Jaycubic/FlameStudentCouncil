@@ -48,9 +48,9 @@ app.use(cookieParser());
 
 // Load SSL certificates
 const sslOptions = {
-  cert: fs.readFileSync('/opt/View/sslcertificates/studenttracking.crt'),
-  ca: fs.readFileSync('/opt/View/sslcertificates/ca_bundle.crt'),
-  key: fs.readFileSync('/opt/View/sslcertificates/studenttracking.key'),
+  cert: fs.readFileSync('/opt/View/sslcertificates/council_certificate.crt'),
+  ca: fs.readFileSync('/opt/View/sslcertificates/council_bundle.crt'),
+  key: fs.readFileSync('/opt/View/sslcertificates/council.key'),
 };
 
 // Create HTTPS server and bind Socket.IO
@@ -154,7 +154,7 @@ let _server; // will hold our running server
 // Function to start server
 const startServer = async () => {
   await sequelize.sync();
-  const PORT = process.env.PORT || 5173;
+  const PORT = process.env.PORT || 5050;
   _server = server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     // Start syncAttendance with Socket.IO

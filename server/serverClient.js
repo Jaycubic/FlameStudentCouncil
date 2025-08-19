@@ -48,12 +48,12 @@ app.get('*', (req, res) => {
 
 // SSL certs
 const sslOptions = {
-  cert: fs.readFileSync('/opt/View/sslcertificates/studenttracking.crt'),
-  ca: fs.readFileSync('/opt/View/sslcertificates/ca_bundle.crt'),
-  key: fs.readFileSync('/opt/View/sslcertificates/studenttracking.key'),
+  cert: fs.readFileSync('/opt/View/sslcertificates/council_certificate.crt'),
+  ca: fs.readFileSync('/opt/View/sslcertificates/council_bundle.crt'),
+  key: fs.readFileSync('/opt/View/sslcertificates/council.key'),
 };
 
-const PORT = process.env.PORT || 6060;
+const PORT = process.env.PORT || 3030;
 const HOST = process.env.HOST || '0.0.0.0';
 
 https.createServer(sslOptions, app).listen(PORT, HOST, () => {
