@@ -47,3 +47,4 @@ lerna-debug.log*
 /server/generated_pdfs
 /font
 
+/Code/node_modules

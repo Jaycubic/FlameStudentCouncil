@@ -33,9 +33,11 @@ function Login() {
   const alertColor = useColorModeValue('vrv.700', 'vrv.200');
   const alertIconColor = useColorModeValue('vrv.500', 'vrv.200');
   const bgGradient = useColorModeValue(
-    'linear-gradient(to bottom, #136a8a, #267871)',
-    'linear-gradient(to bottom, #485563, #29323c)'
+    'linear-gradient(to bottom, #2f8f83, #1f6fa0, #103d65)', // Light mode: darker teal → ocean blue → navy
+    'linear-gradient(to bottom, #3b4654, #2c3440, #1e252e)'  // Dark mode: more muted, subtle grays
   );
+
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -425,7 +427,7 @@ function Login() {
                 h="100px"
               />
               <Heading size="lg" mb={2}>
-                FLAME STS
+                STUDENT COUNCIL
               </Heading>
               <Text color={textColor}>Please enter your credentials</Text>
             </Box>
