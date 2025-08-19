@@ -11,6 +11,18 @@ const CryptoJS = require('crypto-js');
 const redis = require('redis');
 require('dotenv').config();
 
+// --- SAFETY: if StudentLogs was not exported from ../models, require it directly ---
+let StudentLogsModel = StudentLogs;
+if (!StudentLogsModel) {
+  try {
+    StudentLogsModel = require('../models/StudentLogs');
+  } catch (err) {
+    // keep it undefined so the code still surfaces a meaningful error later
+    console.warn('Warning: StudentLogs model not found via direct require:', err.message);
+    StudentLogsModel = undefined;
+  }
+}
+
 // Redis client setup
 const redisClient = redis.createClient({
   url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
@@ -386,32 +398,64 @@ const authController = {
       if (!studentRole) {
         throw new Error('Student role not found');
       }
+
       if (!user) {
+        if (!StudentLogsModel) {
+          // explicit, helpful error if StudentLogs truly isn't available
+          throw new Error('StudentLogs model is not available. Ensure it is exported from ../models or exists at models/StudentLogs.js');
+        }
+
         // Instead of creating a record in Users, create in StudentLogs
         const maxUserID = await User.max('UserID') || 0;
         const newUserID = maxUserID + 1;
-        const studentLog = await StudentLogs.create({
+
+        // Create on StudentLogsModel
+        const created = await StudentLogsModel.create({
           UserID: newUserID,
           username: studentData.StudentName,
           email: googleEmail,
           password: null,
           RoleId: studentRole.id,
         });
-        // Attach Role so downstream code expecting user.Role works unchanged
-        studentLog.Role = studentRole;
+
+        // Try to reload including Role so downstream code expecting user.Role works unchanged
+        let studentLog;
+        try {
+          studentLog = await StudentLogsModel.findByPk(created.id, { include: [{ model: Role }] });
+        } catch (err) {
+          // If include fails (associations not set up), fall back to the raw created instance
+          console.warn('Warning: could not include Role on StudentLogs fetch - falling back to attaching Role manually.', err.message);
+          studentLog = created;
+        }
+
+        // If Role wasn't included for any reason, attach it manually
+        if (!studentLog.Role) {
+          studentLog.Role = studentRole;
+        }
+
         // Use studentLog as the "user" moving forward
         user = studentLog;
       }
+
       if (user.Role.name !== 'Student') {
         const errorMessage = "Your role does not support Google Sign-In. Please use email and password to log in.";
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
       }
 
-      await user.update({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token || null,
-        expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : null
-      });
+      // Update access tokens; handle both real Sequelize instances and plain objects
+      if (typeof user.update === 'function') {
+        await user.update({
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token || null,
+          expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : null
+        });
+      } else {
+        // plain object (shouldn't normally happen) — just set fields so later code sees them
+        user.access_token = tokens.access_token;
+        user.refresh_token = tokens.refresh_token || null;
+        user.expiry_date = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
+      }
+
       if (!process.env.JWT_SECRET) {
         console.error('JWT_SECRET is not set');
         return res.status(500).json({ message: 'Server configuration error: JWT_SECRET is missing' });
