@@ -4,6 +4,8 @@ const ctrl = require('../controllers/photoController');
 const { validateToken } = require('../middleware/auth');
 
 router.post('/upload', validateToken, ctrl.uploadPhoto);
-router.get('/:studentId', validateToken, ctrl.getPhoto);
+
+// PUBLIC: serve images directly so <img src="/photos/..." /> works from the browser
+router.get('/:studentId', ctrl.getPhoto);
 
 module.exports = router;

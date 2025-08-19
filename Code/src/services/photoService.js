@@ -6,22 +6,13 @@ const BASE_API = process.env.REACT_APP_API_BASE || 'https://flamestudentcouncil.
 class PhotoService {
   getAuthHeaders() {
     const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('PhotoService: no token found in localStorage');
-    }
     return {
       Authorization: token ? `Bearer ${token}` : '',
     };
   }
 
-  /**
-   * Upload a photo file (multipart/form-data).
-   * Expects backend endpoint: POST {BASE_API}/api/users/photo
-   * Returns an object with { filename } or the axios response data.
-   */
   async uploadPhoto(file) {
     if (!file) throw new Error('No file provided');
-
     const form = new FormData();
     form.append('photo', file);
 
@@ -31,22 +22,14 @@ class PhotoService {
     };
 
     try {
-      // Adjust endpoint if your backend expects a different path
       const resp = await axios.post(`${BASE_API}/api/users/photo`, form, { headers, timeout: 20000 });
-      // typical response: { filename: 'abc123' } or resp.data
       return resp.data;
     } catch (err) {
-      // Surface backend error if present
-      const message = err.response?.data || err.message;
-      console.error('Photo upload failed:', message);
+      console.error('Photo upload failed:', err.response?.data || err.message);
       throw err;
     }
   }
 
-  /**
-   * Delete a photo on backend (if supported).
-   * Expects DELETE {BASE_API}/api/users/photo/:filename
-   */
   async deletePhoto(filename) {
     if (!filename) throw new Error('No filename provided');
     const headers = this.getAuthHeaders();
@@ -60,12 +43,13 @@ class PhotoService {
   }
 
   /**
-   * Return the same-origin proxied URL that your frontend server exposes.
-   * (frontend server proxies /photos/:filename -> backend)
+   * Return a browser-fetchable URL. The backend returns the filename WITH extension
+   * (e.g. 123.jpg) so just return /photos/<filename>.
    */
   getPhotoUrl(filename) {
     if (!filename) return null;
-    return `/photos/${filename}.jpg`;
+    // if the filename already includes an extension, return as-is
+    return `/photos/${filename}`;
   }
 }
 

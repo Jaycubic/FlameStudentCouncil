@@ -549,7 +549,7 @@ function ApplicationFormDashboard() {
               transition={heightTransition}
               style={{ overflow: 'hidden', width: '100%' }}
             >
-              <Box p={2} mb={2} {...borderBoxStyle} display="block">
+              <Box p={2} {...borderBoxStyle} display="block">
                 <Textarea
                   ref={sopRef}
                   value={statementOfPurpose}
