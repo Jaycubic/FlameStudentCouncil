@@ -1,0 +1,66 @@
+// middleware/auth.js
+const jwt = require('jsonwebtoken');
+const CryptoJS = require('crypto-js');
+const redis = require('redis');
+
+// Redis client setup
+const redisClient = redis.createClient({
+  url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+  password: process.env.REDIS_PASSWORD || undefined,
+});
+redisClient.connect().catch(console.error);
+
+
+// Device fingerprint hashing function
+const getFingerprintHash = (deviceId, userAgent, salt) => {
+  const raw = `${deviceId}|${userAgent}|${salt}`;
+  return CryptoJS.SHA256(raw).toString();
+};
+
+const auth = {
+  async validateToken(req, res, next) {
+    const encryptedToken = req.headers.authorization?.split(' ')[1];
+    if (!encryptedToken) {
+      console.error('No token provided');
+      return res.status(401).json({ message: 'No token provided' });
+    }
+    try {
+      const bytes = CryptoJS.AES.decrypt(encryptedToken, process.env.TOKEN_ENCRYPTION_KEY);
+      const token = bytes.toString(CryptoJS.enc.Utf8);
+      if (!token) {
+        console.error('Invalid encrypted token');
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+      const exists = await redisClient.exists(token);
+      if (exists) {
+        console.error('Token is revoked');
+        return res.status(401).json({ message: 'Token has been revoked' });
+      }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('Decoded token:', decoded);
+      const deviceId = req.body.deviceId || 'unknown'; // Client should send deviceId if available
+      const userAgent = req.headers['user-agent'] || '';
+      const expectedFingerprint = getFingerprintHash(deviceId, userAgent, decoded.userId.toString());
+      if (expectedFingerprint !== decoded.fpHash) {
+        console.error('Invalid device fingerprint');
+        return res.status(401).json({ message: 'Invalid device fingerprint' });
+      }
+      req.user = decoded;
+      next();
+    } catch (error) {
+      console.error('Token verification error:', error.message);
+      res.status(401).json({ message: 'Invalid token' });
+    }
+  },
+
+  requireAdmin(req, res, next) {
+    console.log('User role:', req.user.role);
+    if (req.user.role !== 'admin') {
+      console.error('Access denied. User role:', req.user.role);
+      return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+    }
+    next();
+  },
+};
+
+module.exports = auth;
