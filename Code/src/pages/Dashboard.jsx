@@ -134,7 +134,7 @@ function ApplicationFormDashboard() {
   const sopRef = useRef(null);
 
   // Keep refs for heights (tweakable)
-  const collapsedHeight = 96; // px - matches original rows={3} feel (keeps original size when not active)
+  const collapsedHeight = 50; // Reduced height for collapsed state
   // *** Doubled expansion heights per your request (was 360) ***
   const communityMaxHeight = 720; // px when expanded — doubled
   const sopMaxHeight = 720; // px when expanded — doubled
