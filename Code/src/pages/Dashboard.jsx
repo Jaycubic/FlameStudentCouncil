@@ -25,9 +25,7 @@ import {
   ModalFooter,
   useToast,
   SimpleGrid,
-  Card,
   CardBody,
-  CardHeader,
   Alert,
   AlertIcon,
   CircularProgress,
@@ -41,7 +39,6 @@ import {
 } from '@chakra-ui/react';
 import {
   ChevronDownIcon,
-  AddIcon,
   ArrowForwardIcon,
   CheckIcon as ChakraCheckIcon,
 } from '@chakra-ui/icons';
@@ -71,13 +68,13 @@ function ApplicationFormDashboard() {
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
 
-  // Gradient CSS strings for border-image usage (colorful border only)
-  const gradientBorder = useColorModeValue(
-    'linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #06b6d4 100%)',
-    'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #f472b6 100%)'
-  );
+  // Border / input colors per your request
+  const boxBorderColor = useColorModeValue('blue.300', 'pink.500'); // profile & upload borders
+  const inputBorderColor = useColorModeValue('blue.400', 'pink.500'); // inputs
+  const inputHoverBorderColor = useColorModeValue('blue.500', 'pink.600');
+
+  // Gradient strings used only for dark-mode buttons (kept existing dark look)
   const hoverGradient = useColorModeValue(
     'linear-gradient(90deg,#60a5fa,#93c5fd)',
     'linear-gradient(90deg,#9f7aea,#f472b6)'
@@ -86,6 +83,10 @@ function ApplicationFormDashboard() {
     'linear-gradient(90deg,#3b82f6,#60a5fa)',
     'linear-gradient(90deg,#7c3aed,#ec4899)'
   );
+
+  // Solid button color for light mode (no gradient)
+  const primaryLightColor = 'blue.500';
+  const primaryLightHover = 'blue.600';
 
   // User data from API
   const [user, setUser] = useState(null);
@@ -144,7 +145,8 @@ function ApplicationFormDashboard() {
           email: currentUser.email || '',
           batch: currentUser.batch || '',
           gender: currentUser.gender || '',
-          photoUrl: currentUser.photo ? `https://flamestudentcouncil.in:5050/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
+          // use same-origin proxied photo path per your server change
+          photoUrl: currentUser.photo ? `/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
         });
       } catch (err) {
         console.error('Failed to load user profile:', err);
@@ -284,12 +286,44 @@ function ApplicationFormDashboard() {
     );
   }
 
-  // Utility props for border-only graded boxes
-  const gradientBorderStyle = {
+  // Reusable border-only box style (thin solid blue/pink)
+  const borderBoxStyle = {
     bg: bgColor,
-    border: '2px solid',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: boxBorderColor,
     borderRadius: 'lg',
-    borderImage: `${gradientBorder} 1`,
+  };
+
+  // Input style props to enforce thin blue/pink border and hover color
+  const inputStyleProps = {
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: inputBorderColor,
+    _hover: { borderColor: inputHoverBorderColor },
+    transition: 'border-color 0.15s ease',
+  };
+
+  // Button props: solid color in light, gradient in dark
+  const primaryButtonLight = {
+    bg: primaryLightColor,
+    color: 'white',
+    _hover: { bg: primaryLightHover },
+  };
+  const primaryButtonDark = {
+    bgGradient: activeGradient,
+    color: 'white',
+    _hover: { bgGradient: hoverGradient },
+  };
+
+  const menuButtonStyle = {
+    // User asked to leave the Select as white (no color fill)
+    bg: 'white',
+    color: 'gray.800',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: inputBorderColor,
+    _hover: { bg: 'white' },
   };
 
   return (
@@ -299,7 +333,7 @@ function ApplicationFormDashboard() {
       {!showForm ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <MotionBox
-            {...gradientBorderStyle}
+            {...borderBoxStyle}
             mb={6}
             p={4}
             whileHover={{ scale: 1.01 }}
@@ -331,8 +365,7 @@ function ApplicationFormDashboard() {
             p={4}
             alignItems="center"
             flexWrap={{ base: 'wrap', md: 'nowrap' }}
-            {...gradientBorderStyle}
-            // Keep header subtle and border only
+            {...borderBoxStyle}
           >
             <HStack spacing={4} flex="1" justify={{ base: 'center', md: 'flex-start' }} w="full">
               <Image
@@ -369,9 +402,7 @@ function ApplicationFormDashboard() {
                   as={MotionButton}
                   rightIcon={<ChevronDownIcon />}
                   whileHover={{ scale: 1.02 }}
-                  bgGradient={hoverGradient}
-                  color="white"
-                  _hover={{ bgGradient: hoverGradient }}
+                  {...menuButtonStyle}
                 >
                   {position || 'Select a position'}
                 </MenuButton>
@@ -386,7 +417,12 @@ function ApplicationFormDashboard() {
             </FormControl>
             <FormControl>
               <FormLabel>CGPA - Academics Score</FormLabel>
-              <Input type="number" value={cgpa} onChange={(e) => setCgpa(e.target.value)} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
+              <Input
+                type="number"
+                value={cgpa}
+                onChange={(e) => setCgpa(e.target.value)}
+                {...inputStyleProps}
+              />
             </FormControl>
           </SimpleGrid>
 
@@ -397,14 +433,12 @@ function ApplicationFormDashboard() {
                 onClick={onSportModalOpen}
                 leftIcon={<ArrowForwardIcon />}
                 whileHover={{ x: 4 }}
-                bgGradient={activeGradient}
-                color="white"
-                _hover={{ bgGradient: hoverGradient }}
                 transition="0.2s"
+                {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
               >
                 Open Sport Sheet
               </MotionButton>
-              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleSportsScoreChange} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
+              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleSportsScoreChange} {...inputStyleProps} />
               <Text mt={1}>Calculated: {sportsScore || '—'}/10</Text>
             </FormControl>
 
@@ -414,14 +448,12 @@ function ApplicationFormDashboard() {
                 onClick={onCulturalModalOpen}
                 leftIcon={<ArrowForwardIcon />}
                 whileHover={{ x: 4 }}
-                bgGradient={activeGradient}
-                color="white"
-                _hover={{ bgGradient: hoverGradient }}
                 transition="0.2s"
+                {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
               >
                 Open Cultural Sheet
               </MotionButton>
-              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleCulturalScoreChange} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
+              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleCulturalScoreChange} {...inputStyleProps} />
               <Text mt={1}>Calculated: {culturalScore || '—'}/10</Text>
             </FormControl>
           </SimpleGrid>
@@ -439,7 +471,7 @@ function ApplicationFormDashboard() {
               transform={isCommunityExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
               transition="transform 0.2s"
             />
-            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
+            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={3} {...inputStyleProps} />
           </FormControl>
 
           <FormControl mt={4} position="relative">
@@ -455,11 +487,11 @@ function ApplicationFormDashboard() {
               transform={isSopExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
               transition="transform 0.2s"
             />
-            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
+            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={3} {...inputStyleProps} />
           </FormControl>
 
           {/* Uploads */}
-          <Box mt={6} p={4} {...gradientBorderStyle}>
+          <Box mt={6} p={4} {...borderBoxStyle}>
             <Text fontWeight="semibold" mb={2}>Uploads</Text>
             <Alert status="warning" mb={4} variant="subtle" bg="transparent" color={useColorModeValue('orange.700', 'yellow.200')}>
               <AlertIcon color="yellow.300" />
@@ -501,9 +533,8 @@ function ApplicationFormDashboard() {
             isLoading={loading}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            bgGradient={activeGradient}
-            color="white"
-            _hover={{ bgGradient: hoverGradient }}
+            transition="0.12s"
+            {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
           >
             Submit
           </MotionButton>
@@ -520,7 +551,7 @@ function ApplicationFormDashboard() {
             <Text>Sheet content here (fetch via API)</Text>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onSportModalClose} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onSportModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -534,7 +565,7 @@ function ApplicationFormDashboard() {
             <Text>Sheet content here (fetch via API)</Text>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onCulturalModalClose} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onCulturalModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -546,10 +577,10 @@ function ApplicationFormDashboard() {
           <ModalHeader>Community Service</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={15} />
+            <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={15} {...inputStyleProps} />
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onCommunityCollapse} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onCommunityCollapse} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -561,10 +592,10 @@ function ApplicationFormDashboard() {
           <ModalHeader>Statement of Purpose</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={15} />
+            <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={15} {...inputStyleProps} />
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onSopCollapse} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onSopCollapse} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -584,7 +615,7 @@ function ApplicationFormDashboard() {
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onPhotoModalClose} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onPhotoModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
