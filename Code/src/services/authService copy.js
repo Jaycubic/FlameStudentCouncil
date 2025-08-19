@@ -1,5 +1,5 @@
+// services/authService.js
 class AuthService {
-
   async login(email, password) {
     try {
       const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/login', {
@@ -9,21 +9,21 @@ class AuthService {
       });
 
       const data = await response.json();
-      console.log('Server response:', data); // Log the raw server response
+      console.log('Server response:', data);
 
       if (response.ok) {
         if (data.message === 'verify' || data.message === 'redirect') {
-          return data; // Return data for verification or redirect
-        } else if (data.token) {
+          return data;
+        } else if (data.message === 'success') {
           localStorage.setItem('token', data.token);
+          localStorage.setItem('expiresAt', data.expiresAt);
           localStorage.setItem('user', JSON.stringify(data.user));
-          this.setAutoLogout(); // Set auto-logout timer after storing token
-          return data.user;
+          this.setAutoLogout();
+          return data;
         } else {
           throw new Error('Login failed: No token received');
         }
       } else {
-        // Handle specific error messages from server
         if (data.message === 'Invalid email') {
           throw new Error('Invalid email');
         } else if (data.message === 'Invalid password') {
@@ -32,8 +32,6 @@ class AuthService {
           throw new Error('Email is required');
         } else if (data.message === 'Password is required for admin login') {
           throw new Error('Password is required for admin login');
-        } else if (data.message === 'Non-admin users must use Google Sign-In') {
-          throw new Error('Non-admin users must use Google Sign-In');
         } else {
           throw new Error(data.message || 'Login failed');
         }
@@ -42,7 +40,7 @@ class AuthService {
       if (error.message === 'Failed to fetch') {
         throw new Error('Network error, please check your connection');
       } else {
-        throw error; // Rethrow specific errors
+        throw error;
       }
     }
   }
@@ -50,6 +48,7 @@ class AuthService {
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('expiresAt');
   }
 
   getCurrentUser() {
@@ -72,35 +71,22 @@ class AuthService {
     return user && roles.includes(user.role);
   }
 
-  getTokenExpiration(token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp;
-    } catch (e) {
-      return null;
-    }
-  }
-
   isTokenExpired() {
-    const token = localStorage.getItem('token');
-    if (!token) return true;
-    const exp = this.getTokenExpiration(token);
-    if (!exp) return true;
-    return exp < Date.now() / 1000;
+    const expiresAt = localStorage.getItem('expiresAt');
+    if (!expiresAt) return true;
+    return parseInt(expiresAt, 10) < Date.now() / 1000;
   }
 
   setAutoLogout() {
-    const token = localStorage.getItem('token');
-    if (token) {
-      const exp = this.getTokenExpiration(token);
-      if (exp) {
-        const now = Date.now() / 1000;
-        const timeLeft = (exp - now) * 1000;
-        if (timeLeft > 0) {
-          setTimeout(() => {
-            this.logout();
-          }, timeLeft);
-        }
+    const expiresAt = localStorage.getItem('expiresAt');
+    if (expiresAt) {
+      const exp = parseInt(expiresAt, 10);
+      const now = Date.now() / 1000;
+      const timeLeft = (exp - now) * 1000;
+      if (timeLeft > 0) {
+        setTimeout(() => {
+          this.logout();
+        }, timeLeft);
       }
     }
   }

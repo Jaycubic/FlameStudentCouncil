@@ -48,6 +48,15 @@ import Logo from '../../assets/img/FLAME.png' // Import the logo
 function Sidebar() {
   const navigate = useNavigate()
   const user = authService.getCurrentUser()
+
+  if (!user) {
+    return (
+      <Box textAlign="center" p={4}>
+        <Text color="red.500">User not logged in. Please log in to access the sidebar.</Text>
+      </Box>
+    )
+  }
+
   const { isOpen, onOpen, onClose } = useDisclosure()
   const isDesktop = useBreakpointValue({ base: false, md: true })
   const [isCollapsed, setIsCollapsed] = useState(isDesktop)
@@ -69,7 +78,7 @@ function Sidebar() {
 
   // Gradient palettes
   const bgGradient = useColorModeValue(
-    'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+    'linear-gradient(135deg, #1e40af 0%, #2563eb 100%, #38bdf8 50%)',
     'linear(to-b, purple.700, pink.500)'
   )
   const borderColor = useColorModeValue('blue.800', 'pink.600')
@@ -106,12 +115,18 @@ function Sidebar() {
     { name: 'Documentation & License', href: '/profile', icon: QueueListIcon, roles: ['admin', 'RC', 'user', 'AdminLite', 'Council'] },
   ]
 
-  const mainNavigation = allNavigation.filter(item => item.roles.includes(user?.role))
+  const mainNavigation = user?.role
+    ? allNavigation.filter(item => item.roles.includes(user.role))
+    : [
+        { name: 'Home', href: '/', icon: HomeIcon, roles: [] },
+      ];
 
-  const secondaryNavigation = [
-    { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
-    { name: 'Logout', href: '#', icon: ArrowLeftOnRectangleIcon, onClick: () => { authService.logout(); navigate('/login') }, roles: ['admin', 'RC', 'user'] },
-  ].filter(item => item.roles.includes(user?.role))
+  const secondaryNavigation = user?.role
+    ? [
+        { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
+        { name: 'Logout', href: '#', icon: ArrowLeftOnRectangleIcon, onClick: () => { authService.logout(); navigate('/login') }, roles: ['admin', 'RC', 'user'] },
+      ].filter(item => item.roles.includes(user.role))
+    : [];
 
   const SidebarContent = ({ onClose: onDrawerClose = () => {}, isMobile = false }) => (
     <Box

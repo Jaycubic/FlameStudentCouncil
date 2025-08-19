@@ -54,9 +54,6 @@ function Login() {
   const [forgotPasswordStep, setForgotPasswordStep] = useState(null);
   const [resetUserId, setResetUserId] = useState(null);
   const [resetToken, setResetToken] = useState(null);
-  const [isGoogleVerificationStep, setIsGoogleVerificationStep] = useState(false);
-  const [googleUserId, setGoogleUserId] = useState(null);
-  const [googleVerificationCode, setGoogleVerificationCode] = useState('');
 
   const navigate = useNavigate();
   const toast = useToast();
@@ -224,61 +221,18 @@ function Login() {
   const handleGoogleSignIn = async (e) => {
     e.preventDefault();
     setError('');
-    if (!email) {
-      setError('Please enter your email first for verification');
-      return;
-    }
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/initiate-google-signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
+      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/google');
       const data = await response.json();
-      if (data.status === 'verify') {
-        setIsGoogleVerificationStep(true);
-        setGoogleUserId(data.userId);
-      } else if (data.status === 'not_found') {
-        setError('Email not found. Please contact administrators for registration');
-      } else if (data.status === 'role_not_allowed') {
-        setError('Your role does not support Google Sign-In. Please use email and password to log in');
+      if (data.url) {
+        window.location.href = data.url;
       } else {
-        setError('An error occurred while initiating Google Sign-In');
+        setError('Failed to initiate Google Sign-In');
       }
     } catch (err) {
-      console.error('Initiate Google Sign-In error:', err);
+      console.error('Google Sign-In error:', err);
       setError('Error initiating Google Sign-In');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyGoogleSignInCode = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/verify-google-signin-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: googleUserId, code: googleVerificationCode }),
-      });
-      const data = await response.json();
-      if (data.status === 'proceed') {
-        const googleResponse = await fetch('https://flamestudentcouncil.in:5050/api/auth/google');
-        const googleData = await googleResponse.json();
-        if (googleData.url) {
-          window.location.href = googleData.url;
-        } else {
-          setError('Failed to initiate Google Sign-In');
-        }
-      } else {
-        setError(data.message || 'Invalid verification code');
-      }
-    } catch (err) {
-      console.error('Verify Google Sign-In code error:', err);
-      setError('Error verifying code');
     } finally {
       setIsLoading(false);
     }
@@ -437,7 +391,7 @@ function Login() {
                 {error}
               </Alert>
             )}
-            {!isVerificationStep && !twoFAStep && !forgotPasswordStep && !isGoogleVerificationStep ? (
+            {!isVerificationStep && !twoFAStep && !forgotPasswordStep ? (
               <Stack spacing={5}>
                 <FormControl isRequired>
                   <FormLabel>Email</FormLabel>
@@ -769,42 +723,6 @@ function Login() {
                   onClick={() => setForgotPasswordStep(null)}
                 >
                   Back to Login
-                </Button>
-              </Stack>
-            ) : isGoogleVerificationStep ? (
-              <Stack spacing={5}>
-                <Text textAlign="center">
-                  A verification code has been sent to <strong>{email}</strong>.
-                </Text>
-                <FormControl isRequired>
-                  <FormLabel>Verification Code</FormLabel>
-                  <Input
-                    type="text"
-                    value={googleVerificationCode}
-                    onChange={(e) => setGoogleVerificationCode(e.target.value)}
-                    placeholder="Enter 6-digit code"
-                    maxLength={6}
-                    size="lg"
-                    borderRadius="lg"
-                    bg={bgColor}
-                  />
-                </FormControl>
-                <Button
-                  onClick={handleVerifyGoogleSignInCode}
-                  colorScheme="vrv"
-                  size="lg"
-                  isLoading={isLoading}
-                  borderRadius="lg"
-                >
-                  Verify Code
-                </Button>
-                <Button
-                  onClick={() => handleResendCode(googleUserId)}
-                  variant="link"
-                  colorScheme="vrv"
-                  size="sm"
-                >
-                  Resend Verification Code
                 </Button>
               </Stack>
             ) : null}

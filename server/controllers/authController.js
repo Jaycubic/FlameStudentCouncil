@@ -1,5 +1,6 @@
 // controllers/authController.js
 const { User, Role, Setting, RoleSetting } = require('../models');
+const StudentData = require('../models/StudentData');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { google } = require('googleapis');
@@ -94,7 +95,7 @@ const getFingerprintHash = (deviceId, userAgent, salt) => {
 };
 
 // Generate encrypted JWT with fingerprint and expiration
-const generateEncryptedToken = (user, req) => {
+const generateEncryptedToken = (user, req, studentData = null) => {
   const deviceId = req.body.deviceId || 'unknown';
   const userAgent = req.headers['user-agent'] || '';
   const fingerprintHash = getFingerprintHash(deviceId, userAgent, user.id.toString());
@@ -103,6 +104,14 @@ const generateEncryptedToken = (user, req) => {
     role: user.Role.name,
     fpHash: fingerprintHash
   };
+  if (user.Role.name === 'Student' && studentData) {
+    payload.studentCvueNo = studentData.StudentCvueNo;
+    payload.contactNo = studentData.ContactNo;
+    payload.studentName = studentData.StudentName;
+    payload.batch = studentData.Batch;
+    payload.gender = studentData.Gender;
+    payload.photo = studentData.Photo;
+  }
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
   const decoded = jwt.decode(token);
   const exp = decoded.exp;
@@ -114,7 +123,7 @@ const generateEncryptedToken = (user, req) => {
 };
 
 // Define roles that require Google Sign-In
-const googleSignInRoles = ['RC'];
+const googleSignInRoles = ['Student'];
 
 const authController = {
   async register(req, res) {
@@ -346,15 +355,48 @@ const authController = {
       const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
       const userInfo = await oauth2.userinfo.get();
       const googleEmail = userInfo.data.email;
-      const user = await User.findOne({ where: { email: googleEmail }, include: [{ model: Role }] });
+
+      // Check if student using Redis cache for efficiency
+      let studentData;
+      const cacheKey = `student:${googleEmail}`;
+      let cachedData = await redisClient.get(cacheKey);
+      if (cachedData) {
+        if (cachedData === 'not_found') {
+          const errorMessage = "We're sorry, but only registered students can use Google Sign-On. If you think this is a mistake, please reach out to the Administrator for help.";
+          return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+        }
+        studentData = JSON.parse(cachedData);
+      } else {
+        const student = await StudentData.findOne({ where: { EmailID: googleEmail } });
+        if (!student) {
+          await redisClient.set(cacheKey, 'not_found', { EX: 300 });
+          const errorMessage = "We're sorry, but only registered students can use Google Sign-On. If you think this is a mistake, please reach out to the Administrator for help.";
+          return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+        }
+        studentData = student.toJSON();
+        await redisClient.set(cacheKey, JSON.stringify(studentData), { EX: 3600 });
+      }
+
+      // Find or create User
+      let user = await User.findOne({ where: { email: googleEmail }, include: [{ model: Role }] });
+      const studentRole = await Role.findOne({ where: { name: 'Student' } });
+      if (!studentRole) {
+        throw new Error('Student role not found');
+      }
       if (!user) {
-        const errorMessage = 'Email not found. Please contact administrators for registration';
+        user = await User.create({
+          username: studentData.StudentName,
+          email: googleEmail,
+          password: null,
+          RoleId: studentRole.id,
+        });
+        user = await User.findOne({ where: { id: user.id }, include: [{ model: Role }] });
+      }
+      if (user.Role.name !== 'Student') {
+        const errorMessage = "Your role does not support Google Sign-In. Please use email and password to log in.";
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
       }
-      if (!googleSignInRoles.includes(user.Role.name)) {
-        const errorMessage = 'Your role does not support Google Sign-In. Please use email and password to log in.';
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
-      }
+
       await user.update({
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || null,
@@ -364,17 +406,26 @@ const authController = {
         console.error('JWT_SECRET is not set');
         return res.status(500).json({ message: 'Server configuration error: JWT_SECRET is missing' });
       }
-      const { encryptedToken, exp } = generateEncryptedToken(user, req);
+      const { encryptedToken, exp } = generateEncryptedToken(user, req, studentData);
+      const userPayload = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.Role.name,
+        counterId: user.CounterId,
+      };
+      if (user.Role.name === 'Student') {
+        userPayload.studentCvueNo = studentData.StudentCvueNo;
+        userPayload.contactNo = studentData.ContactNo;
+        userPayload.studentName = studentData.StudentName;
+        userPayload.batch = studentData.Batch;
+        userPayload.gender = studentData.Gender;
+        userPayload.photo = studentData.Photo;
+      }
       const frontendUrl = process.env.FRONTEND_URL || 'https://flamestudentcouncil.in:3030';
       return res.redirect(
         302,
-        `${frontendUrl}/login?token=${encodeURIComponent(encryptedToken)}&expiresAt=${exp}&user=${encodeURIComponent(JSON.stringify({
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.Role.name,
-          counterId: user.CounterId,
-        }))}`
+        `${frontendUrl}/login?token=${encodeURIComponent(encryptedToken)}&expiresAt=${exp}&user=${encodeURIComponent(JSON.stringify(userPayload))}`
       );
     } catch (error) {
       console.error('Google callback error:', error);
@@ -549,64 +600,6 @@ const authController = {
     } catch (error) {
       console.error('Reset password error:', error);
       res.status(500).json({ message: 'Error resetting password', error: error.message });
-    }
-  },
-
-  async initiateGoogleSignIn(req, res) {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: 'Email is required' });
-      }
-      const user = await User.findOne({ where: { email }, include: [{ model: Role }] });
-      if (!user) {
-        return res.json({ status: 'not_found' });
-      }
-      if (!googleSignInRoles.includes(user.Role.name)) {
-        return res.json({ status: 'role_not_allowed' });
-      }
-      const verificationCode = generateVerificationCode();
-      const tokenExpires = new Date(Date.now() + 10 * 60 * 1000);
-      const hashedCode = await bcrypt.hash(verificationCode, 10);
-      await user.update({
-        verificationToken: hashedCode,
-        tokenExpires,
-      });
-      const emailSent = await sendVerificationEmail(email, verificationCode);
-      if (!emailSent) {
-        return res.status(500).json({ message: 'Failed to send verification email' });
-      }
-      return res.json({ status: 'verify', userId: user.id });
-    } catch (error) {
-      console.error('Initiate Google Sign-In error:', error);
-      res.status(500).json({ message: 'Error initiating Google Sign-In', error: error.message });
-    }
-  },
-
-  async verifyGoogleSignInCode(req, res) {
-    try {
-      const { userId, code } = req.body;
-      if (!userId || !code) {
-        return res.status(400).json({ message: 'User ID and code are required' });
-      }
-      const user = await User.findByPk(userId);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      if (!user.verificationToken || !(await bcrypt.compare(code, user.verificationToken))) {
-        return res.status(401).json({ message: 'Invalid verification code' });
-      }
-      if (!user.tokenExpires || new Date() > user.tokenExpires) {
-        return res.status(401).json({ message: 'Verification code has expired' });
-      }
-      await user.update({
-        verificationToken: null,
-        tokenExpires: null,
-      });
-      return res.json({ status: 'proceed' });
-    } catch (error) {
-      console.error('Verify Google Sign-In code error:', error);
-      res.status(500).json({ message: 'Error verifying code', error: error.message });
     }
   }
 };

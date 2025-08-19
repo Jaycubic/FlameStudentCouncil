@@ -21,8 +21,4 @@ router.post('/verify-reset-code', authController.verifyResetCode);
 router.post('/verify-reset-2fa', authController.verifyReset2FA);
 router.post('/reset-password', authController.resetPassword);
 
-// New Google Sign-In Routes
-router.post('/initiate-google-signin', authController.initiateGoogleSignIn);
-router.post('/verify-google-signin-code', authController.verifyGoogleSignInCode);
-
 module.exports = router;

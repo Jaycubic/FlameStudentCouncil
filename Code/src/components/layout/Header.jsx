@@ -108,7 +108,7 @@ function Header() {
   };
 
   const endlessRiverGradient = useColorModeValue(
-    'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+    'linear-gradient(135deg, #1e40af 0%, #2563eb 100%, #38bdf8 50%)',
     'linear(to-b, purple.700, pink.500)'
   );
 
@@ -143,7 +143,7 @@ function Header() {
             color={useColorModeValue("gray.800", "white")} // Adjusted to white in dark mode
             lineHeight="1.2"
           >
-            FLAME STS
+            FLAME Student Council
           </Text>
           <Text
             fontSize={{ base: "xs", md: "sm" }}
@@ -151,7 +151,7 @@ function Header() {
             color={useColorModeValue("gray.600", "whiteAlpha.800")} // Adjusted to whiteAlpha.800 in dark mode
             mt={0.5}
           >
-            Biometric-Based Student Monitoring
+            Web-based Student Council System
           </Text>
         </Box>
         <Box
