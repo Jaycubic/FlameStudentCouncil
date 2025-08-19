@@ -8,7 +8,7 @@ const { validateToken, requireAdmin } = require('../middleware/auth'); // adjust
 router.post('/', validateToken, requireAdmin, positionController.create);
 
 // Read (authenticated)
-router.get('/', validateToken, positionController.getAll);
+router.get('/', positionController.getAll);
 router.get('/:id', validateToken, positionController.getOne);
 
 // Update & delete (admin only)
