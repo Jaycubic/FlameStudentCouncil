@@ -58,8 +58,8 @@ const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.p
 const MotionBox = motion(Box);
 const MotionButton = motion(Button);
 
-// springy height animation for smoother UX
-const heightTransition = { type: 'spring', damping: 22, stiffness: 160 };
+// Use a tweened height animation for smooth static expansion (no spring jitter while scrolling)
+const heightTransition = { duration: 0.28, ease: 'easeInOut' };
 
 function ApplicationFormDashboard() {
   const toast = useToast();
@@ -70,12 +70,11 @@ function ApplicationFormDashboard() {
   const bgColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
 
-  // Border / input colors per your request
-  const boxBorderColor = useColorModeValue('blue.300', 'pink.500'); // profile & upload borders
-  const inputBorderColor = useColorModeValue('blue.400', 'pink.500'); // inputs
+  // Border / input colors
+  const boxBorderColor = useColorModeValue('blue.300', 'pink.500');
+  const inputBorderColor = useColorModeValue('blue.400', 'pink.500');
   const inputHoverBorderColor = useColorModeValue('blue.500', 'pink.600');
 
-  // Dark-mode gradient kept for dark buttons only
   const hoverGradient = useColorModeValue(
     'linear-gradient(90deg,#60a5fa,#93c5fd)',
     'linear-gradient(90deg,#9f7aea,#f472b6)'
@@ -85,18 +84,16 @@ function ApplicationFormDashboard() {
     'linear-gradient(90deg,#7c3aed,#ec4899)'
   );
 
-  // Light-mode primary color (solid)
   const primaryLightColor = 'blue.500';
   const primaryLightHover = 'blue.600';
 
-  // User data from API
+  // User / form state
   const [user, setUser] = useState(null);
   const [agreedToInstructions, setAgreedToInstructions] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isApplicationOpen, setIsApplicationOpen] = useState(true);
   const [loading, setLoading] = useState(true);
 
-  // Form states
   const [position, setPosition] = useState('');
   const [cgpa, setCgpa] = useState('');
   const [sportsScore, setSportsScore] = useState('');
@@ -112,42 +109,31 @@ function ApplicationFormDashboard() {
   const [academicFiles, setAcademicFiles] = useState([]);
   const [otherFiles, setOtherFiles] = useState([]);
 
-  // Positions from backend
   const [positions, setPositions] = useState([]);
 
-  // --- Expansion control logic for Community & SOP ---
-  // Two flags per section:
-  // - requested...: toggled by header click (persistent)
-  // - focus...: set while textarea has focus (temporary)
+  // Expansion control: **only persistent toggle on click** (no hover/focus temporary expansion)
   const [communityRequestedExpanded, setCommunityRequestedExpanded] = useState(false);
-  const [communityFocusExpanded, setCommunityFocusExpanded] = useState(false);
-
   const [sopRequestedExpanded, setSopRequestedExpanded] = useState(false);
-  const [sopFocusExpanded, setSopFocusExpanded] = useState(false);
 
-  // combine to final expansion state
-  const communityExpanded = communityRequestedExpanded || communityFocusExpanded;
-  const sopExpanded = sopRequestedExpanded || sopFocusExpanded;
+  const communityExpanded = communityRequestedExpanded;
+  const sopExpanded = sopRequestedExpanded;
 
-  // Refs to textareas so we can focus them on container click
   const communityRef = useRef(null);
   const sopRef = useRef(null);
 
-  // Keep refs for heights (tweakable)
-  const collapsedHeight = 96; // px - visible collapsed container height (fully visible)
-  // *** Doubled expansion heights per your request (was 360) ***
-  const communityMaxHeight = 720; // px when expanded — doubled
-  const sopMaxHeight = 720; // px when expanded — doubled
+  // Heights (tweakable)
+  // Increased collapsed height so field is fully visible idle
+  const collapsedHeight = 120; // px - visible collapsed container height (fully visible)
+  // Reduced expansion height to a reasonable value per your request
+  const communityMaxHeight = 360; // px when expanded (reduced)
+  const sopMaxHeight = 360; // px when expanded (reduced)
 
-  // Chakra `p={2}` equals 8px on each side. The vertical padding total is 16px.
+  // Chakra `p={2}` equals 8px top + bottom = 16px
   const containerVerticalPadding = 16;
-
-  // compute textarea heights to allow internal scrollbars (account for container padding)
-  const collapsedTextareaH = collapsedHeight - containerVerticalPadding; // visible textarea height when collapsed
+  const collapsedTextareaH = collapsedHeight - containerVerticalPadding;
   const communityTextareaMaxH = communityMaxHeight - containerVerticalPadding;
   const sopTextareaMaxH = sopMaxHeight - containerVerticalPadding;
 
-  // Instructions
   const instructions = [
     'Statement of Purpose (SOP): Explain your motivation and goals for applying.',
     'Mandatory Upload: Upload files for the "Sport" and "Cultural" sections in PDF or JPG format.',
@@ -178,7 +164,6 @@ function ApplicationFormDashboard() {
           email: currentUser?.email || '',
           batch: currentUser?.batch || '',
           gender: currentUser?.gender || '',
-          // same-origin proxied photo path per your server
           photoUrl: currentUser?.photo ? `/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
         });
       } catch (err) {
@@ -221,7 +206,6 @@ function ApplicationFormDashboard() {
     }
   };
 
-  // PHOTO HANDLING: use photoService for upload
   const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -340,7 +324,6 @@ function ApplicationFormDashboard() {
     );
   }
 
-  // Reusable border-only box style (thin solid blue/pink)
   const borderBoxStyle = {
     bg: bgColor,
     borderWidth: '1px',
@@ -369,7 +352,6 @@ function ApplicationFormDashboard() {
   };
 
   const menuButtonStyle = {
-    // leave select white per request
     bg: 'white',
     color: 'gray.800',
     borderWidth: '1px',
@@ -488,8 +470,7 @@ function ApplicationFormDashboard() {
             </FormControl>
           </SimpleGrid>
 
-          {/* Community Service - header click toggles persistent expansion,
-              hover on title or focus inside textarea temporarily expands */}
+          {/* Community Service */}
           <Box mt={4}>
             <Box
               as="button"
@@ -498,13 +479,11 @@ function ApplicationFormDashboard() {
               px={0}
               py={0}
               onClick={() => {
-                // toggle persistent expansion
+                // toggle persistent expansion only on click
                 setCommunityRequestedExpanded((s) => !s);
-                // focus textarea for discoverability
+                // focus textarea for discoverability when expanding
                 setTimeout(() => communityRef.current?.focus?.(), 0);
               }}
-              onPointerEnter={() => setCommunityFocusExpanded(true)}
-              onPointerLeave={() => setCommunityFocusExpanded(false)}
               aria-expanded={communityExpanded}
               style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
             >
@@ -517,42 +496,28 @@ function ApplicationFormDashboard() {
               animate={{ maxHeight: communityExpanded ? communityMaxHeight : collapsedHeight }}
               transition={heightTransition}
               style={{ overflow: 'hidden', width: '100%' }}
-              onClick={() => {
-                // click anywhere in container should focus textarea (discoverability)
-                communityRef.current?.focus?.();
-              }}
             >
-              {/* Container has the single border; the textarea itself will NOT have its own border
-                  so there will be a single uniform border line as requested. */}
-              <Box
-                p={2}
-                {...borderBoxStyle}
-                display="block"
-                // ensure box height follows animating wrapper; do not force it to flex-grow
-              >
+              <Box p={2} {...borderBoxStyle} display="block">
                 <Textarea
                   ref={communityRef}
                   value={communityService}
                   onChange={(e) => setCommunityService(e.target.value)}
-                  onFocus={() => setCommunityFocusExpanded(true)}
-                  onBlur={() => setCommunityFocusExpanded(false)}
-                  /* remove textarea's border so we have only the container border (single-line look) */
                   borderWidth="0"
                   boxShadow="none"
                   _focus={{ boxShadow: 'none', outline: 'none' }}
                   resize="vertical"
-                  /* explicitly set height so collapsed state is fully visible and expanded is larger */
+                  /* set explicit height so collapsed state is fully visible and expanded is reasonable */
                   style={{
                     height: communityExpanded ? `${communityTextareaMaxH}px` : `${collapsedTextareaH}px`,
                     overflowY: 'auto',
-                    transition: 'height 220ms ease',
+                    transition: 'height 260ms ease-in-out',
                   }}
                 />
               </Box>
             </motion.div>
           </Box>
 
-          {/* Statement of Purpose - same behaviour */}
+          {/* Statement of Purpose */}
           <Box mt={4}>
             <Box
               as="button"
@@ -564,8 +529,6 @@ function ApplicationFormDashboard() {
                 setSopRequestedExpanded((s) => !s);
                 setTimeout(() => sopRef.current?.focus?.(), 0);
               }}
-              onPointerEnter={() => setSopFocusExpanded(true)}
-              onPointerLeave={() => setSopFocusExpanded(false)}
               aria-expanded={sopExpanded}
               style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
             >
@@ -578,21 +541,12 @@ function ApplicationFormDashboard() {
               animate={{ maxHeight: sopExpanded ? sopMaxHeight : collapsedHeight }}
               transition={heightTransition}
               style={{ overflow: 'hidden', width: '100%' }}
-              onClick={() => {
-                sopRef.current?.focus?.();
-              }}
             >
-              <Box
-                p={2}
-                {...borderBoxStyle}
-                display="block"
-              >
+              <Box p={2} {...borderBoxStyle} display="block">
                 <Textarea
                   ref={sopRef}
                   value={statementOfPurpose}
                   onChange={(e) => setStatementOfPurpose(e.target.value)}
-                  onFocus={() => setSopFocusExpanded(true)}
-                  onBlur={() => setSopFocusExpanded(false)}
                   borderWidth="0"
                   boxShadow="none"
                   _focus={{ boxShadow: 'none', outline: 'none' }}
@@ -600,7 +554,7 @@ function ApplicationFormDashboard() {
                   style={{
                     height: sopExpanded ? `${sopTextareaMaxH}px` : `${collapsedTextareaH}px`,
                     overflowY: 'auto',
-                    transition: 'height 220ms ease',
+                    transition: 'height 260ms ease-in-out',
                   }}
                 />
               </Box>
