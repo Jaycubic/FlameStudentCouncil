@@ -134,14 +134,18 @@ function ApplicationFormDashboard() {
   const sopRef = useRef(null);
 
   // Keep refs for heights (tweakable)
-  const collapsedHeight = 50; // Reduced height for collapsed state
+  const collapsedHeight = 96; // px - visible collapsed container height (fully visible)
   // *** Doubled expansion heights per your request (was 360) ***
   const communityMaxHeight = 720; // px when expanded — doubled
   const sopMaxHeight = 720; // px when expanded — doubled
 
-  // compute textarea max-heights to allow internal scrollbars (subtract container padding)
-  const communityTextareaMaxH = communityMaxHeight - 16; // allow for container padding
-  const sopTextareaMaxH = sopMaxHeight - 16;
+  // Chakra `p={2}` equals 8px on each side. The vertical padding total is 16px.
+  const containerVerticalPadding = 16;
+
+  // compute textarea heights to allow internal scrollbars (account for container padding)
+  const collapsedTextareaH = collapsedHeight - containerVerticalPadding; // visible textarea height when collapsed
+  const communityTextareaMaxH = communityMaxHeight - containerVerticalPadding;
+  const sopTextareaMaxH = sopMaxHeight - containerVerticalPadding;
 
   // Instructions
   const instructions = [
@@ -485,7 +489,7 @@ function ApplicationFormDashboard() {
           </SimpleGrid>
 
           {/* Community Service - header click toggles persistent expansion,
-              focus inside textarea expands while focused */}
+              hover on title or focus inside textarea temporarily expands */}
           <Box mt={4}>
             <Box
               as="button"
@@ -499,6 +503,8 @@ function ApplicationFormDashboard() {
                 // focus textarea for discoverability
                 setTimeout(() => communityRef.current?.focus?.(), 0);
               }}
+              onPointerEnter={() => setCommunityFocusExpanded(true)}
+              onPointerLeave={() => setCommunityFocusExpanded(false)}
               aria-expanded={communityExpanded}
               style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
             >
@@ -510,7 +516,7 @@ function ApplicationFormDashboard() {
               initial={false}
               animate={{ maxHeight: communityExpanded ? communityMaxHeight : collapsedHeight }}
               transition={heightTransition}
-              style={{ overflow: 'hidden', width: '100%', background: 'transparent' }} // Removed white background
+              style={{ overflow: 'hidden', width: '100%' }}
               onClick={() => {
                 // click anywhere in container should focus textarea (discoverability)
                 communityRef.current?.focus?.();
@@ -521,9 +527,8 @@ function ApplicationFormDashboard() {
               <Box
                 p={2}
                 {...borderBoxStyle}
-                display="flex"
-                flexDirection="column"
-                height="100%"
+                display="block"
+                // ensure box height follows animating wrapper; do not force it to flex-grow
               >
                 <Textarea
                   ref={communityRef}
@@ -531,17 +536,17 @@ function ApplicationFormDashboard() {
                   onChange={(e) => setCommunityService(e.target.value)}
                   onFocus={() => setCommunityFocusExpanded(true)}
                   onBlur={() => setCommunityFocusExpanded(false)}
-                  rows={3} // keeps the collapsed visual similar to original
                   /* remove textarea's border so we have only the container border (single-line look) */
                   borderWidth="0"
                   boxShadow="none"
                   _focus={{ boxShadow: 'none', outline: 'none' }}
                   resize="vertical"
-                  /* allow internal scrolling when content grows beyond visible area */
-                  overflowY="auto"
-                  maxH={`${communityTextareaMaxH}px`}
-                  /* ensure textarea fills available vertical space inside the animated container */
-                  flex="1 1 auto"
+                  /* explicitly set height so collapsed state is fully visible and expanded is larger */
+                  style={{
+                    height: communityExpanded ? `${communityTextareaMaxH}px` : `${collapsedTextareaH}px`,
+                    overflowY: 'auto',
+                    transition: 'height 220ms ease',
+                  }}
                 />
               </Box>
             </motion.div>
@@ -559,6 +564,8 @@ function ApplicationFormDashboard() {
                 setSopRequestedExpanded((s) => !s);
                 setTimeout(() => sopRef.current?.focus?.(), 0);
               }}
+              onPointerEnter={() => setSopFocusExpanded(true)}
+              onPointerLeave={() => setSopFocusExpanded(false)}
               aria-expanded={sopExpanded}
               style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
             >
@@ -570,7 +577,7 @@ function ApplicationFormDashboard() {
               initial={false}
               animate={{ maxHeight: sopExpanded ? sopMaxHeight : collapsedHeight }}
               transition={heightTransition}
-              style={{ overflow: 'hidden', width: '100%', background: 'transparent' }} // Removed white background
+              style={{ overflow: 'hidden', width: '100%' }}
               onClick={() => {
                 sopRef.current?.focus?.();
               }}
@@ -578,9 +585,7 @@ function ApplicationFormDashboard() {
               <Box
                 p={2}
                 {...borderBoxStyle}
-                display="flex"
-                flexDirection="column"
-                height="100%"
+                display="block"
               >
                 <Textarea
                   ref={sopRef}
@@ -588,14 +593,15 @@ function ApplicationFormDashboard() {
                   onChange={(e) => setStatementOfPurpose(e.target.value)}
                   onFocus={() => setSopFocusExpanded(true)}
                   onBlur={() => setSopFocusExpanded(false)}
-                  rows={3}
                   borderWidth="0"
                   boxShadow="none"
                   _focus={{ boxShadow: 'none', outline: 'none' }}
                   resize="vertical"
-                  overflowY="auto"
-                  maxH={`${sopTextareaMaxH}px`}
-                  flex="1 1 auto"
+                  style={{
+                    height: sopExpanded ? `${sopTextareaMaxH}px` : `${collapsedTextareaH}px`,
+                    overflowY: 'auto',
+                    transition: 'height 220ms ease',
+                  }}
                 />
               </Box>
             </motion.div>
