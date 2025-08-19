@@ -371,7 +371,7 @@ function ApplicationFormDashboard() {
       <PageHeader title="Candidate Application Form" description="Apply for student council positions" />
 
       {!showForm ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} style={{ background: 'transparent', overflow: 'hidden' }}>
           <MotionBox {...borderBoxStyle} mb={6} p={4} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 200 }}>
             <CardBody p={0}>
               <Text fontSize="xl" fontWeight="bold" mb={3}>Instructions</Text>
@@ -391,7 +391,7 @@ function ApplicationFormDashboard() {
           </Checkbox>
         </motion.div>
       ) : (
-        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
+        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }} style={{ background: 'transparent', overflow: 'hidden' }}>
           {/* Top Section */}
           <HStack justify="space-between" mb={8} p={4} alignItems="center" flexWrap={{ base: 'wrap', md: 'nowrap' }} {...borderBoxStyle}>
             <HStack spacing={4} flex="1" justify={{ base: 'center', md: 'flex-start' }} w="full">
