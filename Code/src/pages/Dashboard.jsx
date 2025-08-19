@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -38,9 +39,13 @@ import {
   MenuList,
   MenuItem,
 } from '@chakra-ui/react';
-import { CheckIcon, ArrowRightIcon, UserIcon } from '@heroicons/react/24/outline';
-import { ChevronDownIcon, ChevronUpIcon, AddIcon } from '@chakra-ui/icons';
-import { FaMale, FaFemale } from 'react-icons/fa';
+import {
+  ChevronDownIcon,
+  AddIcon,
+  ArrowForwardIcon,
+  CheckIcon as ChakraCheckIcon,
+} from '@chakra-ui/icons';
+import { FaMale, FaFemale, FaUser } from 'react-icons/fa';
 import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
 import { authService } from '../services/authService';
@@ -52,6 +57,10 @@ import flameLogo from '../assets/img/FLAME.png';
 // Placeholder for profile photo if none
 const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
+// Motion-wrapped Chakra Box/Button for hover animations
+const MotionBox = motion(Box);
+const MotionButton = motion(Button);
+
 function ApplicationFormDashboard() {
   const toast = useToast();
   const { isOpen: isSportModalOpen, onOpen: onSportModalOpen, onClose: onSportModalClose } = useDisclosure();
@@ -59,20 +68,23 @@ function ApplicationFormDashboard() {
   const { isOpen: isCommunityExpanded, onOpen: onCommunityExpand, onClose: onCommunityCollapse } = useDisclosure();
   const { isOpen: isSopExpanded, onOpen: onSopExpand, onClose: onSopCollapse } = useDisclosure();
   const { isOpen: isPhotoModalOpen, onOpen: onPhotoModalOpen, onClose: onPhotoModalClose } = useDisclosure();
+
   const bgColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
+
+  // Gradient CSS strings for border-image usage (colorful border only)
   const gradientBorder = useColorModeValue(
-    'linear-gradient(135deg, #1e40af 0%, #2563eb 100%, #38bdf8 50%)',
-    'linear(to-b, purple.700, pink.500)'
+    'linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #06b6d4 100%)',
+    'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #f472b6 100%)'
   );
   const hoverGradient = useColorModeValue(
-    'linear(to-r, blue.300, blue.200)',
-    'linear(to-r, purple.500, pink.300)'
+    'linear-gradient(90deg,#60a5fa,#93c5fd)',
+    'linear-gradient(90deg,#9f7aea,#f472b6)'
   );
   const activeGradient = useColorModeValue(
-    'linear(to-r, blue.500, blue.400)',
-    'linear(to-r, purple.600, pink.400)'
+    'linear-gradient(90deg,#3b82f6,#60a5fa)',
+    'linear-gradient(90deg,#7c3aed,#ec4899)'
   );
 
   // User data from API
@@ -163,7 +175,7 @@ function ApplicationFormDashboard() {
     }
 
     setIsApplicationOpen(true);
-  }, []);
+  }, [toast]);
 
   const handleAgreementChange = (e) => {
     const checked = e.target.checked;
@@ -183,11 +195,14 @@ function ApplicationFormDashboard() {
   };
 
   const calculateScore = (score) => {
+    if (score === '' || score === null) return '';
+    const num = Number(score);
+    if (isNaN(num)) return '';
     let scaledScore;
-    if (score <= 100) {
-      scaledScore = score / 10;
+    if (num <= 100) {
+      scaledScore = num / 10;
     } else {
-      const decayFactor = (score - 100) * 0.05;
+      const decayFactor = (num - 100) * 0.05;
       const adjustedMarks = 100 + decayFactor;
       scaledScore = adjustedMarks / 10;
     }
@@ -246,12 +261,12 @@ function ApplicationFormDashboard() {
     } else if (user?.gender === 'Female') {
       return <Icon as={FaFemale} color="pink.500" boxSize={6} />;
     }
-    return <Icon as={UserIcon} color="gray.500" boxSize={6} />;
+    return <Icon as={FaUser} color="gray.500" boxSize={6} />;
   };
 
   if (loading) {
     return (
-      <Box p={8} textAlign="center">
+      <Box p={8} textAlign="center" bg={bgColor}>
         <CircularProgress isIndeterminate color="blue.500" />
         <Text mt={4}>Loading application...</Text>
       </Box>
@@ -260,7 +275,7 @@ function ApplicationFormDashboard() {
 
   if (!isApplicationOpen) {
     return (
-      <Box p={8} textAlign="center">
+      <Box p={8} textAlign="center" bg={bgColor}>
         <Alert status="error">
           <AlertIcon />
           Application period has ended.
@@ -269,27 +284,40 @@ function ApplicationFormDashboard() {
     );
   }
 
+  // Utility props for border-only graded boxes
+  const gradientBorderStyle = {
+    bg: bgColor,
+    border: '2px solid',
+    borderRadius: 'lg',
+    borderImage: `${gradientBorder} 1`,
+  };
+
   return (
-    <Box p={{ base: 4, md: 8 }} bg={bgColor} color={textColor} borderRadius="xl" boxShadow="xl">
+    <Box p={{ base: 4, md: 8 }} bg={bgColor} color={textColor} borderRadius="xl">
       <PageHeader title="Candidate Application Form" description="Apply for student council positions" />
 
       {!showForm ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <Card bg={bgColor} border="1px" borderColor={borderColor} mb={6} borderRadius="lg" bgGradient={gradientBorder} p={4}>
-            <CardHeader>
-              <Text fontSize="xl" fontWeight="bold" color="white">Instructions</Text>
-            </CardHeader>
-            <CardBody>
+          <MotionBox
+            {...gradientBorderStyle}
+            mb={6}
+            p={4}
+            whileHover={{ scale: 1.01 }}
+            transition={{ type: 'spring', stiffness: 200 }}
+          >
+            <CardBody p={0}>
+              <Text fontSize="xl" fontWeight="bold" mb={3}>Instructions</Text>
               <List spacing={3}>
                 {instructions.map((instr, idx) => (
-                  <ListItem key={idx}>
-                    <Icon as={CheckIcon} color="green.500" mr={2} />
-                    {instr}
+                  <ListItem key={idx} display="flex" alignItems="center">
+                    <Icon as={ChakraCheckIcon} color="green.500" mr={2} />
+                    <Text>{instr}</Text>
                   </ListItem>
                 ))}
               </List>
             </CardBody>
-          </Card>
+          </MotionBox>
+
           <Checkbox isChecked={agreedToInstructions} onChange={handleAgreementChange} colorScheme="blue">
             I have read and agree to the instructions and terms outlined above.
           </Checkbox>
@@ -297,7 +325,15 @@ function ApplicationFormDashboard() {
       ) : (
         <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
           {/* Top Section */}
-          <HStack justify="space-between" mb={8} p={4} bg={useColorModeValue('gray.50', 'gray.700')} borderRadius="md" border="1px" borderColor={borderColor} bgGradient={gradientBorder} flexWrap={{ base: 'wrap', md: 'nowrap' }}>
+          <HStack
+            justify="space-between"
+            mb={8}
+            p={4}
+            alignItems="center"
+            flexWrap={{ base: 'wrap', md: 'nowrap' }}
+            {...gradientBorderStyle}
+            // Keep header subtle and border only
+          >
             <HStack spacing={4} flex="1" justify={{ base: 'center', md: 'flex-start' }} w="full">
               <Image
                 src={photo ? URL.createObjectURL(photo) : user?.photoUrl || defaultProfilePhoto}
@@ -307,9 +343,10 @@ function ApplicationFormDashboard() {
                 objectFit="cover"
                 cursor={user?.photoUrl === defaultProfilePhoto ? 'pointer' : 'default'}
                 onClick={user?.photoUrl === defaultProfilePhoto ? onPhotoModalOpen : undefined}
-                _hover={{ transform: 'scale(1.05)', transition: '0.2s' }}
+                transition="transform 0.2s"
+                _hover={{ transform: 'scale(1.05)' }}
               />
-              <VStack align="start">
+              <VStack align="start" spacing={0}>
                 <HStack>
                   <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold">{user?.name || 'Name'}</Text>
                   <GenderIcon />
@@ -328,12 +365,19 @@ function ApplicationFormDashboard() {
             <FormControl>
               <FormLabel>Position Interested</FormLabel>
               <Menu>
-                <MenuButton as={Button} rightIcon={<ChevronDownIcon />} bgGradient={gradientBorder} color="white" _hover={{ bgGradient: hoverGradient }} _active={{ bgGradient: activeGradient }}>
+                <MenuButton
+                  as={MotionButton}
+                  rightIcon={<ChevronDownIcon />}
+                  whileHover={{ scale: 1.02 }}
+                  bgGradient={hoverGradient}
+                  color="white"
+                  _hover={{ bgGradient: hoverGradient }}
+                >
                   {position || 'Select a position'}
                 </MenuButton>
                 <MenuList maxH="200px" overflowY="auto">
                   {positions.map((pos) => (
-                    <MenuItem key={pos.id} onClick={() => setPosition(pos.description)} _hover={{ bgGradient: hoverGradient }}>
+                    <MenuItem key={pos.id} onClick={() => setPosition(pos.description)} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
                       {pos.description}
                     </MenuItem>
                   ))}
@@ -349,69 +393,120 @@ function ApplicationFormDashboard() {
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={4}>
             <FormControl>
               <FormLabel>Sports Score</FormLabel>
-              <Button onClick={onSportModalOpen} leftIcon={<Icon as={ArrowRightIcon} />} bgGradient={gradientBorder} color="white" _hover={{ bgGradient: hoverGradient, transform: 'translateX(4px)' }} transition="0.2s">Open Sport Sheet</Button>
+              <MotionButton
+                onClick={onSportModalOpen}
+                leftIcon={<ArrowForwardIcon />}
+                whileHover={{ x: 4 }}
+                bgGradient={activeGradient}
+                color="white"
+                _hover={{ bgGradient: hoverGradient }}
+                transition="0.2s"
+              >
+                Open Sport Sheet
+              </MotionButton>
               <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleSportsScoreChange} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
-              <Text mt={1}>Calculated: {sportsScore}/10</Text>
+              <Text mt={1}>Calculated: {sportsScore || '—'}/10</Text>
             </FormControl>
+
             <FormControl>
               <FormLabel>Cultural Score</FormLabel>
-              <Button onClick={onCulturalModalOpen} leftIcon={<Icon as={ArrowRightIcon} />} bgGradient={gradientBorder} color="white" _hover={{ bgGradient: hoverGradient, transform: 'translateX(4px)' }} transition="0.2s">Open Cultural Sheet</Button>
+              <MotionButton
+                onClick={onCulturalModalOpen}
+                leftIcon={<ArrowForwardIcon />}
+                whileHover={{ x: 4 }}
+                bgGradient={activeGradient}
+                color="white"
+                _hover={{ bgGradient: hoverGradient }}
+                transition="0.2s"
+              >
+                Open Cultural Sheet
+              </MotionButton>
               <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleCulturalScoreChange} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
-              <Text mt={1}>Calculated: {culturalScore}/10</Text>
+              <Text mt={1}>Calculated: {culturalScore || '—'}/10</Text>
             </FormControl>
           </SimpleGrid>
 
           <FormControl mt={4} position="relative">
             <FormLabel>Community Service</FormLabel>
-            <IconButton icon={<Icon as={isCommunityExpanded ? ChevronUpIcon : ChevronDownIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onCommunityExpand} aria-label="Expand Community Service" />
+            <IconButton
+              icon={<ChevronDownIcon />}
+              position="absolute"
+              right="2"
+              top="8"
+              size="sm"
+              onClick={() => (isCommunityExpanded ? onCommunityCollapse() : onCommunityExpand())}
+              aria-label="Expand Community Service"
+              transform={isCommunityExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
+              transition="transform 0.2s"
+            />
             <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
           </FormControl>
 
           <FormControl mt={4} position="relative">
             <FormLabel>Statement of Purpose</FormLabel>
-            <IconButton icon={<Icon as={isSopExpanded ? ChevronUpIcon : ChevronDownIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onSopExpand} aria-label="Expand Statement of Purpose" />
+            <IconButton
+              icon={<ChevronDownIcon />}
+              position="absolute"
+              right="2"
+              top="8"
+              size="sm"
+              onClick={() => (isSopExpanded ? onSopCollapse() : onSopExpand())}
+              aria-label="Expand Statement of Purpose"
+              transform={isSopExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}
+              transition="transform 0.2s"
+            />
             <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
           </FormControl>
 
           {/* Uploads */}
-          <Card mt={6} borderRadius="lg" bgGradient={gradientBorder} p={4} color="white">
-            <CardHeader>Uploads</CardHeader>
-            <CardBody>
-              <Alert status="warning" mb={4} variant="subtle" bg="transparent" color="white">
-                <AlertIcon color="yellow.300" />
-                Mandatory: Sport and Cultural (PDF/JPG)
-              </Alert>
-              <FormControl>
-                <FormLabel>Photo</FormLabel>
-                <Input type="file" accept="image/*" onChange={handlePhotoChange} />
-              </FormControl>
-              <FormControl mt={4}>
-                <FormLabel>Sport Files (Mandatory)</FormLabel>
-                <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setSportFiles)} />
-              </FormControl>
-              <FormControl mt={4}>
-                <FormLabel>Cultural Files (Mandatory)</FormLabel>
-                <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setCulturalFiles)} />
-              </FormControl>
-              <FormControl mt={4}>
-                <FormLabel>Academic Files (Optional)</FormLabel>
-                <Input type="file" multiple onChange={(e) => handleFileChange(e, setAcademicFiles)} />
-              </FormControl>
-              <FormControl mt={4}>
-                <FormLabel>Other Files (Optional)</FormLabel>
-                <Input type="file" multiple onChange={(e) => handleFileChange(e, setOtherFiles)} />
-              </FormControl>
-            </CardBody>
-          </Card>
+          <Box mt={6} p={4} {...gradientBorderStyle}>
+            <Text fontWeight="semibold" mb={2}>Uploads</Text>
+            <Alert status="warning" mb={4} variant="subtle" bg="transparent" color={useColorModeValue('orange.700', 'yellow.200')}>
+              <AlertIcon color="yellow.300" />
+              Mandatory: Sport and Cultural (PDF/JPG)
+            </Alert>
+
+            <FormControl>
+              <FormLabel>Photo</FormLabel>
+              <Input type="file" accept="image/*" onChange={handlePhotoChange} />
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel>Sport Files (Mandatory)</FormLabel>
+              <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setSportFiles)} />
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel>Cultural Files (Mandatory)</FormLabel>
+              <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setCulturalFiles)} />
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel>Academic Files (Optional)</FormLabel>
+              <Input type="file" multiple onChange={(e) => handleFileChange(e, setAcademicFiles)} />
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel>Other Files (Optional)</FormLabel>
+              <Input type="file" multiple onChange={(e) => handleFileChange(e, setOtherFiles)} />
+            </FormControl>
+          </Box>
 
           {/* Checkboxes */}
           <VStack mt={4} align="start" spacing={3}>
-            <Checkbox isChecked={notOnProbation} onChange={(e) => setNotOnProbation(e.target.checked)} colorScheme="blue">(I am) Not on Probation</Checkbox>
-            <Checkbox isChecked={readHandbook} onChange={(e) => setReadHandbook(e.target.checked)} colorScheme="blue">I Read the Handbook</Checkbox>
+            <Checkbox isChecked={notOnProbation} onChange={(e) => setNotOnProbation(e.target.checked)} colorScheme="blue">Not on Probation</Checkbox>
+            <Checkbox isChecked={readHandbook} onChange={(e) => setReadHandbook(e.target.checked)} colorScheme="blue">I have read the handbook</Checkbox>
             <Checkbox isChecked={trueStatement} onChange={(e) => setTrueStatement(e.target.checked)} colorScheme="blue">I confirm that the above statements are true</Checkbox>
           </VStack>
 
-          <Button mt={6} colorScheme="blue" onClick={handleSubmit} isLoading={loading} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }} transition="0.2s">Submit</Button>
+          <MotionButton
+            mt={6}
+            onClick={handleSubmit}
+            isLoading={loading}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            bgGradient={activeGradient}
+            color="white"
+            _hover={{ bgGradient: hoverGradient }}
+          >
+            Submit
+          </MotionButton>
         </motion.div>
       )}
 
@@ -425,7 +520,7 @@ function ApplicationFormDashboard() {
             <Text>Sheet content here (fetch via API)</Text>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onSportModalClose} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onSportModalClose} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -439,7 +534,7 @@ function ApplicationFormDashboard() {
             <Text>Sheet content here (fetch via API)</Text>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onCulturalModalClose} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onCulturalModalClose} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -454,7 +549,7 @@ function ApplicationFormDashboard() {
             <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={15} />
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onCommunityCollapse} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onCommunityCollapse} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -469,7 +564,7 @@ function ApplicationFormDashboard() {
             <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={15} />
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onSopCollapse} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onSopCollapse} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -489,7 +584,7 @@ function ApplicationFormDashboard() {
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onPhotoModalClose} bgGradient={gradientBorder} _hover={{ bgGradient: hoverGradient }}>Close</Button>
+            <Button onClick={onPhotoModalClose} bgGradient={activeGradient} _hover={{ bgGradient: hoverGradient }}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
