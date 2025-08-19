@@ -38,8 +38,8 @@ import {
   MenuList,
   MenuItem,
 } from '@chakra-ui/react';
-import { CheckIcon, ArrowRightIcon, UserIcon, ChevronExpandIcon } from '@heroicons/react/24/outline';
-import { ChevronDownIcon, AddIcon } from '@chakra-ui/icons';
+import { CheckIcon, ArrowRightIcon, UserIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronUpIcon, AddIcon } from '@chakra-ui/icons';
 import { FaMale, FaFemale } from 'react-icons/fa';
 import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
@@ -363,13 +363,13 @@ function ApplicationFormDashboard() {
 
           <FormControl mt={4} position="relative">
             <FormLabel>Community Service</FormLabel>
-            <IconButton icon={<Icon as={ChevronExpandIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onCommunityExpand} aria-label="Expand Community Service" />
+            <IconButton icon={<Icon as={isCommunityExpanded ? ChevronUpIcon : ChevronDownIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onCommunityExpand} aria-label="Expand Community Service" />
             <Textarea value={communityService} onChange={(e) => setCommunityService(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
           </FormControl>
 
           <FormControl mt={4} position="relative">
             <FormLabel>Statement of Purpose</FormLabel>
-            <IconButton icon={<Icon as={ChevronExpandIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onSopExpand} aria-label="Expand Statement of Purpose" />
+            <IconButton icon={<Icon as={isSopExpanded ? ChevronUpIcon : ChevronDownIcon} />} position="absolute" right="2" top="8" size="sm" onClick={onSopExpand} aria-label="Expand Statement of Purpose" />
             <Textarea value={statementOfPurpose} onChange={(e) => setStatementOfPurpose(e.target.value)} rows={3} borderColor={borderColor} _hover={{ borderColor: 'blue.400' }} transition="0.2s" />
           </FormControl>
 
