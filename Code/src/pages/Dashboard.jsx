@@ -111,28 +111,34 @@ function ApplicationFormDashboard() {
 
   const [positions, setPositions] = useState([]);
 
-  // Expansion control: **only persistent toggle on click** (no hover/focus temporary expansion)
+  // Expansion control:
+  // - requested: toggled by header click (persistent)
+  // - focus: set while textarea has focus (temporary but persistent while focused)
   const [communityRequestedExpanded, setCommunityRequestedExpanded] = useState(false);
-  const [sopRequestedExpanded, setSopRequestedExpanded] = useState(false);
+  const [communityFocusExpanded, setCommunityFocusExpanded] = useState(false);
 
-  const communityExpanded = communityRequestedExpanded;
-  const sopExpanded = sopRequestedExpanded;
+  const [sopRequestedExpanded, setSopRequestedExpanded] = useState(false);
+  const [sopFocusExpanded, setSopFocusExpanded] = useState(false);
+
+  // Final expansion combines both (so focus keeps it open)
+  const communityExpanded = communityRequestedExpanded || communityFocusExpanded;
+  const sopExpanded = sopRequestedExpanded || sopFocusExpanded;
 
   const communityRef = useRef(null);
   const sopRef = useRef(null);
 
   // Heights (tweakable)
-  // Increased collapsed height so field is fully visible idle
-  const collapsedHeight = 120; // px - visible collapsed container height (fully visible)
-  // Reduced expansion height to a reasonable value per your request
-  const communityMaxHeight = 360; // px when expanded (reduced)
-  const sopMaxHeight = 360; // px when expanded (reduced)
+  // Collapsed height (visible when idle)
+  const collapsedHeight = 100; // px (user set)
+  // Reduced expansion height (less huge)
+  const communityMaxHeight = 320; // px when expanded
+  const sopMaxHeight = 320; // px when expanded
 
   // Chakra `p={2}` equals 8px top + bottom = 16px
   const containerVerticalPadding = 16;
-  const collapsedTextareaH = collapsedHeight - containerVerticalPadding;
-  const communityTextareaMaxH = communityMaxHeight - containerVerticalPadding;
-  const sopTextareaMaxH = sopMaxHeight - containerVerticalPadding;
+  const collapsedTextareaH = Math.max(40, collapsedHeight - containerVerticalPadding);
+  const communityTextareaMaxH = Math.max(120, communityMaxHeight - containerVerticalPadding);
+  const sopTextareaMaxH = Math.max(120, sopMaxHeight - containerVerticalPadding);
 
   const instructions = [
     'Statement of Purpose (SOP): Explain your motivation and goals for applying.',
@@ -481,7 +487,7 @@ function ApplicationFormDashboard() {
               onClick={() => {
                 // toggle persistent expansion only on click
                 setCommunityRequestedExpanded((s) => !s);
-                // focus textarea for discoverability when expanding
+                // if we're expanding by click, focus textarea for discoverability
                 setTimeout(() => communityRef.current?.focus?.(), 0);
               }}
               aria-expanded={communityExpanded}
@@ -502,11 +508,12 @@ function ApplicationFormDashboard() {
                   ref={communityRef}
                   value={communityService}
                   onChange={(e) => setCommunityService(e.target.value)}
+                  onFocus={() => setCommunityFocusExpanded(true)}
+                  onBlur={() => setCommunityFocusExpanded(false)}
                   borderWidth="0"
                   boxShadow="none"
                   _focus={{ boxShadow: 'none', outline: 'none' }}
                   resize="vertical"
-                  /* set explicit height so collapsed state is fully visible and expanded is reasonable */
                   style={{
                     height: communityExpanded ? `${communityTextareaMaxH}px` : `${collapsedTextareaH}px`,
                     overflowY: 'auto',
@@ -547,6 +554,8 @@ function ApplicationFormDashboard() {
                   ref={sopRef}
                   value={statementOfPurpose}
                   onChange={(e) => setStatementOfPurpose(e.target.value)}
+                  onFocus={() => setSopFocusExpanded(true)}
+                  onBlur={() => setSopFocusExpanded(false)}
                   borderWidth="0"
                   boxShadow="none"
                   _focus={{ boxShadow: 'none', outline: 'none' }}
