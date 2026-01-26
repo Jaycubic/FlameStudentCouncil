@@ -51,11 +51,11 @@ const generateVerificationCode = (length = 6) => {
 const sendVerificationEmail = async (email, code) => {
   try {
     await transporter.sendMail({
-      from: `"FLAME AMS" <${process.env.EMAIL_USER}>`,
+      from: `"FLAME Awards" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Verification Code',
       html: `
-        <h2>FLAME AMS Verification Code</h2>
+        <h2>FLAME Awards Verification Code</h2>
         <p>Your verification code is: <strong>${code}</strong></p>
         <p>This code will expire in 10 minutes.</p>
         <p>If you did not request this, please ignore this email.</p>
@@ -342,14 +342,14 @@ const authController = {
         await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 }); // 7 days
         res.cookie('refreshToken', refreshToken, {
           httpOnly: true,
-          secure: true,
-          sameSite: 'strict',
+          secure: false, // Changed from true for local HTTP
+          sameSite: 'lax', // Changed from strict for local dev compatibility
           maxAge: 604800000 // 7 days in ms
         });
         res.cookie('accessToken', encryptedToken, {
           httpOnly: true,
-          secure: true,
-          sameSite: 'strict',
+          secure: false, // Changed from true for local HTTP
+          sameSite: 'lax', // Changed from strict for local dev compatibility
           maxAge: (exp * 1000 - Date.now())
         });
         return res.json({
@@ -443,14 +443,14 @@ const authController = {
       await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 }); // 7 days
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false,
+        sameSite: 'lax',
         maxAge: 604800000 // 7 days in ms
       });
       res.cookie('accessToken', encryptedToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false,
+        sameSite: 'lax',
         maxAge: (exp * 1000 - Date.now())
       });
       return res.json({
@@ -522,14 +522,14 @@ const authController = {
       await redisClient.set(`refresh:${newRefreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 });
       res.cookie('refreshToken', newRefreshToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false,
+        sameSite: 'lax',
         maxAge: 604800000 // 7 days in ms
       });
       res.cookie('accessToken', encryptedToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false,
+        sameSite: 'lax',
         maxAge: (exp * 1000 - Date.now())
       });
       return res.json({
@@ -606,14 +606,14 @@ const authController = {
       await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false, // Changed from true for local HTTP
+        sameSite: 'lax', // Changed from strict
         maxAge: 604800000 // 7 days in ms
       });
       res.cookie('accessToken', encryptedToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false, // Changed from true for local HTTP
+        sameSite: 'lax', // Changed from strict
         maxAge: (exp * 1000 - Date.now())
       });
       const frontendUrl = process.env.FRONTEND_URL || 'http://192.168.8.10:8081';
@@ -971,14 +971,14 @@ const authController = {
       await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false,
+        sameSite: 'lax',
         maxAge: 604800000 // 7 days in ms
       });
       res.cookie('accessToken', encryptedToken, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: false,
+        sameSite: 'lax',
         maxAge: (exp * 1000 - Date.now())
       });
       return res.json({

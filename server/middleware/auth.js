@@ -19,7 +19,13 @@ const getFingerprintHash = (deviceId, userAgent, salt) => {
 
 const auth = {
   async validateToken(req, res, next) {
-    const encryptedToken = req.headers.authorization?.split(' ')[1];
+    let encryptedToken = req.headers.authorization?.split(' ')[1];
+
+    // Fallback to cookie if header is missing
+    if (!encryptedToken && req.cookies && req.cookies.accessToken) {
+      encryptedToken = req.cookies.accessToken;
+    }
+
     if (!encryptedToken) {
       console.error('No token provided');
       return res.status(401).json({ message: 'No token provided' });

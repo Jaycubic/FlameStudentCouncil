@@ -235,7 +235,7 @@ function Header() {
             color={useColorModeValue("gray.800", "white")} // Adjusted to white in dark mode
             lineHeight="1.2"
           >
-            FLAME AMS
+            FLAME Awards
           </Text>
           <Text
             fontSize={{ base: "xs", md: "sm" }}
@@ -243,7 +243,7 @@ function Header() {
             color={useColorModeValue("gray.600", "whiteAlpha.800")} // Adjusted to whiteAlpha.800 in dark mode
             mt={0.5}
           >
-            Web-based Academic Management System
+            Web-based Awarding System
           </Text>
         </Box>
         <Box
