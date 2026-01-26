@@ -4,7 +4,7 @@ const departmentController = {
   async getAllDepartments(req, res) {
     try {
       const departments = await Department.findAll({
-        include: [{ model: Location, attributes: ['locationName'] }],
+        include: [{ model: Location, attributes: ['location_name'] }],
       });
       res.json(departments);
     } catch (error) {
@@ -20,16 +20,16 @@ const departmentController = {
         return res.status(400).json({ message: 'Missing required fields' });
       }
 
-      const location = await Location.findOne({ where: { locationName } });
+      const location = await Location.findOne({ where: { location_name: locationName } });
       if (!location) {
         return res.status(400).json({ message: 'Invalid location name' });
       }
 
       const department = await Department.create({
-        departmentName,
-        locationName,
-        hodName,
-        hodEmail,
+        department_name: departmentName,
+        location_name: locationName,
+        hod_name: hodName,
+        hod_email: hodEmail,
       });
 
       res.status(201).json({ message: 'Department created successfully', department });
@@ -43,7 +43,7 @@ const departmentController = {
     try {
       const { id } = req.params;
       const department = await Department.findByPk(id, {
-        include: [{ model: Location, attributes: ['locationName'] }],
+        include: [{ model: Location, attributes: ['location_name'] }],
       });
       if (!department) {
         return res.status(404).json({ message: 'Department not found' });
@@ -64,17 +64,17 @@ const departmentController = {
       }
 
       if (locationName) {
-        const location = await Location.findOne({ where: { locationName } });
+        const location = await Location.findOne({ where: { location_name: locationName } });
         if (!location) {
           return res.status(400).json({ message: 'Invalid location name' });
         }
       }
 
       await department.update({
-        departmentName: departmentName || department.departmentName,
-        locationName: locationName || department.locationName,
-        hodName: hodName || department.hodName,
-        hodEmail: hodEmail || department.hodEmail,
+        department_name: departmentName || department.department_name,
+        location_name: locationName || department.location_name,
+        hod_name: hodName || department.hod_name,
+        hod_email: hodEmail || department.hod_email,
       });
       res.json({ message: 'Department updated successfully' });
     } catch (error) {

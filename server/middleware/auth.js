@@ -38,7 +38,7 @@ const auth = {
       }
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       console.log('Decoded token:', decoded);
-      const deviceId = req.body.deviceId || 'unknown'; // Client should send deviceId if available
+      const deviceId = req.body.deviceId || req.headers['x-device-id'] || 'unknown'; // Client should send deviceId if available
       const userAgent = req.headers['user-agent'] || '';
       const expectedFingerprint = getFingerprintHash(deviceId, userAgent, decoded.userId.toString());
       if (expectedFingerprint !== decoded.fpHash) {

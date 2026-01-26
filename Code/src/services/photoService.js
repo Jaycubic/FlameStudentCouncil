@@ -1,7 +1,7 @@
 // src/services/photoService.js
 import axios from 'axios';
 
-const BASE_API = process.env.REACT_APP_API_BASE || 'https://flamestudentcouncil.in:5050';
+const BASE_API = process.env.REACT_APP_API_BASE || 'http://192.168.8.10:8082';
 
 class PhotoService {
   getAuthHeaders() {

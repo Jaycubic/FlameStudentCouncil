@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const Role = require('./Role');
+const sequelize = require('../config/connection');
 
 const RoleSetting = sequelize.define(
   'RoleSetting',
@@ -10,20 +9,18 @@ const RoleSetting = sequelize.define(
       primaryKey: true,
     },
     setting_key: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING(100),
       primaryKey: true,
     },
     setting_value: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.TEXT,
       allowNull: false,
     },
   },
   {
-    tableName: 'RoleSettings',
+    tableName: 'role_settings',
     timestamps: false,
   }
 );
-
-RoleSetting.belongsTo(Role, { foreignKey: 'role_id' });
 
 module.exports = RoleSetting;

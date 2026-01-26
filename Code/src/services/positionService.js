@@ -2,7 +2,7 @@
 class PositionService {
   constructor() {
     // change baseUrl if your API path differs
-    this.baseUrl = 'https://flamestudentcouncil.in:5050/api/positions';
+    this.baseUrl = 'http://192.168.8.10:8082/api/positions';
   }
 
   _getAuthHeaders() {

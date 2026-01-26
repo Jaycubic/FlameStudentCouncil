@@ -30,7 +30,7 @@ import {
 import { FaClock, FaUserPlus, FaCalendarCheck, FaTrash } from 'react-icons/fa';
 import { queueDashboardService } from '../services/QueueDashboardService';
 
-const socket = io('https://flamestudentcouncil.in:5050');
+const socket = io('http://192.168.8.10:8082');
 
 function QueueDashboard() {
   const [waitingQueues, setWaitingQueues] = useState([]);
@@ -40,7 +40,7 @@ function QueueDashboard() {
   const [fontSize, setFontSize] = useState('md');
   const toast = useToast();
   const audio = useMemo(
-    () => new Audio('https://flamestudentcouncil.in:5050/api/queue-dashboard/sounds/ding-dong.wav'),
+    () => new Audio('http://192.168.8.10:8082/api/queue-dashboard/sounds/ding-dong.wav'),
     []
   );
   const prevActiveQueuesRef = useRef([]);
@@ -77,7 +77,7 @@ function QueueDashboard() {
       setTimeout(() => setVideoVisible(true), 15000);
     });
     socket.on('grabGesture', () => {
-      audio.play().catch(() => {});
+      audio.play().catch(() => { });
     });
     const clockTimer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString());
@@ -123,7 +123,7 @@ function QueueDashboard() {
   }, []);
 
   return (
-    <Box position="relative" p={{ base: 4, md: 8 }} bg={useColorModeValue('gray.50','gray.800')}>
+    <Box position="relative" p={{ base: 4, md: 8 }} bg={useColorModeValue('gray.50', 'gray.800')}>
       {/* inline CSS */}
       <style>{`
         @keyframes scrollUp { 0% {transform:translateY(0);} 100% {transform:translateY(-50%);} }
@@ -143,8 +143,8 @@ function QueueDashboard() {
       <Card mb={4} shadow="md" borderWidth="1px">
         <CardBody>
           <HStack justify="space-between">
-            <Text fontSize={fontSize==='xl'?'2xl':'xl'} fontWeight="bold">
-              <Icon as={FaClock} mr={2}/>Service Queue Dashboard
+            <Text fontSize={fontSize === 'xl' ? '2xl' : 'xl'} fontWeight="bold">
+              <Icon as={FaClock} mr={2} />Service Queue Dashboard
             </Text>
             <Text fontSize={fontSize}>{new Date().toLocaleDateString()} {currentTime}</Text>
           </HStack>
@@ -157,10 +157,10 @@ function QueueDashboard() {
         <Card shadow="md" borderWidth="1px">
           <CardHeader>
             <HStack justify="space-between">
-              <Text fontSize={fontSize==='xl'?'xl':'lg'} fontWeight="bold">
-                <Icon as={FaUserPlus} mr={2}/>Waiting Queue
+              <Text fontSize={fontSize === 'xl' ? 'xl' : 'lg'} fontWeight="bold">
+                <Icon as={FaUserPlus} mr={2} />Waiting Queue
               </Text>
-              <Button leftIcon={<Icon as={FaUserPlus}/>} colorScheme="blue" fontSize={fontSize} onClick={onOpen}>
+              <Button leftIcon={<Icon as={FaUserPlus} />} colorScheme="blue" fontSize={fontSize} onClick={onOpen}>
                 Add Student
               </Button>
             </HStack>
@@ -176,7 +176,7 @@ function QueueDashboard() {
                     <Td fontSize={fontSize}>{q.EmployeeId}</Td>
                     <Td fontSize={fontSize}>{q.EmployeeName}</Td>
                     <Td>
-                      <Button size="sm" colorScheme="red" fontSize={fontSize} leftIcon={<Icon as={FaTrash}/>} onClick={()=>handleDeleteQueue(q.id)}>
+                      <Button size="sm" colorScheme="red" fontSize={fontSize} leftIcon={<Icon as={FaTrash} />} onClick={() => handleDeleteQueue(q.id)}>
                         Delete
                       </Button>
                     </Td>
@@ -190,8 +190,8 @@ function QueueDashboard() {
         {/* Active */}
         <Card shadow="md" borderWidth="1px" className={videoVisible ? 'zoom-active' : 'normal-active'}>
           <CardHeader>
-            <Text fontSize={fontSize==='xl'?'xl':'lg'} fontWeight="bold">
-              <Icon as={FaCalendarCheck} mr={2}/>Active Services
+            <Text fontSize={fontSize === 'xl' ? 'xl' : 'lg'} fontWeight="bold">
+              <Icon as={FaCalendarCheck} mr={2} />Active Services
             </Text>
           </CardHeader>
           <CardBody>
@@ -206,7 +206,7 @@ function QueueDashboard() {
                     <Td fontSize={fontSize}>{q.EmployeeName}</Td>
                     <Td fontSize={fontSize}>{q.Counter?.CounterName ?? 'N/A'}</Td>
                     <Td>
-                      <Button size="sm" colorScheme="red" fontSize={fontSize} onClick={()=>handleSetQueueOff(q.id)}>
+                      <Button size="sm" colorScheme="red" fontSize={fontSize} onClick={() => handleSetQueueOff(q.id)}>
                         End
                       </Button>
                     </Td>
@@ -247,10 +247,10 @@ function QueueDashboard() {
 
       {/* Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay/>
+        <ModalOverlay />
         <ModalContent>
           <ModalHeader fontSize={fontSize}>Add Student to Queue</ModalHeader>
-          <ModalCloseButton/>
+          <ModalCloseButton />
           <ModalBody>
             <Text fontSize={fontSize}>Manual queue creation to be implemented.</Text>
           </ModalBody>

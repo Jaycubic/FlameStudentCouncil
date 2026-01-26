@@ -92,9 +92,9 @@ async function processJobInsert(payload) {
       status: payload.status || 'pending',
       ramzi_score: payload.ramzi_score || null,
       farrokh_score: payload.farrokh_score || null,
-      Gender: payload.Gender || null,
-      Batch: payload.Batch || null,
-      Photo: payload.Photo || null,
+      gender: payload.Gender || payload.gender || null,
+      batch: payload.Batch || payload.batch || null,
+      photo: payload.Photo || payload.photo || null,
     });
     return submission;
   } catch (err) {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { locationService } from './locationService';
 
-const API_URL = 'https://flamestudentcouncil.in:5050/api/queue-count';
+const API_URL = 'http://192.168.8.10:8082/api/queue-count';
 
 class QueueCountService {
   getAuthHeaders() {

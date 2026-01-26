@@ -1,9 +1,9 @@
 const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
 class Department extends Model {
   static associate(models) {
-    Department.belongsTo(models.Location, { foreignKey: 'locationName', targetKey: 'locationName' });
+    Department.belongsTo(models.Location, { foreignKey: 'location_name', targetKey: 'location_name' });
   }
 }
 
@@ -13,25 +13,25 @@ Department.init({
     autoIncrement: true,
     primaryKey: true,
   },
-  departmentName: {
+  department_name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+  location_name: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  locationName: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  hodName: {
+  hod_name: {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  hodEmail: {
+  hod_email: {
     type: DataTypes.STRING,
     allowNull: true,
   },
 }, {
   sequelize,
-  modelName: 'Department',
   tableName: 'departments',
 });
 

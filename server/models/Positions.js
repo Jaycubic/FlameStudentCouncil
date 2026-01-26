@@ -1,14 +1,14 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
 const Positions = sequelize.define('Positions', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    allowNull: false,
+    autoIncrement: true
   },
   description: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: false,
   },
   max_score: {
@@ -20,7 +20,7 @@ const Positions = sequelize.define('Positions', {
     allowNull: false,
   },
 }, {
-  tableName: 'Positions',
+  tableName: 'positions',
   timestamps: false,
 });
 

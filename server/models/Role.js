@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 const ActivityTracker = require('./ActivityTracker');
 
 const Role = sequelize.define('Role', {
@@ -14,13 +14,16 @@ const Role = sequelize.define('Role', {
     unique: true
   },
   permissions: {
-    type: DataTypes.JSON,
-    allowNull: false
+    type: DataTypes.JSONB,
+    allowNull: false,
+    defaultValue: {}
   },
   description: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
   }
+}, {
+  tableName: 'roles',
 });
 
 // Hooks for activity tracking
@@ -28,22 +31,20 @@ Role.afterCreate(async (role, options) => {
   const performedBy = options.performedBy;
   if (performedBy) {
     await ActivityTracker.create({
-      performedBy,
-      activityType: 'role_added',
-      details: { roleName: role.name }
+      performed_by: performedBy,
+      activity_type: 'role_added',
+      details: { role_name: role.name }
     });
   }
 });
 
-Role.afterDestroy///
-
-(async (role, options) => {
+Role.afterDestroy(async (role, options) => {
   const performedBy = options.performedBy;
   if (performedBy) {
     await ActivityTracker.create({
-      performedBy,
-      activityType: 'role_deleted',
-      details: { roleName: role.name }
+      performed_by: performedBy,
+      activity_type: 'role_deleted',
+      details: { role_name: role.name }
     });
   }
 });

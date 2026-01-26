@@ -42,8 +42,8 @@ const positionController = {
   async create(req, res) {
     try {
       const body = req.body;
-      if (!body.description || body.max_vote === undefined || body.priority === undefined) {
-        return res.status(400).json({ message: 'description, max_vote, and priority are required' });
+      if (!body.description || body.max_score === undefined || body.priority === undefined) {
+        return res.status(400).json({ message: 'description, max_score, and priority are required' });
       }
 
       // Use service if available for separation of concerns
@@ -82,10 +82,10 @@ const positionController = {
       const rows = positionService
         ? await positionService.getPositions({ limit: parseInt(limit, 10), offset: parseInt(offset, 10) })
         : await PositionModel.findAll({
-            limit: parseInt(limit, 10),
-            offset: parseInt(offset, 10),
-            order: [['priority', 'ASC']],
-          });
+          limit: parseInt(limit, 10),
+          offset: parseInt(offset, 10),
+          order: [['priority', 'ASC']],
+        });
 
       // Cache the result (stringify)
       try {

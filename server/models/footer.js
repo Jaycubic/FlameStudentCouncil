@@ -1,7 +1,7 @@
 const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
-class Footer extends Model {}
+class Footer extends Model { }
 
 Footer.init(
   {
@@ -21,9 +21,8 @@ Footer.init(
   },
   {
     sequelize,
-    modelName: 'Footer',
     tableName: 'footer',
-    timestamps: false, // Corrected placement
+    timestamps: false,
   }
 );
 

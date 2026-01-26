@@ -1,7 +1,7 @@
 // src/services/QueueDashboardService.js
 import axios from 'axios';
 
-const API_URL = 'https://flamestudentcouncil.in:5050/api/queue-dashboard';
+const API_URL = 'http://192.168.8.10:8082/api/queue-dashboard';
 
 class QueueDashboardService {
   // Grab raw token

@@ -1,6 +1,5 @@
-// models/StudentLogs.js
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 const bcrypt = require('bcrypt');
 
 const StudentLogs = sequelize.define('StudentLogs', {
@@ -9,7 +8,7 @@ const StudentLogs = sequelize.define('StudentLogs', {
     primaryKey: true,
     autoIncrement: true
   },
-  UserID: {
+  user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     unique: true
@@ -26,7 +25,7 @@ const StudentLogs = sequelize.define('StudentLogs', {
       isEmail: true
     }
   },
-  Department: {
+  department: {
     type: DataTypes.STRING,
     allowNull: true
   },
@@ -34,15 +33,15 @@ const StudentLogs = sequelize.define('StudentLogs', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  isActive: {
+  is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  roleId: {
+  role_id: {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Roles',
+      model: 'roles',
       key: 'id'
     }
   },
@@ -66,19 +65,16 @@ const StudentLogs = sequelize.define('StudentLogs', {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
-  verificationToken: {
+  verification_token: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  tokenExpires: {
+  token_expires: {
     type: DataTypes.DATE,
     allowNull: true
   }
 }, {
-  tableName: 'StudentLogs',
-  // If you want Sequelize to automatically manage createdAt/updatedAt, you can omit timestamps:false
-  // and leave defaults. If you prefer explicit columns in DB, keep defaults (Sequelize manages them).
-  timestamps: true
+  tableName: 'student_logs',
 });
 
 // Hash password before creation
@@ -92,68 +88,6 @@ StudentLogs.beforeCreate(async (student) => {
 StudentLogs.beforeUpdate(async (student) => {
   if (student.changed('password') && student.password) {
     student.password = await bcrypt.hash(student.password, 10);
-  }
-});
-
-// Activity hooks (safe: errors logged, not thrown)
-StudentLogs.afterCreate(async (student, options) => {
-  try {
-    const ActivityTracker = require('.').ActivityTracker;
-    const performedBy = (options && options.performedBy) || student.id;
-    await ActivityTracker.create({
-      performedBy,
-      activityType: 'studentlog_added',
-      details: { studentLogId: student.id, username: student.username }
-    });
-  } catch (error) {
-    console.error('Error in afterCreate hook for StudentLogs:', error);
-  }
-});
-
-StudentLogs.afterDestroy(async (student, options) => {
-  try {
-    const ActivityTracker = require('.').ActivityTracker;
-    const performedBy = (options && options.performedBy) || student.id;
-    if (performedBy !== student.id) { // skip logging if performed by the deleted row itself
-      await ActivityTracker.create({
-        performedBy,
-        activityType: 'studentlog_deleted',
-        details: { studentLogId: student.id, username: student.username }
-      });
-    }
-  } catch (error) {
-    console.error('Error in afterDestroy hook for StudentLogs:', error);
-  }
-});
-
-StudentLogs.afterUpdate(async (student, options) => {
-  try {
-    const ActivityTracker = require('.').ActivityTracker;
-    const performedBy = (options && options.performedBy) || student.id;
-
-    // Example: log if roleId changed, or Department changed, or email changed
-    const prev = student._previousDataValues || {};
-    const changes = [];
-
-    if (prev.roleId !== student.roleId) {
-      changes.push({ field: 'roleId', from: prev.roleId, to: student.roleId });
-    }
-    if (prev.Department !== student.Department) {
-      changes.push({ field: 'Department', from: prev.Department, to: student.Department });
-    }
-    if (prev.email !== student.email) {
-      changes.push({ field: 'email', from: prev.email, to: student.email });
-    }
-
-    if (changes.length > 0) {
-      await ActivityTracker.create({
-        performedBy,
-        activityType: 'studentlog_updated',
-        details: { studentLogId: student.id, changes }
-      });
-    }
-  } catch (error) {
-    console.error('Error in afterUpdate hook for StudentLogs:', error);
   }
 });
 

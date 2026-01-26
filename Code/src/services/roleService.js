@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { userService } from './userService';
 
-const API_URL = 'https://flamestudentcouncil.in:5050/api/roles';
+const API_URL = 'http://192.168.8.10:8082/api/roles';
 
 class RoleService {
   getAuthHeaders() {

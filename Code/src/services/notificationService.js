@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://flamestudentcouncil.in:5050/api/activity-tracker';
+const API_URL = 'http://192.168.8.10:8082/api/activity-tracker';
 
 // Helper function to get the Authorization header with the token
 const getAuthHeaders = () => {

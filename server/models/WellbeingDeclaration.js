@@ -1,5 +1,5 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const sequelize = require("../config/connection");
 
 const WellbeingDeclaration = sequelize.define(
   "WellbeingDeclaration",
@@ -9,11 +9,11 @@ const WellbeingDeclaration = sequelize.define(
       autoIncrement: true,
       primaryKey: true,
     },
-    studentId: {
+    student_id: {
       type: DataTypes.STRING(50),
       allowNull: false,
     },
-    fullName: {
+    full_name: {
       type: DataTypes.STRING(255),
       allowNull: false,
     },
@@ -25,55 +25,55 @@ const WellbeingDeclaration = sequelize.define(
       type: DataTypes.STRING(100),
       allowNull: false,
     },
-    psychologicalConcerns_yes: {
+    psychological_concerns_yes: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    psychologicalConcerns_no: {
+    psychological_concerns_no: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    consultedPsychotherapist_yes: {
+    consulted_psychotherapist_yes: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    consultedPsychotherapist_no: {
+    consulted_psychotherapist_no: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    currentTreatment_yes: {
+    current_treatment_yes: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    currentTreatment_no: {
+    current_treatment_no: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    wantsCounsellingServices_yes: {
+    wants_counselling_services_yes: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    wantsCounsellingServices_no: {
+    wants_counselling_services_no: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    learningChallenges_yes: {
+    learning_challenges_yes: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    learningChallenges_no: {
+    learning_challenges_no: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    parentName: {
+    parent_name: {
       type: DataTypes.STRING(255),
       allowNull: false,
     },
-    parentContact: {
+    parent_contact: {
       type: DataTypes.STRING(50),
       allowNull: false,
     },
-    parentEmail: {
+    parent_email: {
       type: DataTypes.STRING(255),
       allowNull: false,
     },
@@ -81,41 +81,30 @@ const WellbeingDeclaration = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: false,
     },
-    studentSignature: {
+    student_signature: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    consentForm: {
+    consent_form: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    supportingDocuments: {
+    supporting_documents: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    submissionId: {
+    submission_id: {
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: true,
     },
-    submittedAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
-    updatedAt: {
+    submitted_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
   },
   {
     tableName: "wellbeing_declarations",
-    timestamps: true,
-    updatedAt: 'updatedAt',
-    createdAt: 'createdAt',
   }
 );
 

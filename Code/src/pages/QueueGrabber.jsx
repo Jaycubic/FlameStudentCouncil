@@ -29,7 +29,7 @@ import { FaClock, FaUserPlus, FaCalendarCheck, FaCheckCircle, FaHandPaper, FaSto
 import { queueDashboardService } from '../services/QueueDashboardService';
 import { emitGrabGesture } from '../services/Gesture';
 
-const socket = io('https://flamestudentcouncil.in:5050');
+const socket = io('http://192.168.8.10:8082');
 
 function QueueGrabber() {
   const [waitingQueues, setWaitingQueues] = useState([]);
@@ -146,9 +146,9 @@ function QueueGrabber() {
         </CardBody>
       </Card>
 
-      <SimpleGrid 
-        columns={{ base: 1, md: 3 }} 
-        spacing={6} 
+      <SimpleGrid
+        columns={{ base: 1, md: 3 }}
+        spacing={6}
         templateColumns={{ base: '1fr', md: '1fr 1.5fr 0.75fr' }}
       >
         <Card shadow="md" borderWidth="1px">

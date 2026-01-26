@@ -79,35 +79,35 @@ function StudentInfoTable() {
   }, []);
 
   // Fetch data with all filters
-    useEffect(() => {
-      const fetchData = async () => {
-        setIsLoading(true);
-        try {
-          const [studentsData, total] = await Promise.all([
-            studentInfoService.getStudents(currentPage, filters),
-            studentInfoService.getTotalCount(filters),
-          ]);
-  
-          setStudents(studentsData);
-          setTotalCount(total);
-          setTotalPages(Math.ceil(total / 100));
-  
-          // Fetch batches only once
-          if (batches.length === 0) {
-            const batchesData = await studentInfoService.getBatches();
-            setBatches(batchesData);
-          }
-        } catch (error) {
-          toast({
-            title: 'Error loading data',
-            description: error.message,
-            status: 'error',
-            duration: 3000,
-          });
-        } finally {
-          setIsLoading(false);
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [studentsData, total] = await Promise.all([
+          studentInfoService.getStudents(currentPage, filters),
+          studentInfoService.getTotalCount(filters),
+        ]);
+
+        setStudents(studentsData);
+        setTotalCount(total);
+        setTotalPages(Math.ceil(total / 100));
+
+        // Fetch batches only once
+        if (batches.length === 0) {
+          const batchesData = await studentInfoService.getBatches();
+          setBatches(batchesData);
         }
-      };
+      } catch (error) {
+        toast({
+          title: 'Error loading data',
+          description: error.message,
+          status: 'error',
+          duration: 3000,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
     fetchData();
   }, [currentPage, filters.search, filters.batch, filters.gender]);
@@ -158,14 +158,14 @@ function StudentInfoTable() {
   // Handle PDF preview/download
   const handlePreviewPDF = () => {
     if (pdfPath) {
-      window.open(`https://flamestudentcouncil.in:5050${pdfPath}`, '_blank');
+      window.open(`http://192.168.8.10:8082${pdfPath}`, '_blank');
     }
   };
 
   const handleDownloadPDF = () => {
     if (pdfPath) {
       const link = document.createElement('a');
-      link.href = `https://flamestudentcouncil.in:5050${pdfPath}`;
+      link.href = `http://192.168.8.10:8082${pdfPath}`;
       link.download = 'student_ids.pdf';
       link.click();
     }

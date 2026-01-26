@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
 const UserNotificationStatus = sequelize.define('UserNotificationStatus', {
   id: {
@@ -7,32 +7,32 @@ const UserNotificationStatus = sequelize.define('UserNotificationStatus', {
     primaryKey: true,
     autoIncrement: true
   },
-  userId: {
+  user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Users',
+      model: 'users',
       key: 'id'
     }
   },
-  activityId: {
+  activity_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'ActivityTracker',
+      model: 'activity_tracker',
       key: 'id'
     }
   },
-  isRead: {
+  is_read: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
-  isCleared: {
+  is_cleared: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   }
 }, {
-  timestamps: true
+  tableName: 'user_notification_status',
 });
 
 module.exports = UserNotificationStatus;

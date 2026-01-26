@@ -31,9 +31,9 @@ export default function WellbeingDeclarations() {
   const [searchTerm, setSearchTerm] = useState('');
   const [programFilter, setProgramFilter] = useState('');
   const toast = useToast();
-  const bgColor = useColorModeValue('white','gray.800');
+  const bgColor = useColorModeValue('white', 'gray.800');
   const gradientBg = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
-  const ATTACH_BASE = 'https://flamestudentcouncil.in:5050/api/wellbeing-form/attachments';
+  const ATTACH_BASE = 'http://192.168.8.10:8082/api/wellbeing-form/attachments';
 
   // fetch & init
   const fetchAll = async () => {
@@ -44,7 +44,7 @@ export default function WellbeingDeclarations() {
       setFiltered(all);
       setPrograms(Array.from(new Set(all.map(d => d.program))));
     } catch (e) {
-      toast({ title:'Error', description:e.message, status:'error' });
+      toast({ title: 'Error', description: e.message, status: 'error' });
     } finally {
       setLoading(false);
     }
@@ -73,21 +73,21 @@ export default function WellbeingDeclarations() {
   const handleUpdate = async () => {
     try {
       await wellbeingService.update(editItem.id, form);
-      toast({ title:'Updated', status:'success' });
+      toast({ title: 'Updated', status: 'success' });
       closeEdit();
       fetchAll();
     } catch (e) {
-      toast({ title:'Error', description:e.message, status:'error' });
+      toast({ title: 'Error', description: e.message, status: 'error' });
     }
   };
   const handleDelete = async id => {
     if (!window.confirm('Delete this record?')) return;
     try {
       await wellbeingService.delete(id);
-      toast({ title:'Deleted', status:'success' });
+      toast({ title: 'Deleted', status: 'success' });
       fetchAll();
     } catch (e) {
-      toast({ title:'Error', description:e.message, status:'error' });
+      toast({ title: 'Error', description: e.message, status: 'error' });
     }
   };
   const openView = i => setViewItem(i);
@@ -97,8 +97,8 @@ export default function WellbeingDeclarations() {
     const sheet = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, 'Declarations');
-    const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
-    saveAs(new Blob([wbout],{type:'application/octet-stream'}), 'wellbeing_declarations.xlsx');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'wellbeing_declarations.xlsx');
   };
 
   if (loading) return <Flex justify="center" py={20}><Spinner size="xl" /></Flex>;
@@ -109,7 +109,7 @@ export default function WellbeingDeclarations() {
         <HStack justify="space-between" mb={4}>
           <Text fontSize="2xl">Wellbeing Declarations</Text>
           <Button
-            leftIcon={<DocumentArrowDownIcon className="h-5 w-5"/>}
+            leftIcon={<DocumentArrowDownIcon className="h-5 w-5" />}
             colorScheme="blue"
             onClick={exportToExcel}
           >
@@ -117,14 +117,14 @@ export default function WellbeingDeclarations() {
           </Button>
         </HStack>
 
-        <Stack direction={{ base:'column', md:'row' }} spacing={4} mb={4}>
+        <Stack direction={{ base: 'column', md: 'row' }} spacing={4} mb={4}>
           <Input
             placeholder="Search by name, ID or email..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             maxW="300px"
             InputLeftElement={
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 ml-2"/>
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 ml-2" />
             }
           />
           <Select
@@ -180,19 +180,19 @@ export default function WellbeingDeclarations() {
                 <Td>
                   <HStack spacing={1}>
                     <IconButton
-                      icon={<EyeIcon className="h-5 w-5"/>}
+                      icon={<EyeIcon className="h-5 w-5" />}
                       size="sm"
                       onClick={() => openView(d)}
                       aria-label="View"
                     />
                     <IconButton
-                      icon={<PencilSquareIcon className="h-5 w-5"/>}
+                      icon={<PencilSquareIcon className="h-5 w-5" />}
                       size="sm"
                       onClick={() => openEdit(d)}
                       aria-label="Edit"
                     />
                     <IconButton
-                      icon={<TrashIcon className="h-5 w-5"/>}
+                      icon={<TrashIcon className="h-5 w-5" />}
                       size="sm"
                       colorScheme="red"
                       onClick={() => handleDelete(d.id)}
@@ -228,16 +228,16 @@ export default function WellbeingDeclarations() {
                       <Td>
                         {key === 'supportingDocuments' && val
                           ? val.split(',').map(fn => (
-                              <Box key={fn}>
-                                <a
-                                  href={`${ATTACH_BASE}/${fn}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  {fn}
-                                </a>
-                              </Box>
-                            ))
+                            <Box key={fn}>
+                              <a
+                                href={`${ATTACH_BASE}/${fn}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {fn}
+                              </a>
+                            </Box>
+                          ))
                           : String(val)
                         }
                       </Td>

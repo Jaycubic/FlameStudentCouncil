@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
 const ActivityTracker = sequelize.define('ActivityTracker', {
   id: {
@@ -7,24 +7,24 @@ const ActivityTracker = sequelize.define('ActivityTracker', {
     primaryKey: true,
     autoIncrement: true
   },
-  performedBy: {
+  performed_by: {
     type: DataTypes.INTEGER,
-    allowNull: true, // Changed to allow NULL
+    allowNull: true,
     references: {
-      model: 'Users',
+      model: 'users',
       key: 'id'
     }
   },
-  activityType: {
+  activity_type: {
     type: DataTypes.STRING,
     allowNull: false
   },
   details: {
-    type: DataTypes.JSON,
+    type: DataTypes.JSONB,
     allowNull: true
   }
 }, {
-  timestamps: true,
+  tableName: 'activity_tracker',
   updatedAt: false
 });
 

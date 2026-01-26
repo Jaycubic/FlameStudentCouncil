@@ -1,4 +1,4 @@
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 const Organization = require('./Organization');
 const Location = require('./Location');
 const Department = require('./Department');
@@ -9,7 +9,16 @@ const ActivityTracker = require('./ActivityTracker');
 const UserNotificationStatus = require('./UserNotificationStatus');
 const Counter = require('./counter');
 const Queue = require('./Queue');
-const RoleSetting = require('./RoleSetting'); // Add RoleSetting model import
+const RoleSetting = require('./RoleSetting');
+const StudentData = require('./StudentData');
+const StudentLogs = require('./StudentLogs');
+const Positions = require('./Positions');
+const LegalDocument = require('./LegalDocument');
+const academicAttachment = require('./academicAttachment');
+const footer = require('./footer');
+const formSubmissions = require('./formSubmissions');
+const EmployeeStudentMaster = require('./EmployeeStudentMaster');
+const WellbeingDeclaration = require('./WellbeingDeclaration');
 
 const models = {
   Organization,
@@ -22,7 +31,16 @@ const models = {
   UserNotificationStatus,
   Counter,
   Queue,
-  RoleSetting // Add RoleSetting to models
+  RoleSetting,
+  StudentData,
+  StudentLogs,
+  Positions,
+  LegalDocument,
+  academicAttachment,
+  footer,
+  formSubmissions,
+  EmployeeStudentMaster,
+  WellbeingDeclaration
 };
 
 Object.values(models).forEach(model => {
@@ -32,22 +50,21 @@ Object.values(models).forEach(model => {
 });
 
 // Set up associations
-Role.hasMany(User);
-User.belongsTo(Role);
+Role.hasMany(User, { foreignKey: 'role_id' });
+User.belongsTo(Role, { foreignKey: 'role_id' });
 
-User.hasMany(UserNotificationStatus, { foreignKey: 'userId' });
-ActivityTracker.hasMany(UserNotificationStatus, { foreignKey: 'activityId' });
-UserNotificationStatus.belongsTo(User, { foreignKey: 'userId' });
-UserNotificationStatus.belongsTo(ActivityTracker, { foreignKey: 'activityId' });
+User.hasMany(UserNotificationStatus, { foreignKey: 'user_id' });
+ActivityTracker.hasMany(UserNotificationStatus, { foreignKey: 'activity_id' });
+UserNotificationStatus.belongsTo(User, { foreignKey: 'user_id' });
+UserNotificationStatus.belongsTo(ActivityTracker, { foreignKey: 'activity_id' });
 
-Counter.belongsTo(Department, { foreignKey: 'DepartmentName', targetKey: 'departmentName' });
-Department.hasMany(Counter, { foreignKey: 'DepartmentName', sourceKey: 'departmentName' });
+Counter.belongsTo(Department, { foreignKey: 'department_name', targetKey: 'department_name' });
+Department.hasMany(Counter, { foreignKey: 'department_name', sourceKey: 'department_name' });
 
-User.belongsTo(Counter, { foreignKey: 'CounterId' });
+// Queue depends on counter
+Queue.belongsTo(Counter, { foreignKey: 'counter_id' });
 
-Queue.belongsTo(Counter, { foreignKey: 'CounterId' });
-
-Role.hasMany(RoleSetting, { foreignKey: 'role_id' }); // Add Role to RoleSetting association
+Role.hasMany(RoleSetting, { foreignKey: 'role_id' });
 RoleSetting.belongsTo(Role, { foreignKey: 'role_id' });
 
 module.exports = models;

@@ -2,7 +2,7 @@
 class AuthService {
   async login(email, password) {
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/login', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

@@ -7,38 +7,38 @@ const { Op } = require("sequelize");
  * Returns EmployeeName, Batch, Gender, DOB, Email, EmployeePhoto, FatherMobileNo, MotherMobileNo, BLOODGROUP.
  */
 const getEmployeeByCode = async (req, res) => {
-    try {
-      const { code } = req.query;
-      if (!code) {
-        return res.status(400).json({ message: "Code parameter is required" });
-      }
-
-      const employee = await EmployeeStudentMaster.findOne({
-        where: { EmployeeCode: code },
-        attributes: [
-          'EmployeeName',
-          'Batch',
-          'Gender',
-          'DOB',
-          'Email',
-          'EmployeePhoto',
-          'FatherMobileNo',
-          'MotherMobileNo',
-          'BLOODGROUP'
-        ]
-      });
-
-      if (!employee) {
-        return res.status(404).json({ message: "Employee not found" });
-      }
-
-      // Log the employee data to check if BLOODGROUP is included
-      console.log('Employee Data for code', code, ':', employee.toJSON());
-
-      res.json(employee);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).json({ message: "Code parameter is required" });
     }
+
+    const employee = await EmployeeStudentMaster.findOne({
+      where: { EmployeeCode: code },
+      attributes: [
+        'EmployeeName',
+        'Batch',
+        'Gender',
+        'DOB',
+        'Email',
+        'EmployeePhoto',
+        'FatherMobileNo',
+        'MotherMobileNo',
+        'BLOODGROUP'
+      ]
+    });
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    // Log the employee data to check if BLOODGROUP is included
+    console.log('Employee Data for code', code, ':', employee.toJSON());
+
+    res.json(employee);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 /**
@@ -49,41 +49,41 @@ const getEmployeeByCode = async (req, res) => {
  * Returns EmployeeCode, EmployeeName, Batch, Gender, DOB, Email, EmployeePhoto, FatherMobileNo, MotherMobileNo, BLOODGROUP.
  */
 const getEmployees = async (req, res) => {
-    try {
-      let { page, limit } = req.query;
-      page = parseInt(page) || 1;
-      limit = parseInt(limit) || 50;
-      const offset = (page - 1) * limit;
+  try {
+    let { page, limit } = req.query;
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 50;
+    const offset = (page - 1) * limit;
 
-      const { count, rows } = await EmployeeStudentMaster.findAndCountAll({
-        offset,
-        limit,
-        attributes: [
-          'EmployeeCode',
-          'EmployeeName',
-          'Batch',
-          'Gender',
-          'DOB',
-          'Email',
-          'EmployeePhoto',
-          'FatherMobileNo',
-          'MotherMobileNo',
-          'BLOODGROUP'
-        ]
-      });
+    const { count, rows } = await EmployeeStudentMaster.findAndCountAll({
+      offset,
+      limit,
+      attributes: [
+        'EmployeeCode',
+        'EmployeeName',
+        'Batch',
+        'Gender',
+        'DOB',
+        'Email',
+        'EmployeePhoto',
+        'FatherMobileNo',
+        'MotherMobileNo',
+        'BLOODGROUP'
+      ]
+    });
 
-      // Log the employees data to check if BLOODGROUP is included (first 5 records)
-      console.log('Employees Data (first 5 records):', rows.slice(0, 5).map(emp => emp.toJSON()));
+    // Log the employees data to check if BLOODGROUP is included (first 5 records)
+    console.log('Employees Data (first 5 records):', rows.slice(0, 5).map(emp => emp.toJSON()));
 
-      res.json({
-        totalRecords: count,
-        currentPage: page,
-        pageSize: limit,
-        data: rows
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
+    res.json({
+      totalRecords: count,
+      currentPage: page,
+      pageSize: limit,
+      data: rows
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 module.exports = {

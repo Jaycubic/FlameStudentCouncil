@@ -510,7 +510,7 @@ const updateStudent = async (req, res) => {
     }
     console.log(`Attempting to update student with ID: ${studentId}`);
     console.log(`Request body: ${JSON.stringify(req.body)}`);
-    
+
     // Validate studentId
     if (!studentId || isNaN(studentId)) {
       console.error('Invalid student ID:', req.params.id, 'or body ID:', req.body.id);
@@ -955,9 +955,9 @@ const getBatches = async (req, res) => {
     res.json(batches.map(b => b.Batch));
   } catch (error) {
     console.error("Error in getBatches:", error);
-    res.status(500).json({ 
-      message: "Failed to fetch batches", 
-      error: error.message 
+    res.status(500).json({
+      message: "Failed to fetch batches",
+      error: error.message
     });
   }
 };

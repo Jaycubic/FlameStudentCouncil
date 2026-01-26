@@ -1,7 +1,7 @@
 const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
-class Queue extends Model {}
+class Queue extends Model { }
 
 Queue.init({
   id: {
@@ -9,57 +9,45 @@ Queue.init({
     autoIncrement: true,
     primaryKey: true,
   },
-  EmployeeId: {
+  employee_id: {
     type: DataTypes.STRING(50),
     allowNull: false,
   },
-  EmployeeName: {
+  employee_name: {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-  Gender: {
-    type: DataTypes.STRING(10),
+  gender: {
+    type: DataTypes.STRING(20),
     allowNull: false,
   },
-  Department: {
+  department: {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-  Email: {
+  email: {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-  locationName: {
+  location_name: {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-  CounterId: {
+  counter_id: {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
-  DeviceId: {
+  device_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
   status: {
-    type: DataTypes.STRING(10),
+    type: DataTypes.STRING(20),
     defaultValue: 'WAIT',
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
-  updatedAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
   },
 }, {
   sequelize,
-  modelName: 'Queue',
-  tableName: 'Queue',
-  timestamps: true,
-  updatedAt: 'updatedAt',
-  createdAt: 'createdAt',
+  tableName: 'queue',
 });
 
 module.exports = Queue;

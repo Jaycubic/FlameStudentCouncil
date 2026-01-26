@@ -1,44 +1,41 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const sequelize = require("../config/connection");
 
 const RoomKey = sequelize.define(
   "RoomKey",
   {
-    Id: {
+    id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
-    StudentId: {
+    student_id: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    StudentName: {
+    student_name: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    RCName: {
+    rc_name: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    HousingBlock: {
+    housing_block: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    Issued: {
+    issued: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-    Returned: {
+    returned: {
       type: DataTypes.DATE,
       allowNull: true,
     },
   },
   {
-    tableName: "RoomKey",
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
+    tableName: "room_keys",
   }
 );
 

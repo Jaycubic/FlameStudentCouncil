@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://flamestudentcouncil.in:5050/api/organizations';
+const API_URL = 'http://192.168.8.10:8082/api/organizations';
 
 class OrganizationService {
   getAuthHeaders() {

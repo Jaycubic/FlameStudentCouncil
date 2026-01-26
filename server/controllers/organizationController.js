@@ -31,13 +31,13 @@ const organizationController = {
       const organization = await Organization.create({
         name,
         address,
-        phoneNumber,
+        phone_number: phoneNumber,
         email,
-        websiteLink,
-        contactPersonName,
-        contactPersonMobile,
-        personEmail,
-        gstNumber,
+        website_link: websiteLink,
+        contact_person_name: contactPersonName,
+        contact_person_mobile: contactPersonMobile,
+        person_email: personEmail,
+        gst_number: gstNumber,
       });
 
       res.status(201).json({ message: 'Organization created successfully', organization });
@@ -82,13 +82,13 @@ const organizationController = {
       await organization.update({
         name: name || organization.name,
         address: address || organization.address,
-        phoneNumber: phoneNumber || organization.phoneNumber,
+        phone_number: phoneNumber || organization.phone_number,
         email: email || organization.email,
-        websiteLink: websiteLink || organization.websiteLink,
-        contactPersonName: contactPersonName || organization.contactPersonName,
-        contactPersonMobile: contactPersonMobile || organization.contactPersonMobile,
-        personEmail: personEmail || organization.personEmail,
-        gstNumber: gstNumber || organization.gstNumber,
+        website_link: websiteLink || organization.website_link,
+        contact_person_name: contactPersonName || organization.contact_person_name,
+        contact_person_mobile: contactPersonMobile || organization.contact_person_mobile,
+        person_email: personEmail || organization.person_email,
+        gst_number: gstNumber || organization.gst_number,
       });
       res.json({ message: 'Organization updated successfully' });
     } catch (error) {

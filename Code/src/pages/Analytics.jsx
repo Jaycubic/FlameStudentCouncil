@@ -188,14 +188,14 @@ function StudentInfoTable() {
   // Handle PDF preview/download
   const handlePreviewPDF = () => {
     if (pdfPath) {
-      window.open(`https://flamestudentcouncil.in:5050${pdfPath}`, '_blank');
+      window.open(`http://192.168.8.10:8082${pdfPath}`, '_blank');
     }
   };
 
   const handleDownloadPDF = () => {
     if (pdfPath) {
       const link = document.createElement('a');
-      link.href = `https://flamestudentcouncil.in:5050${pdfPath}`;
+      link.href = `http://192.168.8.10:8082${pdfPath}`;
       link.download = 'student_ids.pdf';
       link.click();
     }

@@ -17,18 +17,17 @@ const generateTitle = (type, details) => {
 const generateDescription = (type, details) => {
   switch (type) {
     case 'user_added':
-      // Use username if available, otherwise fall back to userId or 'Unknown'
-      const userIdentifier = details.username || details.userId || 'Unknown';
+      const userIdentifier = details.username || details.user_id || 'Unknown';
       return `User ${userIdentifier} was added`;
     case 'user_deleted':
-      const deletedUserIdentifier = details.username || details.userId || 'Unknown';
+      const deletedUserIdentifier = details.username || details.user_id || 'Unknown';
       return `User ${deletedUserIdentifier} was deleted`;
     case 'user_counterid_updated':
-      return `User ${details.userId}'s CounterId updated from ${details.oldCounterId} to ${details.newCounterId}`;
+      return `User ${details.user_id}'s CounterId updated from ${details.oldCounterId} to ${details.newCounterId}`;
     case 'student_added':
-      return `Student ${details.studentId} was added`;
+      return `Student ${details.student_id} was added`;
     case 'student_deleted':
-      return `Student ${details.studentId} was deleted`;
+      return `Student ${details.student_id} was deleted`;
     case 'role_added':
       return `Role ${details.roleName} was added`;
     case 'role_deleted':
@@ -40,31 +39,30 @@ const generateDescription = (type, details) => {
 
 const getNotifications = async (req, res) => {
   try {
-    console.log('req.user:', req.user); // Debug: Log req.user
-    const userId = req.user.userId || req.user.id; // Use userId or id, depending on payload
+    const userId = req.user.userId || req.user.id;
     if (!userId) {
       throw new Error('User ID not found in token');
     }
     const notifications = await ActivityTracker.findAll({
       include: [{
         model: UserNotificationStatus,
-        where: { userId },
+        where: { user_id: userId },
         required: false
       }],
-      order: [['createdAt', 'DESC']],
+      order: [['created_at', 'DESC']],
       limit: 50
     });
 
     const formattedNotifications = notifications.map(activity => {
-      const status = activity.UserNotificationStatus || { isRead: false, isCleared: false };
+      const status = activity.UserNotificationStatus || { is_read: false, is_cleared: false };
       return {
         id: activity.id,
-        title: generateTitle(activity.activityType, activity.details),
-        description: generateDescription(activity.activityType, activity.details),
-        time: activity.createdAt,
-        isRead: status.isRead,
-        isCleared: status.isCleared,
-        type: activity.activityType
+        title: generateTitle(activity.activity_type, activity.details),
+        description: generateDescription(activity.activity_type, activity.details),
+        time: activity.created_at,
+        isRead: status.is_read,
+        isCleared: status.is_cleared,
+        type: activity.activity_type
       };
     }).filter(n => !n.isCleared);
 
@@ -78,15 +76,15 @@ const getNotifications = async (req, res) => {
 const markNotificationAsRead = async (req, res) => {
   try {
     const { activityId } = req.params;
-    const userId = req.user.userId || req.user.id; // Use userId or id
+    const userId = req.user.userId || req.user.id;
     if (!userId) {
       throw new Error('User ID not found in token');
     }
-    let status = await UserNotificationStatus.findOne({ where: { userId, activityId } });
+    let status = await UserNotificationStatus.findOne({ where: { user_id: userId, activity_id: activityId } });
     if (!status) {
-      status = await UserNotificationStatus.create({ userId, activityId, isRead: true });
+      status = await UserNotificationStatus.create({ user_id: userId, activity_id: activityId, is_read: true });
     } else {
-      status.isRead = true;
+      status.is_read = true;
       await status.save();
     }
     res.json({ message: 'Notification marked as read' });
@@ -99,15 +97,15 @@ const markNotificationAsRead = async (req, res) => {
 const clearNotification = async (req, res) => {
   try {
     const { activityId } = req.params;
-    const userId = req.user.userId || req.user.id; // Use userId or id
+    const userId = req.user.userId || req.user.id;
     if (!userId) {
       throw new Error('User ID not found in token');
     }
-    let status = await UserNotificationStatus.findOne({ where: { userId, activityId } });
+    let status = await UserNotificationStatus.findOne({ where: { user_id: userId, activity_id: activityId } });
     if (!status) {
-      status = await UserNotificationStatus.create({ userId, activityId, isCleared: true });
+      status = await UserNotificationStatus.create({ user_id: userId, activity_id: activityId, is_cleared: true });
     } else {
-      status.isCleared = true;
+      status.is_cleared = true;
       await status.save();
     }
     res.json({ message: 'Notification cleared' });
@@ -120,16 +118,16 @@ const clearNotification = async (req, res) => {
 const markNotificationsAsRead = async (req, res) => {
   try {
     const { activityIds } = req.body;
-    const userId = req.user.userId || req.user.id; // Use userId or id
+    const userId = req.user.userId || req.user.id;
     if (!userId) {
       throw new Error('User ID not found in token');
     }
     for (const activityId of activityIds) {
-      let status = await UserNotificationStatus.findOne({ where: { userId, activityId } });
+      let status = await UserNotificationStatus.findOne({ where: { user_id: userId, activity_id: activityId } });
       if (!status) {
-        await UserNotificationStatus.create({ userId, activityId, isRead: true });
+        await UserNotificationStatus.create({ user_id: userId, activity_id: activityId, is_read: true });
       } else {
-        status.isRead = true;
+        status.is_read = true;
         await status.save();
       }
     }
@@ -143,16 +141,16 @@ const markNotificationsAsRead = async (req, res) => {
 const clearNotifications = async (req, res) => {
   try {
     const { activityIds } = req.body;
-    const userId = req.user.userId || req.user.id; // Use userId or id
+    const userId = req.user.userId || req.user.id;
     if (!userId) {
       throw new Error('User ID not found in token');
     }
     for (const activityId of activityIds) {
-      let status = await UserNotificationStatus.findOne({ where: { userId, activityId } });
+      let status = await UserNotificationStatus.findOne({ where: { user_id: userId, activity_id: activityId } });
       if (!status) {
-        await UserNotificationStatus.create({ userId, activityId, isCleared: true });
+        await UserNotificationStatus.create({ user_id: userId, activity_id: activityId, is_cleared: true });
       } else {
-        status.isCleared = true;
+        status.is_cleared = true;
         await status.save();
       }
     }

@@ -1,22 +1,22 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
 const FormSubmissions = sequelize.define('FormSubmissions', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    allowNull: false,
+    autoIncrement: true
   },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
   },
   student_id: {
-    type: DataTypes.CHAR(6),
+    type: DataTypes.CHAR(10),
     allowNull: false,
   },
   mobile_number: {
-    type: DataTypes.STRING(15),
+    type: DataTypes.STRING(20),
     allowNull: false,
   },
   position: {
@@ -69,7 +69,7 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
     defaultValue: DataTypes.NOW,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+    type: DataTypes.STRING(50),
     allowNull: false,
     defaultValue: 'pending',
   },
@@ -81,21 +81,20 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
   },
-  Gender: {
+  gender: {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  Batch: {
+  batch: {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  Photo: {
+  photo: {
     type: DataTypes.STRING,
     allowNull: true,
   },
 }, {
   tableName: 'form_submissions',
-  timestamps: false,
 });
 
 module.exports = FormSubmissions;

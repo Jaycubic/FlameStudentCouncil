@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const API_URL = 'https://flamestudentcouncil.in:5050/api/reports';
-const STUDENTS_API_URL = 'https://flamestudentcouncil.in:5050/students';
+const API_URL = 'http://192.168.8.10:8082/api/reports';
+const STUDENTS_API_URL = 'http://192.168.8.10:8082/students';
 
 class ReportService {
   async getReportData(page = 1, filters = {}) {

@@ -23,7 +23,7 @@ const getStudentStatusData = async (req, res) => {
     const cachedKey = `studentStatusData:page:${page}:search:${search}:studentStatus:${studentStatus}`;
     const cachedData = await redisClient.get(cachedKey);
     if (cachedData) {
-      console.log(`Serving studentStatusData page ${page} with search "${search}" and studentStatus "${studentStatus}" from Redis cache`);
+      console.log(`Serving studentStatusData page ${page} from Redis cache`);
       return res.json(JSON.parse(cachedData));
     }
     let whereClause = {};
@@ -34,34 +34,34 @@ const getStudentStatusData = async (req, res) => {
       if (search) {
         whereClause[Sequelize.Op.and].push({
           [Sequelize.Op.or]: [
-            { StudentName: { [Sequelize.Op.like]: `%${search}%` } },
-            { EmailID: { [Sequelize.Op.like]: `%${search}%` } },
-            { StudentCvueNo: { [Sequelize.Op.like]: `%${search}%` } },
-            { RCName: { [Sequelize.Op.like]: `%${search}%` } },
-            { House: { [Sequelize.Op.like]: `%${search}%` } },
-            { HousingBlock: { [Sequelize.Op.like]: `%${search}%` } },
-            { Status: { [Sequelize.Op.like]: `%${search}%` } },
-            { StudentStatus: { [Sequelize.Op.like]: `%${search}%` } },
+            { student_name: { [Sequelize.Op.like]: `%${search}%` } },
+            { email_id: { [Sequelize.Op.like]: `%${search}%` } },
+            { student_cvue_no: { [Sequelize.Op.like]: `%${search}%` } },
+            { rc_name: { [Sequelize.Op.like]: `%${search}%` } },
+            { house: { [Sequelize.Op.like]: `%${search}%` } },
+            { housing_block: { [Sequelize.Op.like]: `%${search}%` } },
+            { status: { [Sequelize.Op.like]: `%${search}%` } },
+            { student_status: { [Sequelize.Op.like]: `%${search}%` } },
           ],
         });
       }
       if (studentStatus) {
-        whereClause[Sequelize.Op.and].push({ StudentStatus: studentStatus });
+        whereClause[Sequelize.Op.and].push({ student_status: studentStatus });
       }
     }
     const students = await StudentData.findAll({
       attributes: [
-        'StudentName',
-        'EmailID',
-        'StudentCvueNo',
-        'RCName',
-        'House',
-        'HousingBlock',
-        'Status',
-        'StudentStatus',
-        'WithDrawnDate',
-        'WithDrawnReason',
-        'WithDrawnComment',
+        ['student_name', 'StudentName'],
+        ['email_id', 'EmailID'],
+        ['student_cvue_no', 'StudentCvueNo'],
+        ['rc_name', 'RCName'],
+        ['house', 'House'],
+        ['housing_block', 'HousingBlock'],
+        ['status', 'Status'],
+        ['student_status', 'StudentStatus'],
+        ['withdrawn_date', 'WithDrawnDate'],
+        ['withdrawn_reason', 'WithDrawnReason'],
+        ['withdrawn_comment', 'WithDrawnComment'],
       ],
       where: whereClause,
       raw: true,
@@ -89,10 +89,10 @@ const getStudentStatusCounts = async (req, res) => {
     }
     const counts = await StudentData.findAll({
       attributes: [
-        'StudentStatus',
-        [Sequelize.fn('COUNT', Sequelize.col('StudentStatus')), 'count']
+        ['student_status', 'StudentStatus'],
+        [Sequelize.fn('COUNT', Sequelize.col('student_status')), 'count']
       ],
-      group: ['StudentStatus'],
+      group: ['student_status'],
       raw: true,
     });
     const statusCounts = {
@@ -120,51 +120,41 @@ const updateStudentStatus = async (req, res) => {
     const { StudentCvueNo } = req.params;
     const { StudentStatus, WithDrawnDate, WithDrawnReason, WithDrawnComment } = req.body;
 
-    // Validate StudentStatus
     if (!StudentStatus || typeof StudentStatus !== 'string' || StudentStatus.trim() === '') {
       return res.status(400).json({ message: "StudentStatus is required and must be a non-empty string" });
     }
 
-    // Parse StudentCvueNo to integer
     const studentCvueNoInt = parseInt(StudentCvueNo, 10);
     if (isNaN(studentCvueNoInt)) {
       return res.status(400).json({ message: "Invalid StudentCvueNo" });
     }
 
-    // Fetch current student data
-    const student = await StudentData.findOne({ where: { StudentCvueNo: studentCvueNoInt } });
+    const student = await StudentData.findOne({ where: { student_cvue_no: studentCvueNoInt } });
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    const updateData = { StudentStatus };
+    const updateData = { student_status: StudentStatus };
 
-    // Check if previous status was WITHDRAWAL COMPLETED and new status is ACTIVE, LOA, or STUDY ABROAD
-    if (student.StudentStatus === 'WITHDRAWAL COMPLETED' && ['ACTIVE', 'LOA', 'STUDY ABROAD'].includes(StudentStatus)) {
-      updateData.WithDrawnDate = null;
-      updateData.WithDrawnReason = null;
-      updateData.WithDrawnComment = null;
+    if (student.student_status === 'WITHDRAWAL COMPLETED' && ['ACTIVE', 'LOA', 'STUDY ABROAD'].includes(StudentStatus)) {
+      updateData.withdrawn_date = null;
+      updateData.withdrawn_reason = null;
+      updateData.withdrawn_comment = null;
     } else if (StudentStatus === 'WITHDRAWAL COMPLETED') {
-      updateData.WithDrawnDate = WithDrawnDate;
-      updateData.WithDrawnReason = WithDrawnReason;
-      updateData.WithDrawnComment = WithDrawnComment;
+      updateData.withdrawn_date = WithDrawnDate;
+      updateData.withdrawn_reason = WithDrawnReason;
+      updateData.withdrawn_comment = WithDrawnComment;
     }
 
-    // Log the update attempt
-    console.log(`Updating StudentCvueNo: ${studentCvueNoInt} with data:`, updateData);
-
     const [updated] = await StudentData.update(updateData, {
-      where: { StudentCvueNo: studentCvueNoInt },
+      where: { student_cvue_no: studentCvueNoInt },
     });
-
-    // Log the result
-    console.log(`Rows updated: ${updated}`);
 
     if (updated === 0) {
       return res.status(404).json({ message: "Student not found" });
     }
 
-    await redisClient.del('studentStatusCounts'); // Invalidate counts cache
+    await redisClient.del('studentStatusCounts');
     const io = getIo();
     io.emit('studentStatusUpdated', { StudentCvueNo: studentCvueNoInt, ...updateData });
     res.json({ message: "Student status updated successfully" });

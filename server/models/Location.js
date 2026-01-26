@@ -1,10 +1,10 @@
 const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
 class Location extends Model {
   static associate(models) {
-    Location.belongsTo(models.Organization, { foreignKey: 'OrganizationName', targetKey: 'name' });
-    Location.hasMany(models.Department, { foreignKey: 'locationName', sourceKey: 'locationName' });
+    Location.belongsTo(models.Organization, { foreignKey: 'organization_name', targetKey: 'name' });
+    Location.hasMany(models.Department, { foreignKey: 'location_name', sourceKey: 'location_name' });
   }
 }
 
@@ -14,21 +14,21 @@ Location.init({
     autoIncrement: true,
     primaryKey: true,
   },
-  locationName: {
+  location_name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+  organization_name: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  OrganizationName: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  DeviceId: {
+  device_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
 }, {
   sequelize,
-  modelName: 'Location',
   tableName: 'locations',
 });
 

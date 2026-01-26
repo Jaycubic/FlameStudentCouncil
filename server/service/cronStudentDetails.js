@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { QueryTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 const StudentData = require('../models/StudentData');
 const redis = require('redis');
 require('dotenv').config();
@@ -22,7 +22,7 @@ async function cacheStudentDetails(io) {
 
     // Total Student Count
     const [totalCountResult] = await sequelize.query(
-      'SELECT COUNT(*) AS count FROM studentdata',
+      'SELECT COUNT(*) AS count FROM app.student_data',
       { type: QueryTypes.SELECT }
     );
     const totalCount = { total: parseInt(totalCountResult.count) };
@@ -32,17 +32,17 @@ async function cacheStudentDetails(io) {
 
     // Gender Batch Count
     const genderBatchCounts = await sequelize.query(
-      `SELECT Batch, Gender, COUNT(Gender) AS count 
-       FROM studentdata 
-       WHERE Batch IS NOT NULL AND Gender IS NOT NULL 
-       GROUP BY Batch, Gender 
-       ORDER BY Batch ASC`,
+      `SELECT batch, gender, COUNT(gender) AS count 
+       FROM app.student_data 
+       WHERE batch IS NOT NULL AND gender IS NOT NULL 
+       GROUP BY batch, gender 
+       ORDER BY batch ASC`,
       { type: QueryTypes.SELECT }
     );
-    const batches = [...new Set(genderBatchCounts.map((item) => item.Batch))];
+    const batches = [...new Set(genderBatchCounts.map((item) => item.batch))];
     const genderBatchResult = batches.map((batch) => {
-      const female = genderBatchCounts.find((r) => r.Batch === batch && r.Gender === 'Female');
-      const male = genderBatchCounts.find((r) => r.Batch === batch && r.Gender === 'Male');
+      const female = genderBatchCounts.find((r) => r.batch === batch && r.gender === 'Female');
+      const male = genderBatchCounts.find((r) => r.batch === batch && r.gender === 'Male');
       const femaleCount = female ? parseInt(female.count) : 0;
       const maleCount = male ? parseInt(male.count) : 0;
       return { batch, female: femaleCount, male: maleCount, total: femaleCount + maleCount };
@@ -62,15 +62,15 @@ async function cacheStudentDetails(io) {
 
     // City Count (Full)
     const cityCounts = await sequelize.query(
-      `SELECT HomeTown, COUNT(HomeTown) AS count 
-       FROM studentdata 
-       WHERE HomeTown IS NOT NULL 
-       GROUP BY HomeTown 
+      `SELECT home_town, COUNT(home_town) AS count 
+       FROM app.student_data 
+       WHERE home_town IS NOT NULL 
+       GROUP BY home_town 
        ORDER BY count DESC`,
       { type: QueryTypes.SELECT }
     );
     const formattedCityCounts = cityCounts.map((item) => ({
-      homeTown: item.HomeTown || 'Unknown',
+      homeTown: item.home_town || 'Unknown',
       count: parseInt(item.count),
     }));
     await redisClient.setEx('cityCount', 600, JSON.stringify(formattedCityCounts));
@@ -79,16 +79,16 @@ async function cacheStudentDetails(io) {
 
     // City with Highest Count
     const [highestCity] = await sequelize.query(
-      `SELECT HomeTown, COUNT(HomeTown) AS count 
-       FROM studentdata 
-       WHERE HomeTown IS NOT NULL 
-       GROUP BY HomeTown 
+      `SELECT home_town, COUNT(home_town) AS count 
+       FROM app.student_data 
+       WHERE home_town IS NOT NULL 
+       GROUP BY home_town 
        ORDER BY count DESC 
        LIMIT 1`,
       { type: QueryTypes.SELECT }
     );
     const highestCityData = highestCity
-      ? { homeTown: highestCity.HomeTown || 'Unknown', count: parseInt(highestCity.count) }
+      ? { homeTown: highestCity.home_town || 'Unknown', count: parseInt(highestCity.count) }
       : { homeTown: 'None', count: 0 };
     await redisClient.setEx('cityWithHighestCount', 600, JSON.stringify(highestCityData));
     io.emit('cityWithHighestCountUpdated', highestCityData);
@@ -96,15 +96,15 @@ async function cacheStudentDetails(io) {
 
     // RC Count (Full)
     const rcCounts = await sequelize.query(
-      `SELECT \`RC Name\` AS RCName, COUNT(\`RC Name\`) AS count 
-       FROM studentdata 
-       WHERE \`RC Name\` IS NOT NULL 
-       GROUP BY \`RC Name\` 
+      `SELECT rc_name AS rcName, COUNT(rc_name) AS count 
+       FROM app.student_data 
+       WHERE rc_name IS NOT NULL 
+       GROUP BY rc_name 
        ORDER BY count DESC`,
       { type: QueryTypes.SELECT }
     );
     const formattedRCCounts = rcCounts.map((item) => ({
-      rcName: item.RCName,
+      rcName: item.rcname,
       count: parseInt(item.count),
     }));
     await redisClient.setEx('rcCount', 600, JSON.stringify(formattedRCCounts));
@@ -114,8 +114,8 @@ async function cacheStudentDetails(io) {
     // RC Filled Count
     const [rcFilledResult] = await sequelize.query(
       `SELECT COUNT(*) AS count 
-       FROM studentdata 
-       WHERE \`RC Name\` IS NOT NULL`,
+       FROM app.student_data 
+       WHERE rc_name IS NOT NULL`,
       { type: QueryTypes.SELECT }
     );
     const rcFilledCount = { total: parseInt(rcFilledResult.count) };
@@ -125,10 +125,10 @@ async function cacheStudentDetails(io) {
 
     // IN-OUT Count
     const inOutCounts = await sequelize.query(
-      `SELECT \`IN-OUT\` AS \`in_out\`, COUNT(\`IN-OUT\`) AS count 
-       FROM studentdata 
-       WHERE \`IN-OUT\` IS NOT NULL 
-       GROUP BY \`IN-OUT\``,
+      `SELECT in_out, COUNT(in_out) AS count 
+       FROM app.student_data 
+       WHERE in_out IS NOT NULL 
+       GROUP BY in_out`,
       { type: QueryTypes.SELECT }
     );
     const formattedInOutCounts = inOutCounts.map((item) => ({
@@ -141,17 +141,17 @@ async function cacheStudentDetails(io) {
 
     // IN-OUT Batch Count
     const inOutBatchCounts = await sequelize.query(
-      `SELECT Batch, \`IN-OUT\` AS \`in_out\`, COUNT(\`IN-OUT\`) AS count 
-       FROM studentdata 
-       WHERE Batch IS NOT NULL AND \`IN-OUT\` IS NOT NULL 
-       GROUP BY Batch, \`IN-OUT\` 
-       ORDER BY Batch ASC`,
+      `SELECT batch, in_out, COUNT(in_out) AS count 
+       FROM app.student_data 
+       WHERE batch IS NOT NULL AND in_out IS NOT NULL 
+       GROUP BY batch, in_out 
+       ORDER BY batch ASC`,
       { type: QueryTypes.SELECT }
     );
-    const inOutBatches = [...new Set(inOutBatchCounts.map((item) => item.Batch))];
+    const inOutBatches = [...new Set(inOutBatchCounts.map((item) => item.batch))];
     const inOutBatchResult = inOutBatches.map((batch) => {
-      const inCount = inOutBatchCounts.find((r) => r.Batch === batch && r.in_out === 'IN');
-      const outCount = inOutBatchCounts.find((r) => r.Batch === batch && r.in_out === 'OUT');
+      const inCount = inOutBatchCounts.find((r) => r.batch === batch && r.in_out === 'IN');
+      const outCount = inOutBatchCounts.find((r) => r.batch === batch && r.in_out === 'OUT');
       const inValue = inCount ? parseInt(inCount.count) : 0;
       const outValue = outCount ? parseInt(outCount.count) : 0;
       return { batch, in: inValue, out: outValue, total: inValue + outValue };
@@ -180,15 +180,15 @@ async function cacheStudentDetails(io) {
       const housingDetails = await StudentData.findAll({
         attributes: [
           'id',
-          'StudentName',
-          'EmailID',
-          'StudentCvueNo',
-          'RCName',
-          'House',
-          'HousingBlock',
-          'Status',
-          'NoOfDays',
-          'INOUT',
+          ['student_name', 'StudentName'],
+          ['email_id', 'EmailID'],
+          ['student_cvue_no', 'StudentCvueNo'],
+          ['rc_name', 'RCName'],
+          ['house', 'House'],
+          ['housing_block', 'HousingBlock'],
+          ['status', 'Status'],
+          ['no_of_days', 'NoOfDays'],
+          ['in_out', 'INOUT'],
         ],
         raw: true,
         limit: PAGE_SIZE,
@@ -205,15 +205,15 @@ async function cacheStudentDetails(io) {
       // Parents Info
       const parentsInfo = await StudentData.findAll({
         attributes: [
-          'StudentName',
-          'EmailID',
-          'StudentCvueNo',
-          'FatherName',
-          'FatherEmailID',
-          'FatherMobileNo',
-          'MotherName',
-          'MotherEmailID',
-          'MotherMobileNo',
+          ['student_name', 'StudentName'],
+          ['email_id', 'EmailID'],
+          ['student_cvue_no', 'StudentCvueNo'],
+          ['father_name', 'FatherName'],
+          ['father_email_id', 'FatherEmailID'],
+          ['father_mobile_no', 'FatherMobileNo'],
+          ['mother_name', 'MotherName'],
+          ['mother_email_id', 'MotherEmailID'],
+          ['mother_mobile_no', 'MotherMobileNo'],
         ],
         raw: true,
         limit: PAGE_SIZE,
@@ -230,16 +230,16 @@ async function cacheStudentDetails(io) {
       // Student Info
       const studentInfo = await StudentData.findAll({
         attributes: [
-          'StudentName',
-          'EmailID',
-          'Batch',
-          'Gender',
-          'DOB',
-          'ContactNo',
-          'HomeTown',
-          'House',
-          'Photo',
-          'StudentCvueNo',
+          ['student_name', 'StudentName'],
+          ['email_id', 'EmailID'],
+          ['batch', 'Batch'],
+          ['gender', 'Gender'],
+          ['dob', 'DOB'],
+          ['contact_no', 'ContactNo'],
+          ['home_town', 'HomeTown'],
+          ['house', 'House'],
+          ['photo', 'Photo'],
+          ['student_cvue_no', 'StudentCvueNo'],
         ],
         raw: true,
         limit: PAGE_SIZE,
@@ -256,14 +256,14 @@ async function cacheStudentDetails(io) {
       // Tracking Info
       const trackingInfo = await StudentData.findAll({
         attributes: [
-          'StudentName',
-          'StudentCvueNo',
-          'EmailID',
-          'INOUT',
-          'NoOfDays',
-          'DeviceName',
-          'LastPunchDate',
-          'DeviceId',
+          ['student_name', 'StudentName'],
+          ['student_cvue_no', 'StudentCvueNo'],
+          ['email_id', 'EmailID'],
+          ['in_out', 'INOUT'],
+          ['no_of_days', 'NoOfDays'],
+          ['device_name', 'DeviceName'],
+          ['last_punch_date', 'LastPunchDate'],
+          ['device_id', 'DeviceId'],
         ],
         raw: true,
         limit: PAGE_SIZE,

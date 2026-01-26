@@ -1,15 +1,15 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const sequelize = require("../config/connection");
 
 const Setting = sequelize.define(
   "Setting",
   {
     setting_key: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING(100),
       primaryKey: true,
     },
     setting_value: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.TEXT,
       allowNull: false,
     },
   },

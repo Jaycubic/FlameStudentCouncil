@@ -26,9 +26,9 @@ const locationController = {
       }
 
       const location = await Location.create({
-        locationName,
-        OrganizationName,
-        DeviceId,
+        location_name: locationName,
+        organization_name: OrganizationName,
+        device_id: DeviceId,
       });
 
       res.status(201).json({ message: 'Location created successfully', location });
@@ -70,9 +70,9 @@ const locationController = {
       }
 
       await location.update({
-        locationName: locationName || location.locationName,
-        OrganizationName: OrganizationName || location.OrganizationName,
-        DeviceId: DeviceId || location.DeviceId,
+        location_name: locationName || location.location_name,
+        organization_name: OrganizationName || location.organization_name,
+        device_id: DeviceId || location.device_id,
       });
       res.json({ message: 'Location updated successfully' });
     } catch (error) {

@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/connection');
 
 const Counter = sequelize.define('Counter', {
   id: {
@@ -7,23 +7,24 @@ const Counter = sequelize.define('Counter', {
     primaryKey: true,
     autoIncrement: true
   },
-  CounterName: {
+  counter_name: {
     type: DataTypes.STRING,
     allowNull: false
   },
-  DepartmentName: {
+  department_name: {
     type: DataTypes.STRING,
     allowNull: false,
     references: {
       model: 'departments',
-      key: 'departmentName'
+      key: 'department_name'
     }
   }
 }, {
+  tableName: 'counters',
   indexes: [
     {
       unique: true,
-      fields: ['CounterName', 'DepartmentName']
+      fields: ['counter_name', 'department_name']
     }
   ]
 });

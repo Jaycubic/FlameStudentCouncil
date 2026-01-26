@@ -4,7 +4,7 @@ const cors = require('cors');
 const bodyParser = require("body-parser");
 const cron = require("node-cron");
 require('dotenv').config();
-const https = require('https');
+const http = require('http'); // Switched from https
 const fs = require('fs');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
@@ -25,7 +25,7 @@ const locationRoutes = require("./routes/locationRoutes.js");
 const organizationRoutes = require("./routes/organizationRoutes.js");
 const legalRoutes = require(`./routes/LegalDocumentRoutes.js`);
 const footerRoutes = require(`./routes/footerRoutes.js`);
-const formSubmissionRoutes = require('./routes/formSubmissionRoutes.js'); // Assuming this is the route file name
+const formSubmissionRoutes = require('./routes/formSubmissionRoutes.js');
 const formSubmissionController = require('./controllers/formSubmissionController.js');
 
 const app = express();
@@ -33,15 +33,8 @@ const app = express();
 app.use(helmet());
 app.use(cookieParser());
 
-// Load SSL certificates
-const sslOptions = {
-  cert: fs.readFileSync('/opt/View/sslcertificates/council_certificate.crt'),
-  ca: fs.readFileSync('/opt/View/sslcertificates/council_bundle.crt'),
-  key: fs.readFileSync('/opt/View/sslcertificates/council.key'),
-};
-
-// Create HTTPS server and bind Socket.IO
-const server = https.createServer(sslOptions, app);
+// Create HTTP server and bind Socket.IO
+const server = http.createServer(app); // Switched to http
 const io = setupSocket(server);
 
 const queueDashboardController = require('./controllers/queueDashboardController.js');
@@ -50,8 +43,8 @@ queueDashboardController.setIo(io);
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: 'https://flamestudentcouncil.in:3030', // Allow frontend origin
-  credentials: true // Allow credentials (cookies) if needed
+  origin: 'http://192.168.8.10:8081', // Updated frontend origin
+  credentials: true
 }));
 app.use(express.json());
 app.use(bodyParser.json());
@@ -66,7 +59,7 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/positions', require('./routes/positions'));
 app.use('/photos', require('./routes/photoRoutes'));
-app.use("/api/footer",footerRoutes);
+app.use("/api/footer", footerRoutes);
 app.use(EmployeeRoute);
 app.use('/api/student-status', require('./routes/studentStatusRoutes.js'));
 app.use('/api/activity-tracker', require('./routes/activityTrackerRoutes.js'));
@@ -86,12 +79,12 @@ app.get("/", (req, res) => {
 });
 
 
-let _server; // will hold our running server
+let _server;
 
 // Function to start server
 const startServer = async () => {
   await sequelize.sync();
-  const PORT = process.env.PORT || 5050;
+  const PORT = 8082; // Forced to 8082 as requested
   _server = server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     formSubmissionController.startQueueWorker();

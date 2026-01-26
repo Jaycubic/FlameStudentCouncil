@@ -1,5 +1,5 @@
 // Login.jsx
-import React, { useState, useEffect, useRef } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -126,7 +126,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/verify-code', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code }),
@@ -136,7 +136,7 @@ function Login() {
         const text = await response.text();
         console.error('Non-JSON response:', text);
         throw new Error('Server did not return JSON');
-       }
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || 'Error verifying code');
@@ -168,7 +168,7 @@ function Login() {
   const handleResendCode = async (resendUserId) => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/resend-verification-code', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/resend-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: resendUserId }),
@@ -191,7 +191,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/verify-2fa', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code: twoFACode }),
@@ -223,7 +223,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/google');
+      const response = await fetch('http://192.168.8.10:8082/api/auth/google');
       const data = await response.json();
       if (data.url) {
         window.location.href = data.url;
@@ -249,7 +249,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/forgot-password', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -273,7 +273,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/verify-reset-code', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-reset-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -300,7 +300,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/verify-reset-2fa', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-reset-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: resetUserId, code: twoFACode }),
@@ -323,7 +323,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flamestudentcouncil.in:5050/api/auth/reset-password', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resetToken, newPassword }),
@@ -699,8 +699,8 @@ function Login() {
                         getPasswordStrength(newPassword) === 'weak'
                           ? 'red.500'
                           : getPasswordStrength(newPassword) === 'medium'
-                          ? 'yellow.500'
-                          : 'green.500'
+                            ? 'yellow.500'
+                            : 'green.500'
                       }
                       mt={1}
                     >
