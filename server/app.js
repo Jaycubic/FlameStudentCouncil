@@ -37,8 +37,6 @@ app.use(cookieParser());
 const server = http.createServer(app); // Switched to http
 const io = setupSocket(server);
 
-const queueDashboardController = require('./controllers/queueDashboardController.js');
-queueDashboardController.setIo(io);
 
 // Middleware
 app.use(helmet());
