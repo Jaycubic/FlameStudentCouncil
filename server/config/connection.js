@@ -3,15 +3,15 @@ require('dotenv').config();
 
 const { Sequelize } = require('sequelize');
 
-const DB_NAME = process.env.DB_NAME || 'FlameAwards';
-const DB_USER = process.env.DB_USER || 'postgres';
-const DB_PASSWORD = process.env.DB_PASSWORD || '';
-const DB_HOST = process.env.DB_HOST || '127.0.0.1';
-const DB_PORT = parseInt(process.env.DB_PORT || '5432', 10);
+const DBP_NAME = process.env.DBP_NAME || 'flameawards';
+const DBP_USER = process.env.DBP_USER || 'jofrey';
+const DBP_PASSWORD = process.env.DBP_PASSWORD || '2025';
+const DBP_HOST = process.env.DBP_HOST || '127.0.0.1';
+const DBP_PORT = parseInt(process.env.DBP_PORT || '5432', 10);
 
-const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
-    host: DB_HOST,
-    port: DB_PORT,
+const sequelize = new Sequelize(DBP_NAME, DBP_USER, DBP_PASSWORD, {
+    host: DBP_HOST,
+    port: DBP_PORT,
     dialect: 'postgres',
     logging: false,
     define: {
