@@ -62,7 +62,7 @@ class AuthService {
   async verifyCode(userId, code) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/verify-code', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code, deviceId }),
@@ -83,7 +83,7 @@ class AuthService {
   async verify2FA(userId, code) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/verify-2fa', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code, deviceId }),
@@ -104,7 +104,7 @@ class AuthService {
   async resendVerificationCode(userId) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/resend-verification-code', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/resend-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, deviceId }),
@@ -120,7 +120,7 @@ class AuthService {
   async googleSignIn() {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch(`https://flameprogramoffice.in:5050/api/auth/google?deviceId=${encodeURIComponent(deviceId)}`, {
+      const response = await fetch(`http://192.168.8.10:8082/api/auth/google?deviceId=${encodeURIComponent(deviceId)}`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -137,7 +137,7 @@ class AuthService {
 
   async initiateGoogleSignIn(email) {
     try {
-      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/initiate-google-signin', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/initiate-google-signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -156,7 +156,7 @@ class AuthService {
   async verifyGoogleSignInCode(userId, code) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/verify-google-signin-code', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-google-signin-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code, deviceId }),
@@ -184,7 +184,7 @@ class AuthService {
   async refresh() {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/refresh', {
+      const response = await fetch('http://192.168.8.10:8082/api/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
