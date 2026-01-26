@@ -7,10 +7,8 @@ const { validateToken, requireAdmin } = require('../middleware/auth');
 router.get('/', validateToken, requireAdmin, userController.getAllUsers);
 router.post('/', userController.createUser);
 
-// Non‑ID routes must come before any `/:id` catch‑all
-router.get('/rc-usernames', validateToken, userController.getRCUsernames);
-
 // More specific PUT comes before the generic `/:id`
+router.put('/update-password', validateToken, userController.updateMyPassword);
 router.put('/:id/role', validateToken, userController.updateUserRole);
 
 // Now the generic `/:id` routes
