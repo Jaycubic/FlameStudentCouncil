@@ -1,23 +1,40 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/users';
 const EMPLOYEE_API_URL = 'http://192.168.8.10:8082/employee';
 
 class UserService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    console.log('Retrieved token from localStorage:', token);
-    if (!token) {
-      console.warn('No token found in localStorage');
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
     }
-    return { Authorization: `Bearer ${token}` };
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
   }
 
   async getUsers() {
-    const headers = this.getAuthHeaders();
-    console.log('Sending request with headers:', headers);
     try {
-      const response = await axios.get(API_URL, { headers });
+      const response = await this.fetchWithAuth('get', API_URL);
       return response.data;
     } catch (error) {
       console.error('Error fetching users:', error.response?.data || error.message);
@@ -26,10 +43,8 @@ class UserService {
   }
 
   async getUserById(id) {
-    const headers = this.getAuthHeaders();
-    console.log('Fetching user by ID with headers:', headers);
     try {
-      const response = await axios.get(`${API_URL}/${id}`, { headers });
+      const response = await this.fetchWithAuth('get', `${API_URL}/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching user ${id}:`, error.response?.data || error.message);
@@ -38,10 +53,8 @@ class UserService {
   }
 
   async createUser(userData) {
-    const headers = this.getAuthHeaders();
-    console.log('Creating user with headers:', headers);
     try {
-      const response = await axios.post(API_URL, userData, { headers });
+      const response = await this.fetchWithAuth('post', API_URL, { data: userData });
       return response.data;
     } catch (error) {
       console.error('Error creating user:', error.response?.data || error.message);
@@ -50,10 +63,8 @@ class UserService {
   }
 
   async updateUser(id, userData) {
-    const headers = this.getAuthHeaders();
-    console.log('Updating user with headers:', headers);
     try {
-      const response = await axios.put(`${API_URL}/${id}`, userData, { headers });
+      const response = await this.fetchWithAuth('put', `${API_URL}/${id}`, { data: userData });
       return response.data;
     } catch (error) {
       console.error(`Error updating user ${id}:`, error.response?.data || error.message);
@@ -62,10 +73,8 @@ class UserService {
   }
 
   async deleteUser(id) {
-    const headers = this.getAuthHeaders();
-    console.log('Deleting user with headers:', headers);
     try {
-      const response = await axios.delete(`${API_URL}/${id}`, { headers });
+      const response = await this.fetchWithAuth('delete', `${API_URL}/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error deleting user ${id}:`, error.response?.data || error.message);
@@ -74,10 +83,10 @@ class UserService {
   }
 
   async getEmployeeByCode(code) {
-    const headers = this.getAuthHeaders();
-    console.log('Fetching employee by code with headers:', headers);
     try {
-      const response = await axios.get(`${EMPLOYEE_API_URL}?code=${encodeURIComponent(code)}`, { headers });
+      const response = await this.fetchWithAuth('get', EMPLOYEE_API_URL, {
+        params: { code }
+      });
       return response.data;
     } catch (error) {
       console.error(`Error fetching employee with code ${code}:`, error.response?.data || error.message);
@@ -86,9 +95,8 @@ class UserService {
   }
 
   async getRCUsernames() {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.get(`${API_URL}/rc-usernames`, { headers });
+      const response = await this.fetchWithAuth('get', `${API_URL}/rc-usernames`);
       return response.data;
     } catch (error) {
       console.error('Error fetching RC usernames:', error.response?.data || error.message);

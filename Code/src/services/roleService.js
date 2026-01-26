@@ -1,27 +1,45 @@
 import axios from 'axios';
 import { userService } from './userService';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/roles';
 
 class RoleService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('No token found in localStorage. Authentication may fail.');
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
     }
-    return { Authorization: `Bearer ${token || ''}` };
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: url.startsWith('http') ? url : `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
   }
 
   async getRoles() {
     try {
-      const response = await axios.get(API_URL, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('get', '');
       // Fetch users to calculate userCount
       const users = await userService.getUsers();
       const rolesWithCounts = response.data.map((role) => ({
         ...role,
-        permissions: Array.isArray(role.permissions) ? role.permissions : [], // Ensure permissions is an array
+        permissions: Array.isArray(role.permissions) ? role.permissions : [],
         userCount: users.filter((user) => user.role === role.name).length,
       }));
       return rolesWithCounts;
@@ -32,11 +50,9 @@ class RoleService {
 
   async getRoleById(id) {
     try {
-      const response = await axios.get(`${API_URL}/${id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('get', `/${id}`);
       const role = response.data;
-      role.permissions = Array.isArray(role.permissions) ? role.permissions : []; // Ensure permissions is an array
+      role.permissions = Array.isArray(role.permissions) ? role.permissions : [];
       return role;
     } catch (error) {
       this.handleError(error);
@@ -45,11 +61,9 @@ class RoleService {
 
   async createRole(roleData) {
     try {
-      const response = await axios.post(API_URL, roleData, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('post', '', { data: roleData });
       const role = response.data;
-      role.permissions = Array.isArray(role.permissions) ? role.permissions : []; // Ensure permissions is an array
+      role.permissions = Array.isArray(role.permissions) ? role.permissions : [];
       return role;
     } catch (error) {
       this.handleError(error);
@@ -58,11 +72,9 @@ class RoleService {
 
   async updateRole(id, roleData) {
     try {
-      const response = await axios.put(`${API_URL}/${id}`, roleData, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('put', `/${id}`, { data: roleData });
       const role = response.data;
-      role.permissions = Array.isArray(role.permissions) ? role.permissions : []; // Ensure permissions is an array
+      role.permissions = Array.isArray(role.permissions) ? role.permissions : [];
       return role;
     } catch (error) {
       this.handleError(error);
@@ -71,9 +83,7 @@ class RoleService {
 
   async deleteRole(id) {
     try {
-      const response = await axios.delete(`${API_URL}/${id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('delete', `/${id}`);
       return response.data;
     } catch (error) {
       this.handleError(error);

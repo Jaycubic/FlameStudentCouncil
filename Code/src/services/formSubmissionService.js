@@ -1,11 +1,29 @@
 // services/formSubmissionService.js
+import { load } from '@fingerprintjs/fingerprintjs';
+
 class FormSubmissionService {
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
   async create(formData) {
     try {
+      const deviceId = await this.getDeviceId();
       const response = await fetch('http://192.168.8.10:8082/api/form-submissions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId
+        },
         body: JSON.stringify(formData),
+        credentials: 'include',
       });
       const data = await response.json();
       if (response.ok) {

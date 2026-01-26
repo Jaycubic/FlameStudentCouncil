@@ -1,110 +1,105 @@
 // src/services/QueueDashboardService.js
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/queue-dashboard';
 
 class QueueDashboardService {
-  // Grab raw token
-  getToken() {
-    return localStorage.getItem('token');
-  }
-
-  // Decode JWT payload
-  getDecodedToken() {
-    const token = this.getToken();
-    if (!token) return null;
-    try {
-      const payload = token.split('.')[1];
-      return JSON.parse(atob(payload));
-    } catch (e) {
-      console.warn('Failed to decode token', e);
-      return null;
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
     }
+    return deviceId;
   }
 
-  // Extract counterId directly from JWT
+  getCurrentUser() {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  }
+
+  // Extract counterId from user object in localStorage
   getCounterId() {
-    const decoded = this.getDecodedToken();
-    return decoded?.counterId ?? null;
+    const user = this.getCurrentUser();
+    return user?.counterId ?? null;
   }
 
-  // Standard Auth header
-  getAuthHeaders() {
-    const token = this.getToken();
-    return token
-      ? { Authorization: `Bearer ${token}` }
-      : {};
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: url.startsWith('http') ? url : `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
   }
 
   async createQueue(queueData) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.post(API_URL, queueData, { headers });
+    const res = await this.fetchWithAuth('post', '', { data: queueData });
     return res.data;
   }
 
   async getWaitingQueues() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/waiting`, { headers });
+    const res = await this.fetchWithAuth('get', '/waiting');
     return res.data;
   }
 
   async getActiveQueues() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/active`, { headers });
+    const res = await this.fetchWithAuth('get', '/active');
     return res.data;
   }
 
   async getActiveQueuesForDashboard() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/active-dashboard`, { headers });
+    const res = await this.fetchWithAuth('get', '/active-dashboard');
     return res.data;
   }
 
   async getCompletedQueues() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/completed`, { headers });
+    const res = await this.fetchWithAuth('get', '/completed');
     return res.data;
   }
 
   async setQueueOn(id) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.put(`${API_URL}/${id}/on`, {}, { headers });
+    const res = await this.fetchWithAuth('put', `/${id}/on`);
     return res.data;
   }
 
   async setQueueOff(id) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.put(`${API_URL}/${id}/off`, {}, { headers });
+    const res = await this.fetchWithAuth('put', `/${id}/off`);
     return res.data;
   }
 
   async deleteQueue(id) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.delete(`${API_URL}/${id}`, { headers });
+    const res = await this.fetchWithAuth('delete', `/${id}`);
     return res.data;
   }
 
   async getDepartmentCounters() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/counters`, { headers });
+    const res = await this.fetchWithAuth('get', '/counters');
     return res.data;
   }
 
   async moveQueueToCounter(id, newCounterId) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.put(`${API_URL}/${id}/move`, { newCounterId }, { headers });
+    const res = await this.fetchWithAuth('put', `/${id}/move`, { data: { newCounterId } });
     return res.data;
   }
 
   async getWaitingQueuesSpecial() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/waiting-special`, { headers });
+    const res = await this.fetchWithAuth('get', '/waiting-special');
     return res.data;
   }
 
   async getActiveQueuesSpecial() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/active-special`, { headers });
+    const res = await this.fetchWithAuth('get', '/active-special');
     return res.data;
   }
 }

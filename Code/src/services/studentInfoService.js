@@ -1,82 +1,110 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/students';
 
-const studentInfoService = {
-  getStudents: async (page = 1, filters = {}) => {
+class StudentInfoService {
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+      responseType: options.responseType || 'json'
+    };
+    return axios(config);
+  }
+
+  async getStudents(page = 1, filters = {}) {
     try {
-      const response = await axios.get(`${API_URL}/student-info`, {
+      const response = await this.fetchWithAuth('get', '/student-info', {
         params: { page, ...filters }
       });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch students');
     }
-  },
+  }
 
-  getTotalCount: async (filters = {}) => {
+  async getTotalCount(filters = {}) {
     try {
-      const response = await axios.get(`${API_URL}/total-count`, {
+      const response = await this.fetchWithAuth('get', '/total-count', {
         params: filters
       });
       return response.data.total;
     } catch (error) {
       throw new Error('Failed to fetch total student count');
     }
-  },
+  }
 
-  getBatches: async () => {
+  async getBatches() {
     try {
-      const response = await axios.get(`${API_URL}/batches`);
+      const response = await this.fetchWithAuth('get', '/batches');
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch batches');
     }
-  },
+  }
 
-  createStudent: async (studentData) => {
+  async createStudent(studentData) {
     try {
-      const response = await axios.post(`${API_URL}`, studentData);
+      const response = await this.fetchWithAuth('post', '', { data: studentData });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to create student');
     }
-  },
+  }
 
-  updateStudent: async (id, updateData) => {
+  async updateStudent(id, updateData) {
     try {
-      const response = await axios.patch(`${API_URL}/${id}`, updateData);
+      const response = await this.fetchWithAuth('patch', `/${id}`, { data: updateData });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update student');
     }
-  },
+  }
 
-  getStudentPhoto: async (photoId) => {
+  async getStudentPhoto(photoId) {
     try {
-      const response = await axios.get(`${API_URL}/photos/${photoId}`, {
-        responseType: 'blob' // Expecting an image file
+      const response = await this.fetchWithAuth('get', `/photos/${photoId}`, {
+        responseType: 'blob'
       });
-      return URL.createObjectURL(response.data); // Convert blob to URL for frontend use
+      return URL.createObjectURL(response.data);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch student photo');
     }
-  },
+  }
 
-  uploadStudentPhoto: async (photoId, file) => {
+  async uploadStudentPhoto(photoId, file) {
     try {
       const formData = new FormData();
       formData.append('photo', file);
-      const response = await axios.post(`${API_URL}/photos/${photoId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+      const response = await this.fetchWithAuth('post', `/photos/${photoId}`, {
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to upload photo');
     }
-  },
-};
+  }
+}
 
-export default studentInfoService;
+export default new StudentInfoService();

@@ -1,14 +1,36 @@
 // src/services/photoService.js
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
-const BASE_API = process.env.REACT_APP_API_BASE || 'http://192.168.8.10:8082';
+const BASE_API = 'http://192.168.8.10:8082';
 
 class PhotoService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    return {
-      Authorization: token ? `Bearer ${token}` : '',
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: `${BASE_API}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+      timeout: options.timeout || 10000,
     };
+    return axios(config);
   }
 
   async uploadPhoto(file) {
@@ -16,13 +38,12 @@ class PhotoService {
     const form = new FormData();
     form.append('photo', file);
 
-    const headers = {
-      ...this.getAuthHeaders(),
-      'Content-Type': 'multipart/form-data',
-    };
-
     try {
-      const resp = await axios.post(`${BASE_API}/api/users/photo`, form, { headers, timeout: 20000 });
+      const resp = await this.fetchWithAuth('post', '/api/users/photo', {
+        data: form,
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 20000
+      });
       return resp.data;
     } catch (err) {
       console.error('Photo upload failed:', err.response?.data || err.message);
@@ -32,9 +53,8 @@ class PhotoService {
 
   async deletePhoto(filename) {
     if (!filename) throw new Error('No filename provided');
-    const headers = this.getAuthHeaders();
     try {
-      const resp = await axios.delete(`${BASE_API}/api/users/photo/${encodeURIComponent(filename)}`, { headers });
+      const resp = await this.fetchWithAuth('delete', `/api/users/photo/${encodeURIComponent(filename)}`);
       return resp.data;
     } catch (err) {
       console.error('Photo delete failed:', err.response?.data || err.message);
@@ -42,13 +62,8 @@ class PhotoService {
     }
   }
 
-  /**
-   * Return a browser-fetchable URL. The backend returns the filename WITH extension
-   * (e.g. 123.jpg) so just return /photos/<filename>.
-   */
   getPhotoUrl(filename) {
     if (!filename) return null;
-    // if the filename already includes an extension, return as-is
     return `/photos/${filename}`;
   }
 }

@@ -1,58 +1,86 @@
 // src/services/studentHouseTrackingService.js
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/students';
 
-const studentHouseTrackingService = {
-  getHousingDetails: async (page = 1, filters = {}) => {
+class StudentHouseTrackingService {
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
+  }
+
+  async getHousingDetails(page = 1, filters = {}) {
     const { search = '', rcName = '', inout = '' } = filters;
     try {
-      const response = await axios.get(`${API_URL}/housing-details`, {
+      const response = await this.fetchWithAuth('get', '/housing-details', {
         params: { page, search, rcName, inout }
       });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch housing details');
     }
-  },
+  }
 
-  getTotalCount: async (filters = {}) => {
+  async getTotalCount(filters = {}) {
     const { search = '', rcName = '', inout = '' } = filters;
     try {
-      const response = await axios.get(`${API_URL}/total-count`, {
+      const response = await this.fetchWithAuth('get', '/total-count', {
         params: { search, rcName, inout }
       });
       return response.data.total;
     } catch (error) {
       throw new Error('Failed to fetch total student count');
     }
-  },
+  }
 
-  getRCNames: async () => {
+  async getRCNames() {
     try {
-      const response = await axios.get(`${API_URL}/rc-names`);
+      const response = await this.fetchWithAuth('get', '/rc-names');
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch RC names');
     }
-  },
+  }
 
-  updateStudent: async (id, updateData) => {
+  async updateStudent(id, updateData) {
     try {
-      const response = await axios.patch(`${API_URL}/${id}`, updateData);
+      const response = await this.fetchWithAuth('patch', `/${id}`, { data: updateData });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update student');
     }
-  },
+  }
 
-  deleteStudent: async (id) => {
+  async deleteStudent(id) {
     try {
-      await axios.delete(`${API_URL}/${id}`);
+      await this.fetchWithAuth('delete', `/${id}`);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to delete student');
     }
-  },
-};
+  }
+}
 
-export default studentHouseTrackingService;
+export default new StudentHouseTrackingService();

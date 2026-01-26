@@ -1,34 +1,62 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/keys';
 
-const keyService = {
-  issueKey: async (studentId) => {
+class KeyService {
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
+  }
+
+  async issueKey(studentId) {
     try {
-      const response = await axios.post(`${API_URL}/issue`, { studentId });
+      const response = await this.fetchWithAuth('post', '/issue', { data: { studentId } });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to issue key');
     }
-  },
+  }
 
-  returnKey: async (studentId) => {
+  async returnKey(studentId) {
     try {
-      const response = await axios.post(`${API_URL}/return`, { studentId });
+      const response = await this.fetchWithAuth('post', '/return', { data: { studentId } });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to return key');
     }
-  },
+  }
 
-  getKeyStatus: async (studentId) => {
+  async getKeyStatus(studentId) {
     try {
-      const response = await axios.get(`${API_URL}/status/${studentId}`);
+      const response = await this.fetchWithAuth('get', `/status/${studentId}`);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch key status');
     }
-  },
-};
+  }
+}
 
-export default keyService;
+export default new KeyService();

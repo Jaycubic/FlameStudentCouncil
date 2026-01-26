@@ -19,6 +19,7 @@ import {
   InputRightElement,
   IconButton,
   Image,
+  Skeleton,
 } from '@chakra-ui/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
@@ -33,7 +34,7 @@ function Login() {
   const alertColor = useColorModeValue('vrv.700', 'vrv.200');
   const alertIconColor = useColorModeValue('vrv.500', 'vrv.200');
   const bgGradient = useColorModeValue(
-    'linear-gradient(to bottom, #2f8f83, #1f6fa0, #103d65)', // Light mode: darker teal → ocean blue → navy
+    'linear-gradient(to bottom, #2563EB, #1f6fa0, #103d65)', // Light mode: darker teal → ocean blue → navy
     'linear-gradient(to bottom, #3b4654, #2c3440, #1e252e)'  // Dark mode: more muted, subtle grays
   );
 
@@ -54,6 +55,7 @@ function Login() {
   const [forgotPasswordStep, setForgotPasswordStep] = useState(null);
   const [resetUserId, setResetUserId] = useState(null);
   const [resetToken, setResetToken] = useState(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const navigate = useNavigate();
   const toast = useToast();
@@ -61,17 +63,17 @@ function Login() {
   const qrCanvasRef = useRef(null);
 
   useEffect(() => {
+    authService.init();
     const query = new URLSearchParams(location.search);
-    const token = query.get('token');
     const user = query.get('user');
     const expiresAt = query.get('expiresAt');
     const errorMsg = query.get('error');
-    if (token && user && expiresAt) {
-      localStorage.setItem('token', token);
+    if (user && expiresAt) {
       localStorage.setItem('user', user);
       localStorage.setItem('expiresAt', expiresAt);
       toast({ title: 'Login Successful', status: 'success', duration: 3000 });
-      navigate('/');
+      setIsNavigating(true);
+      setTimeout(() => navigate('/'), 1500);
     } else if (errorMsg) {
       setError(decodeURIComponent(errorMsg));
       setIsProcessing(false);
@@ -93,6 +95,47 @@ function Login() {
     return <Box textAlign="center">Processing login...</Box>;
   }
 
+  if (isNavigating) {
+    return (
+      <Box
+        h="100vh"
+        w="100vw"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        bg={bgGradient}
+        p={4}
+      >
+        <Card
+          bg={bgColor}
+          w={{ base: 'full', md: 'md' }}
+          maxW="400px"
+          boxShadow="xl"
+          borderRadius="xl"
+          border="1px solid"
+          borderColor={borderColor}
+          p={6}
+        >
+          <CardBody>
+            <Stack spacing={6}>
+              <Box textAlign="center">
+                <Skeleton height="100px" width="100px" mb={4} borderRadius="full" />
+                <Skeleton height="32px" width="200px" mb={2} />
+                <Skeleton height="20px" width="150px" />
+              </Box>
+              <Stack spacing={4}>
+                <Skeleton height="50px" />
+                <Skeleton height="50px" />
+                <Skeleton height="50px" />
+                <Skeleton height="50px" />
+              </Stack>
+            </Stack>
+          </CardBody>
+        </Card>
+      </Box>
+    );
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -109,7 +152,8 @@ function Login() {
         localStorage.setItem('expiresAt', response.expiresAt);
         localStorage.setItem('user', JSON.stringify(response.user));
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
-        navigate('/');
+        setIsNavigating(true);
+        setTimeout(() => navigate('/'), 1500);
       } else {
         setError(response.message || 'Login failed');
       }
@@ -126,36 +170,23 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, code }),
-      });
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server did not return JSON');
-      }
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Error verifying code');
-      }
-      if (data.message === '2fa_setup') {
+      const response = await authService.verifyCode(userId, code);
+      if (response.message === '2fa_setup') {
         setTwoFAStep('setup');
-        setSecret(data.secret);
+        setSecret(response.secret);
         setIsVerificationStep(false);
-      } else if (data.message === '2fa_required') {
+      } else if (response.message === '2fa_required') {
         setTwoFAStep('verify');
         setIsVerificationStep(false);
-      } else if (data.message === 'success') {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('expiresAt', data.expiresAt);
-        localStorage.setItem('user', JSON.stringify(data.user));
+      } else if (response.message === 'success') {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('expiresAt', response.expiresAt);
+        localStorage.setItem('user', JSON.stringify(response.user));
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
-        navigate('/');
+        setIsNavigating(true);
+        setTimeout(() => navigate('/'), 1500);
       } else {
-        setError(data.message || 'Invalid verification code');
+        setError(response.message || 'Invalid verification code');
       }
     } catch (err) {
       console.error('Verification error:', err.message);
@@ -168,15 +199,7 @@ function Login() {
   const handleResendCode = async (resendUserId) => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/resend-verification-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: resendUserId }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error resending verification code');
-      }
+      await authService.resendVerificationCode(resendUserId);
       toast({ title: 'Verification code resent', status: 'success', duration: 3000 });
     } catch (err) {
       console.error('Resend code error:', err.message);
@@ -191,24 +214,16 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-2fa', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, code: twoFACode }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error verifying 2FA');
-      }
-      const data = await response.json();
-      if (data.message === 'success') {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('expiresAt', data.expiresAt);
-        localStorage.setItem('user', JSON.stringify(data.user));
+      const response = await authService.verify2FA(userId, twoFACode);
+      if (response.message === 'success') {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('expiresAt', response.expiresAt);
+        localStorage.setItem('user', JSON.stringify(response.user));
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
-        navigate('/');
+        setIsNavigating(true);
+        setTimeout(() => navigate('/'), 1500);
       } else {
-        setError(data.message || 'Invalid 2FA code');
+        setError(response.message || 'Invalid 2FA code');
       }
     } catch (err) {
       console.error('2FA verification error:', err.message);
@@ -223,10 +238,9 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/google');
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
+      const url = await authService.googleSignIn();
+      if (url) {
+        window.location.href = url;
       } else {
         setError('Failed to initiate Google Sign-In');
       }
@@ -381,7 +395,7 @@ function Login() {
                 h="100px"
               />
               <Heading size="lg" mb={2}>
-                FLAME AWARDS
+                FLAME AMS
               </Heading>
               <Text color={textColor}>Please enter your credentials</Text>
             </Box>

@@ -1,20 +1,39 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/counters';
 
 class CounterService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('No token found in localStorage');
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
     }
-    return { Authorization: `Bearer ${token}` };
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: url.startsWith('http') ? url : `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
   }
 
   async getCounters() {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.get(API_URL, { headers });
+      const response = await this.fetchWithAuth('get', '');
       return response.data;
     } catch (error) {
       console.error('Error fetching counters:', error.response?.data || error.message);
@@ -23,9 +42,8 @@ class CounterService {
   }
 
   async createCounter(counterData) {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.post(API_URL, counterData, { headers });
+      const response = await this.fetchWithAuth('post', '', { data: counterData });
       return response.data;
     } catch (error) {
       console.error('Error creating counter:', error.response?.data || error.message);
@@ -34,9 +52,8 @@ class CounterService {
   }
 
   async getCounterById(id) {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.get(`${API_URL}/${id}`, { headers });
+      const response = await this.fetchWithAuth('get', `/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching counter ${id}:`, error.response?.data || error.message);
@@ -45,9 +62,8 @@ class CounterService {
   }
 
   async updateCounter(id, counterData) {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.put(`${API_URL}/${id}`, counterData, { headers });
+      const response = await this.fetchWithAuth('put', `/${id}`, { data: counterData });
       return response.data;
     } catch (error) {
       console.error(`Error updating counter ${id}:`, error.response?.data || error.message);
@@ -56,9 +72,8 @@ class CounterService {
   }
 
   async deleteCounter(id) {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.delete(`${API_URL}/${id}`, { headers });
+      const response = await this.fetchWithAuth('delete', `/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error deleting counter ${id}:`, error.response?.data || error.message);

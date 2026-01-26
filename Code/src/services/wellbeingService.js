@@ -1,36 +1,75 @@
 // src/services/wellbeingService.js
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/wellbeing-form';
 
 class WellbeingService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    return { Authorization: `Bearer ${token}` };
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: url.startsWith('http') ? url : `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
   }
 
   async getAll() {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(API_URL, { headers });
-    return res.data;
+    try {
+      const res = await this.fetchWithAuth('get', '');
+      return res.data;
+    } catch (error) {
+      console.error('Error fetching wellbeing forms:', error);
+      throw error;
+    }
   }
 
   async getById(id) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.get(`${API_URL}/${id}`, { headers });
-    return res.data;
+    try {
+      const res = await this.fetchWithAuth('get', `/${id}`);
+      return res.data;
+    } catch (error) {
+      console.error(`Error fetching wellbeing form ${id}:`, error);
+      throw error;
+    }
   }
 
   async update(id, data) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.put(`${API_URL}/${id}`, data, { headers });
-    return res.data;
+    try {
+      const res = await this.fetchWithAuth('put', `/${id}`, { data });
+      return res.data;
+    } catch (error) {
+      console.error(`Error updating wellbeing form ${id}:`, error);
+      throw error;
+    }
   }
 
   async delete(id) {
-    const headers = this.getAuthHeaders();
-    const res = await axios.delete(`${API_URL}/${id}`, { headers });
-    return res.data;
+    try {
+      const res = await this.fetchWithAuth('delete', `/${id}`);
+      return res.data;
+    } catch (error) {
+      console.error(`Error deleting wellbeing form ${id}:`, error);
+      throw error;
+    }
   }
 }
 

@@ -1,11 +1,26 @@
-// services/authService.js
+// services/authService.js 
+import { load } from '@fingerprintjs/fingerprintjs';
+
 class AuthService {
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
   async login(email, password) {
     try {
+      const deviceId = await this.getDeviceId();
       const response = await fetch('http://192.168.8.10:8082/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, deviceId }),
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -15,7 +30,6 @@ class AuthService {
         if (data.message === 'verify' || data.message === 'redirect') {
           return data;
         } else if (data.message === 'success') {
-          localStorage.setItem('token', data.token);
           localStorage.setItem('expiresAt', data.expiresAt);
           localStorage.setItem('user', JSON.stringify(data.user));
           this.setAutoLogout();
@@ -45,8 +59,153 @@ class AuthService {
     }
   }
 
+  async verifyCode(userId, code) {
+    try {
+      const deviceId = await this.getDeviceId();
+      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code, deviceId }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok && data.message === 'success') {
+        localStorage.setItem('expiresAt', data.expiresAt);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        this.setAutoLogout();
+      }
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async verify2FA(userId, code) {
+    try {
+      const deviceId = await this.getDeviceId();
+      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/verify-2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code, deviceId }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok && data.message === 'success') {
+        localStorage.setItem('expiresAt', data.expiresAt);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        this.setAutoLogout();
+      }
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async resendVerificationCode(userId) {
+    try {
+      const deviceId = await this.getDeviceId();
+      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/resend-verification-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, deviceId }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async googleSignIn() {
+    try {
+      const deviceId = await this.getDeviceId();
+      const response = await fetch(`https://flameprogramoffice.in:5050/api/auth/google?deviceId=${encodeURIComponent(deviceId)}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to initiate Google Sign-In');
+      }
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async initiateGoogleSignIn(email) {
+    try {
+      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/initiate-google-signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to initiate Google Sign-In');
+      }
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async verifyGoogleSignInCode(userId, code) {
+    try {
+      const deviceId = await this.getDeviceId();
+      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/verify-google-signin-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, code, deviceId }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to verify code');
+      }
+      if (data.message === 'redirect') {
+        return data;
+      } else if (data.message === 'success') {
+        localStorage.setItem('expiresAt', data.expiresAt);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        this.setAutoLogout();
+        return data;
+      } else {
+        throw new Error('Unexpected response');
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async refresh() {
+    try {
+      const deviceId = await this.getDeviceId();
+      const response = await fetch('https://flameprogramoffice.in:5050/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId
+        },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Refresh failed');
+      }
+      localStorage.setItem('expiresAt', data.expiresAt);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      this.setAutoLogout();
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   logout() {
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('expiresAt');
   }
@@ -57,13 +216,12 @@ class AuthService {
   }
 
   isAuthenticated() {
-    const token = localStorage.getItem('token');
     const user = this.getCurrentUser();
     if (this.isTokenExpired()) {
       this.logout();
       return false;
     }
-    return !!token && !!user;
+    return !!user;
   }
 
   hasRole(roles) {
@@ -91,9 +249,14 @@ class AuthService {
     }
   }
 
-  init() {
+  async init() {
+    await this.getDeviceId(); // Ensure deviceId is generated
     if (this.isTokenExpired()) {
-      this.logout();
+      if (localStorage.getItem('deviceId')) { // Check if we have deviceId instead of refreshToken
+        await this.refresh().catch(() => this.logout());
+      } else {
+        this.logout();
+      }
     } else {
       this.setAutoLogout();
     }

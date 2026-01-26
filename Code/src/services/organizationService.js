@@ -1,21 +1,39 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/organizations';
 
 class OrganizationService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('No token found in localStorage. Authentication may fail.');
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
     }
-    return { Authorization: `Bearer ${token || ''}` };
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: url.startsWith('http') ? url : `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
   }
 
   async getOrganizations() {
     try {
-      const response = await axios.get(API_URL, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('get', '');
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -24,9 +42,7 @@ class OrganizationService {
 
   async getOrganizationById(id) {
     try {
-      const response = await axios.get(`${API_URL}/${id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('get', `/${id}`);
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -35,9 +51,7 @@ class OrganizationService {
 
   async createOrganization(organizationData) {
     try {
-      const response = await axios.post(API_URL, organizationData, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('post', '', { data: organizationData });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -46,9 +60,7 @@ class OrganizationService {
 
   async updateOrganization(id, organizationData) {
     try {
-      const response = await axios.put(`${API_URL}/${id}`, organizationData, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('put', `/${id}`, { data: organizationData });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -57,9 +69,7 @@ class OrganizationService {
 
   async deleteOrganization(id) {
     try {
-      const response = await axios.delete(`${API_URL}/${id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await this.fetchWithAuth('delete', `/${id}`);
       return response.data;
     } catch (error) {
       this.handleError(error);

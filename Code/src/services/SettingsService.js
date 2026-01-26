@@ -1,20 +1,39 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/settings';
 
 class SettingsService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('No token found in localStorage');
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
     }
-    return { Authorization: `Bearer ${token}` };
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
   }
 
   async getAllRolesWith2FA() {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.get(`${API_URL}/roles-with-2fa`, { headers });
+      const response = await this.fetchWithAuth('get', '/roles-with-2fa');
       return response.data;
     } catch (error) {
       console.error('Error fetching roles with 2FA:', error.response?.data || error.message);
@@ -23,9 +42,10 @@ class SettingsService {
   }
 
   async updateSettingForRole(roleId, settingKey, settingValue) {
-    const headers = this.getAuthHeaders();
     try {
-      const response = await axios.put(`${API_URL}/roles/${roleId}/${settingKey}`, { settingValue }, { headers });
+      const response = await this.fetchWithAuth('put', `/roles/${roleId}/${settingKey}`, {
+        data: { settingValue }
+      });
       return response.data;
     } catch (error) {
       console.error(`Error updating setting for role ${roleId}:`, error.response?.data || error.message);

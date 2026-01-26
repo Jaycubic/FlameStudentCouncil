@@ -1,48 +1,76 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/students';
 
-const TrackingInfoService = {
-  getTrackingDetails: async (page = 1, filters = {}) => {
+class TrackingInfoService {
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
+  }
+
+  async getTrackingDetails(page = 1, filters = {}) {
     const { search = '', inout = '' } = filters;
     try {
-      const response = await axios.get(`${API_URL}/tracking-info`, {
+      const response = await this.fetchWithAuth('get', '/tracking-info', {
         params: { page, search, inout }
       });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch tracking details');
     }
-  },
+  }
 
-  getTotalCount: async (filters = {}) => {
+  async getTotalCount(filters = {}) {
     const { search = '', inout = '' } = filters;
     try {
-      const response = await axios.get(`${API_URL}/total-count`, {
+      const response = await this.fetchWithAuth('get', '/total-count', {
         params: { search, inout }
       });
       return response.data.total;
     } catch (error) {
       throw new Error('Failed to fetch total tracking count');
     }
-  },
+  }
 
-  updateStudent: async (id, updateData) => {
+  async updateStudent(id, updateData) {
     try {
-      const response = await axios.patch(`${API_URL}/${id}`, updateData);
+      const response = await this.fetchWithAuth('patch', `/${id}`, { data: updateData });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update student');
     }
-  },
+  }
 
-  deleteStudent: async (id) => {
+  async deleteStudent(id) {
     try {
-      await axios.delete(`${API_URL}/${id}`);
+      await this.fetchWithAuth('delete', `/${id}`);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to delete student');
     }
-  },
-};
+  }
+}
 
-export default TrackingInfoService;
+export default new TrackingInfoService();

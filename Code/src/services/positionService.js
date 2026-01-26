@@ -1,24 +1,40 @@
 // frontend/services/positionService.js
+import { load } from '@fingerprintjs/fingerprintjs';
+
 class PositionService {
   constructor() {
-    // change baseUrl if your API path differs
     this.baseUrl = 'http://192.168.8.10:8082/api/positions';
   }
 
-  _getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return headers;
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const fetchOptions = {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      credentials: 'include',
+    };
+    return fetch(url, fetchOptions);
   }
 
   async fetchPositions(limit = 50, offset = 0) {
     const url = `${this.baseUrl}?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`;
     try {
-      const resp = await fetch(url, {
-        method: 'GET',
-        headers: this._getAuthHeaders(),
-      });
+      const resp = await this.fetchWithAuth(url);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.message || 'Failed to fetch positions');
       return data;
@@ -32,10 +48,7 @@ class PositionService {
 
   async fetchPosition(id) {
     try {
-      const resp = await fetch(`${this.baseUrl}/${id}`, {
-        method: 'GET',
-        headers: this._getAuthHeaders(),
-      });
+      const resp = await this.fetchWithAuth(`${this.baseUrl}/${id}`);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.message || 'Failed to fetch position');
       return data;
@@ -49,14 +62,12 @@ class PositionService {
 
   async createPosition(payload) {
     try {
-      const resp = await fetch(this.baseUrl, {
+      const resp = await this.fetchWithAuth(this.baseUrl, {
         method: 'POST',
-        headers: this._getAuthHeaders(),
         body: JSON.stringify(payload),
       });
       const data = await resp.json();
       if (!resp.ok) {
-        // pass detailed error messages
         throw new Error(data.message || 'Failed to create position');
       }
       return data;
@@ -70,9 +81,8 @@ class PositionService {
 
   async updatePosition(id, payload) {
     try {
-      const resp = await fetch(`${this.baseUrl}/${id}`, {
+      const resp = await this.fetchWithAuth(`${this.baseUrl}/${id}`, {
         method: 'PUT',
-        headers: this._getAuthHeaders(),
         body: JSON.stringify(payload),
       });
       const data = await resp.json();
@@ -88,9 +98,8 @@ class PositionService {
 
   async deletePosition(id) {
     try {
-      const resp = await fetch(`${this.baseUrl}/${id}`, {
+      const resp = await this.fetchWithAuth(`${this.baseUrl}/${id}`, {
         method: 'DELETE',
-        headers: this._getAuthHeaders(),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.message || 'Failed to delete position');

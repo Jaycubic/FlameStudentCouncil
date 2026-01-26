@@ -1,12 +1,39 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/legal-documents';
 
 class LegalDocumentService {
-  // Fetch all legal documents
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
+
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: url.startsWith('http') ? url : `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
+  }
+
   async getAllDocuments() {
     try {
-      const response = await axios.get(API_URL);
+      const response = await this.fetchWithAuth('get', '');
       return response.data;
     } catch (error) {
       console.error('Error fetching all legal documents:', error);
@@ -14,10 +41,9 @@ class LegalDocumentService {
     }
   }
 
-  // Fetch a specific document by type (used in Settings.jsx)
   async getDocumentByType(type) {
     try {
-      const response = await axios.get(API_URL);
+      const response = await this.fetchWithAuth('get', '');
       const documents = response.data;
       const document = documents.find(doc => doc.type === type);
       return document ? document.content : null;
@@ -27,10 +53,9 @@ class LegalDocumentService {
     }
   }
 
-  // Fetch a specific document by ID
   async getDocumentById(id) {
     try {
-      const response = await axios.get(`${API_URL}/${id}`);
+      const response = await this.fetchWithAuth('get', `/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching document with ID ${id}:`, error);
@@ -38,10 +63,9 @@ class LegalDocumentService {
     }
   }
 
-  // Create a new legal document
   async saveDocument(type, content) {
     try {
-      const response = await axios.post(API_URL, { type, content });
+      const response = await this.fetchWithAuth('post', '', { data: { type, content } });
       return response.data;
     } catch (error) {
       console.error('Error saving legal document:', error);
@@ -49,10 +73,9 @@ class LegalDocumentService {
     }
   }
 
-  // Update an existing legal document
   async updateDocument(id, type, content) {
     try {
-      const response = await axios.patch(`${API_URL}/${id}`, { type, content });
+      const response = await this.fetchWithAuth('patch', `/${id}`, { data: { type, content } });
       return response.data;
     } catch (error) {
       console.error(`Error updating document with ID ${id}:`, error);
@@ -60,10 +83,9 @@ class LegalDocumentService {
     }
   }
 
-  // Delete a legal document
   async deleteDocument(id) {
     try {
-      const response = await axios.delete(`${API_URL}/${id}`);
+      const response = await this.fetchWithAuth('delete', `/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error deleting document with ID ${id}:`, error);

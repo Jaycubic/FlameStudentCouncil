@@ -1,32 +1,43 @@
+// src/services/departmentService.js
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
-const API_URL = 'http://192.168.8.10:8082/api/departments';
+const API_URL = 'http://192.168.8.10:8082/api/department';
 
 class DepartmentService {
-  getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('No token found in localStorage. Authentication may fail.');
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
     }
-    return { Authorization: `Bearer ${token || ''}` };
+    return deviceId;
   }
 
-  async getDepartments() {
+  async getDepartments(page = 1, limit = 100, filters = {}, sortField = '', sortDir = '') {
+    const deviceId = await this.getDeviceId();
+    const headers = { 'x-device-id': deviceId };
+    const params = { page, limit, ...filters };
+    if (sortField) {
+      params.sortField = sortField;
+      params.sortDir = sortDir;
+    }
     try {
-      const response = await axios.get(API_URL, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await axios.get(API_URL, { params, headers, withCredentials: true });
       return response.data;
     } catch (error) {
       this.handleError(error);
     }
   }
 
-  async getDepartmentById(id) {
+  async getUnique(column, search = '') {
+    const deviceId = await this.getDeviceId();
+    const headers = { 'x-device-id': deviceId };
+    const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
     try {
-      const response = await axios.get(`${API_URL}/${id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await axios.get(`${API_URL}/unique?column=${column}${searchParam}`, { headers, withCredentials: true });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -34,10 +45,10 @@ class DepartmentService {
   }
 
   async createDepartment(departmentData) {
+    const deviceId = await this.getDeviceId();
+    const headers = { 'x-device-id': deviceId };
     try {
-      const response = await axios.post(API_URL, departmentData, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await axios.post(API_URL, departmentData, { headers, withCredentials: true });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -45,10 +56,10 @@ class DepartmentService {
   }
 
   async updateDepartment(id, departmentData) {
+    const deviceId = await this.getDeviceId();
+    const headers = { 'x-device-id': deviceId };
     try {
-      const response = await axios.put(`${API_URL}/${id}`, departmentData, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await axios.put(`${API_URL}/${id}`, departmentData, { headers, withCredentials: true });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -56,10 +67,10 @@ class DepartmentService {
   }
 
   async deleteDepartment(id) {
+    const deviceId = await this.getDeviceId();
+    const headers = { 'x-device-id': deviceId };
     try {
-      const response = await axios.delete(`${API_URL}/${id}`, {
-        headers: this.getAuthHeaders(),
-      });
+      const response = await axios.delete(`${API_URL}/${id}`, { headers, withCredentials: true });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -78,4 +89,3 @@ class DepartmentService {
 }
 
 export const departmentService = new DepartmentService();
-

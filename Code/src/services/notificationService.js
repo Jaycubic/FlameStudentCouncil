@@ -1,50 +1,76 @@
 import axios from 'axios';
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'http://192.168.8.10:8082/api/activity-tracker';
 
-// Helper function to get the Authorization header with the token
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+class NotificationService {
+  async getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      const fp = await load();
+      const result = await fp.get();
+      deviceId = result.visitorId;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  }
 
-const notificationService = {
-  getNotifications: async () => {
+  async fetchWithAuth(method, url, options = {}) {
+    const deviceId = await this.getDeviceId();
+    const config = {
+      method,
+      url: url.startsWith('http') ? url : `${API_URL}${url}`,
+      headers: {
+        ...options.headers,
+        'x-device-id': deviceId,
+      },
+      params: options.params,
+      data: options.data,
+      withCredentials: true,
+    };
+    return axios(config);
+  }
+
+  async getNotifications() {
     try {
-      const response = await axios.get(API_URL, { headers: getAuthHeaders() });
+      const response = await this.fetchWithAuth('get', '');
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch notifications');
     }
-  },
-  markNotificationAsRead: async (activityId) => {
+  }
+
+  async markNotificationAsRead(activityId) {
     try {
-      await axios.put(`${API_URL}/mark-read/${activityId}`, {}, { headers: getAuthHeaders() });
+      await this.fetchWithAuth('put', `/mark-read/${activityId}`);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to mark notification as read');
     }
-  },
-  clearNotification: async (activityId) => {
+  }
+
+  async clearNotification(activityId) {
     try {
-      await axios.put(`${API_URL}/clear/${activityId}`, {}, { headers: getAuthHeaders() });
+      await this.fetchWithAuth('put', `/clear/${activityId}`);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to clear notification');
     }
-  },
-  markAllAsRead: async (activityIds) => {
+  }
+
+  async markAllAsRead(activityIds) {
     try {
-      await axios.put(`${API_URL}/mark-read`, { activityIds }, { headers: getAuthHeaders() });
+      await this.fetchWithAuth('put', '/mark-read', { data: { activityIds } });
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to mark all as read');
     }
-  },
-  clearAll: async (activityIds) => {
+  }
+
+  async clearAll(activityIds) {
     try {
-      await axios.put(`${API_URL}/clear`, { activityIds }, { headers: getAuthHeaders() });
+      await this.fetchWithAuth('put', '/clear', { data: { activityIds } });
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to clear all notifications');
     }
-  },
-};
+  }
+}
 
-export default notificationService;
+export default new NotificationService();
