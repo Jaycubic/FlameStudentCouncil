@@ -11,6 +11,7 @@ const cookieParser = require('cookie-parser');
 
 // Import database connection
 const sequelize = require("./config/database.js");
+const postgresSequelize = require("./config/connection.js");
 
 
 // Import your Socket setup
@@ -82,6 +83,7 @@ let _server;
 // Function to start server
 const startServer = async () => {
   await sequelize.sync();
+  await postgresSequelize.sync();
   const PORT = 8082; // Forced to 8082 as requested
   _server = server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
