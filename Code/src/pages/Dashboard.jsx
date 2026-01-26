@@ -25,7 +25,6 @@ import {
   ModalFooter,
   useToast,
   SimpleGrid,
-  CardBody,
   Alert,
   AlertIcon,
   CircularProgress,
@@ -373,7 +372,7 @@ function ApplicationFormDashboard() {
       {!showForm ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <MotionBox {...borderBoxStyle} mb={6} p={4} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 200 }}>
-            <CardBody p={0}>
+            <Box p={0}>
               <Text fontSize="xl" fontWeight="bold" mb={3}>Instructions</Text>
               <List spacing={3}>
                 {instructions.map((instr, idx) => (
@@ -383,7 +382,7 @@ function ApplicationFormDashboard() {
                   </ListItem>
                 ))}
               </List>
-            </CardBody>
+            </Box>
           </MotionBox>
 
           <Checkbox isChecked={agreedToInstructions} onChange={handleAgreementChange} colorScheme="blue">
