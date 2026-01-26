@@ -381,7 +381,7 @@ function Login() {
                 h="100px"
               />
               <Heading size="lg" mb={2}>
-                STUDENT COUNCIL
+                FLAME AWARDS
               </Heading>
               <Text color={textColor}>Please enter your credentials</Text>
             </Box>
