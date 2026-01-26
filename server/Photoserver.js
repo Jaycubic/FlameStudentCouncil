@@ -10,19 +10,11 @@ const app = express();
 
 // Security middleware
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "http:", "https:"],
-            styleSrc: ["'self'", "'unsafe-inline'", "http:", "https:"],
-            imgSrc: ["'self'", "data:", "http:", "https:"],
-            connectSrc: ["'self'", "http:", "https:"],
-            fontSrc: ["'self'", "http:", "https:", "data:"],
-            objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
-            frameSrc: ["'none'"]
-        }
-    }
+    contentSecurityPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+    originAgentCluster: false,
+    hsts: false,
 }));
 
 // CORS configuration for all domains

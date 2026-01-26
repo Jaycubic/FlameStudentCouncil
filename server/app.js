@@ -31,7 +31,13 @@ const formSubmissionController = require('./controllers/formSubmissionController
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+  originAgentCluster: false,
+  hsts: false,
+}));
 app.use(cookieParser());
 
 // Create HTTP server and bind Socket.IO

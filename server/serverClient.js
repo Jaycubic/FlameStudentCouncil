@@ -12,24 +12,11 @@ const REMOTE_PHOTO_BASE = 'http://192.168.8.10:8082/photos'; // Updated to IP an
 // ---- SECURITY / CSP ----
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://apis.google.com"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-        imgSrc: ["'self'", "data:", "https:", "https://via.placeholder.com"],
-        connectSrc: [
-          "'self'",
-          "http://192.168.8.10:8082", // Updated to IP and port 8082
-          "ws://192.168.8.10:8082"    // Updated websocket
-        ],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        frameAncestors: ["'self'"],
-      },
-    },
+    contentSecurityPolicy: false, // Disable for local dev
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+    originAgentCluster: false,
+    hsts: false, // Disable HSTS to allow HTTP
   })
 );
 
