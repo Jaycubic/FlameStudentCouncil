@@ -40,7 +40,6 @@ import {
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import PageHeader from '../components/layout/PageHeader';
-import ChatbotModal from '../components/ChatbotModal';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -746,7 +745,6 @@ function Dashboard() {
           </ModalContent>
         </Modal>
       </Box>
-      <ChatbotModal userId={user?.id} />
     </>
   );
 }
