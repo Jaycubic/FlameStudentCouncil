@@ -53,7 +53,6 @@ const io = setupSocket(server);
 
 
 // Middleware
-app.use(helmet());
 app.use(cors({
   origin: 'https://flameawards.in:8081',
   credentials: true

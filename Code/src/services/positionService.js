@@ -3,7 +3,7 @@ import { load } from '@fingerprintjs/fingerprintjs';
 
 class PositionService {
   constructor() {
-    this.baseUrl = 'http://192.168.8.10:8082/api/positions';
+    this.baseUrl = 'https://flameawards.in:8082/api/positions';
   }
 
   async getDeviceId() {

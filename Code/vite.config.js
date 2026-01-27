@@ -36,19 +36,17 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      'react', 
-      'react-dom', 
-      'react-router-dom', 
+      'react',
+      'react-dom',
+      'react-router-dom',
       '@chakra-ui/react',
       'recharts'
     ],
   },
   server: {
-  server: {
-    host: '0.0.0.0',       // same as host: '0.0.0.0'
+    host: '0.0.0.0',
     port: 5173,
     strictPort: true,
     https: false
-  }
   }
 })
