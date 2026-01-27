@@ -16,7 +16,7 @@ class FormSubmissionService {
   async create(formData) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('http://192.168.8.10:8082/api/form-submissions', {
+      const response = await fetch('https://flameawards.in:8082/api/form-submissions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

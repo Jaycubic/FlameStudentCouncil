@@ -1,22 +1,22 @@
-// frontend-server.js
+// serverClient.js
 const express = require('express');
-const http = require('http'); // Switched from https
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const helmet = require('helmet');
 
 const app = express();
 
-const REMOTE_PHOTO_BASE = 'http://192.168.8.10:8082/photos'; // Updated to IP and port 8082
+const REMOTE_PHOTO_BASE = 'https://flameawards.in:8082/photos';
 
 // ---- SECURITY / CSP ----
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Disable for local dev
+    contentSecurityPolicy: false,
     crossOriginOpenerPolicy: false,
     crossOriginResourcePolicy: false,
     originAgentCluster: false,
-    hsts: false, // Disable HSTS to allow HTTP
+    hsts: true,
   })
 );
 
@@ -30,7 +30,7 @@ app.get('/photos/:filename', (req, res) => {
 
     const remoteUrl = `${REMOTE_PHOTO_BASE}/${encodeURIComponent(filename)}`;
 
-    const request = http.get(remoteUrl, { timeout: 8000 }, (remoteRes) => {
+    const request = https.get(remoteUrl, { timeout: 8000 }, (remoteRes) => {
       res.statusCode = remoteRes.statusCode || 200;
       const contentType = remoteRes.headers['content-type'];
       if (contentType) res.setHeader('Content-Type', contentType);
@@ -62,9 +62,16 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'Code', 'dist', 'index.html'));
 });
 
-const PORT = 8081; // Forced to 8081 as requested
+const PORT = 8081;
 const HOST = '0.0.0.0';
 
-http.createServer(app).listen(PORT, HOST, () => {
-  console.log(`Frontend server running on http://${HOST}:${PORT}`);
+// Load SSL certificates
+const sslOptions = {
+  cert: fs.readFileSync('/opt/View/sslcertificates/flameawards.crt'),
+  ca: fs.readFileSync('/opt/View/sslcertificates/flameawards/ca_bundle.crt'),
+  key: fs.readFileSync('/opt/View/sslcertificates/flameawards.key'),
+};
+
+https.createServer(sslOptions, app).listen(PORT, HOST, () => {
+  console.log(`Frontend server running on https://flameawards.in:${PORT}`);
 });

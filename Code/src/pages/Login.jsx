@@ -71,9 +71,11 @@ function Login() {
     if (user && expiresAt) {
       localStorage.setItem('user', user);
       localStorage.setItem('expiresAt', expiresAt);
+      const parsedUser = JSON.parse(decodeURIComponent(user));
+      const redirectPath = parsedUser?.role === 'Student' ? '/award-form' : '/';
       toast({ title: 'Login Successful', status: 'success', duration: 3000 });
       setIsNavigating(true);
-      setTimeout(() => navigate('/'), 1500);
+      setTimeout(() => navigate(redirectPath), 1500);
     } else if (errorMsg) {
       setError(decodeURIComponent(errorMsg));
       setIsProcessing(false);
@@ -151,9 +153,10 @@ function Login() {
         localStorage.setItem('token', response.token);
         localStorage.setItem('expiresAt', response.expiresAt);
         localStorage.setItem('user', JSON.stringify(response.user));
+        const redirectPath = response.user?.role === 'Student' ? '/award-form' : '/';
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
         setIsNavigating(true);
-        setTimeout(() => navigate('/'), 1500);
+        setTimeout(() => navigate(redirectPath), 1500);
       } else {
         setError(response.message || 'Login failed');
       }
@@ -182,9 +185,10 @@ function Login() {
         localStorage.setItem('token', response.token);
         localStorage.setItem('expiresAt', response.expiresAt);
         localStorage.setItem('user', JSON.stringify(response.user));
+        const redirectPath = response.user?.role === 'Student' ? '/award-form' : '/';
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
         setIsNavigating(true);
-        setTimeout(() => navigate('/'), 1500);
+        setTimeout(() => navigate(redirectPath), 1500);
       } else {
         setError(response.message || 'Invalid verification code');
       }
@@ -219,9 +223,10 @@ function Login() {
         localStorage.setItem('token', response.token);
         localStorage.setItem('expiresAt', response.expiresAt);
         localStorage.setItem('user', JSON.stringify(response.user));
+        const redirectPath = response.user?.role === 'Student' ? '/award-form' : '/';
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
         setIsNavigating(true);
-        setTimeout(() => navigate('/'), 1500);
+        setTimeout(() => navigate(redirectPath), 1500);
       } else {
         setError(response.message || 'Invalid 2FA code');
       }
@@ -263,7 +268,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/forgot-password', {
+      const response = await fetch('https://flameawards.in:8082/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -287,7 +292,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-reset-code', {
+      const response = await fetch('https://flameawards.in:8082/api/auth/verify-reset-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -314,7 +319,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/verify-reset-2fa', {
+      const response = await fetch('https://flameawards.in:8082/api/auth/verify-reset-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: resetUserId, code: twoFACode }),
@@ -337,7 +342,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('http://192.168.8.10:8082/api/auth/reset-password', {
+      const response = await fetch('https://flameawards.in:8082/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resetToken, newPassword }),

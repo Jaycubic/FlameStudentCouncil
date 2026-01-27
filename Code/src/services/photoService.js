@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { load } from '@fingerprintjs/fingerprintjs';
 
-const BASE_API = 'http://192.168.8.10:8082';
+const BASE_API = 'https://flameawards.in:8082';
 
 class PhotoService {
   async getDeviceId() {

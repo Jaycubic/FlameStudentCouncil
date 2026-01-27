@@ -1,10 +1,10 @@
-// server.js (Express backend)
+// app.js (Express backend)
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require("body-parser");
 const cron = require("node-cron");
 require('dotenv').config();
-const http = require('http'); // Switched from https
+const https = require('https');
 const fs = require('fs');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
@@ -40,15 +40,22 @@ app.use(helmet({
 }));
 app.use(cookieParser());
 
-// Create HTTP server and bind Socket.IO
-const server = http.createServer(app); // Switched to http
+// Load SSL certificates
+const sslOptions = {
+  cert: fs.readFileSync('/opt/View/sslcertificates/flameawards.crt'),
+  ca: fs.readFileSync('/opt/View/sslcertificates/flameawards/ca_bundle.crt'),
+  key: fs.readFileSync('/opt/View/sslcertificates/flameawards.key'),
+};
+
+// Create HTTPS server and bind Socket.IO
+const server = https.createServer(sslOptions, app);
 const io = setupSocket(server);
 
 
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: 'http://192.168.8.10:8081', // Updated frontend origin
+  origin: 'https://flameawards.in:8081',
   credentials: true
 }));
 app.use(express.json());

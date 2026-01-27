@@ -1,21 +1,20 @@
-// src/pages/Dashboard.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { io } from "socket.io-client";
 import { motion } from 'framer-motion';
 import {
   Box,
-  VStack,
-  HStack,
-  Text,
-  Checkbox,
-  Button,
-  Input,
-  Textarea,
-  FormControl,
-  FormLabel,
-  Image,
-  Icon,
-  useColorModeValue,
-  useDisclosure,
+  SimpleGrid,
+  Card,
+  CardBody,
+  CardHeader,
+  IconButton,
+  Table as ChakraTable,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -23,658 +22,733 @@ import {
   ModalCloseButton,
   ModalBody,
   ModalFooter,
-  useToast,
-  SimpleGrid,
-  Alert,
-  AlertIcon,
-  CircularProgress,
-  List,
-  ListItem,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
+  Button,
+  Icon,
+  Text,
+  VStack,
+  HStack,
+  useDisclosure,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import {
-  ChevronDownIcon,
-  ArrowForwardIcon,
-  CheckIcon as ChakraCheckIcon,
-} from '@chakra-ui/icons';
-import { FaMale, FaFemale, FaUser } from 'react-icons/fa';
+  UserGroupIcon,
+  BuildingOfficeIcon,
+  MapPinIcon,
+  CheckCircleIcon,
+  ArrowsPointingOutIcon,
+} from '@heroicons/react/24/outline';
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import PageHeader from '../components/layout/PageHeader';
-import { formSubmissionService } from '../services/formSubmissionService';
-import { authService } from '../services/authService';
-import { positionService } from '../services/positionService';
-import { photoService } from '../services/photoService';
+import ChatbotModal from '../components/ChatbotModal';
 
-// Import logo
-import flameLogo from '../assets/img/FLAME.png';
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// Placeholder for profile photo if none
-const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+const MotionCard = motion(Card);
 
-// Motion-wrapped Chakra components
-const MotionBox = motion(Box);
-const MotionButton = motion(Button);
-
-// Use a tweened height animation for smooth static expansion (no spring jitter while scrolling)
-const heightTransition = { duration: 0.28, ease: 'easeInOut' };
-
-function ApplicationFormDashboard() {
-  const toast = useToast();
-  const { isOpen: isSportModalOpen, onOpen: onSportModalOpen, onClose: onSportModalClose } = useDisclosure();
-  const { isOpen: isCulturalModalOpen, onOpen: onCulturalModalOpen, onClose: onCulturalModalClose } = useDisclosure();
-  const { isOpen: isPhotoModalOpen, onOpen: onPhotoModalOpen, onClose: onPhotoModalClose } = useDisclosure();
-
+function StatCard({ title, stat, icon, color }) {
   const bgColor = useColorModeValue('white', 'gray.800');
-  const textColor = useColorModeValue('gray.800', 'white');
-
-  // Border / input colors
-  const boxBorderColor = useColorModeValue('blue.300', 'pink.500');
-  const inputBorderColor = useColorModeValue('blue.400', 'pink.500');
-  const inputHoverBorderColor = useColorModeValue('blue.500', 'pink.600');
-
-  const hoverGradient = useColorModeValue(
-    'linear-gradient(90deg,#60a5fa,#93c5fd)',
-    'linear-gradient(90deg,#9f7aea,#f472b6)'
-  );
-  const activeGradient = useColorModeValue(
-    'linear-gradient(90deg,#3b82f6,#60a5fa)',
-    'linear-gradient(90deg,#7c3aed,#ec4899)'
-  );
-
-  const primaryLightColor = 'blue.500';
-  const primaryLightHover = 'blue.600';
-
-  // User / form state
-  const [user, setUser] = useState(null);
-  const [agreedToInstructions, setAgreedToInstructions] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [isApplicationOpen, setIsApplicationOpen] = useState(true);
-  const [loading, setLoading] = useState(true);
-
-  const [position, setPosition] = useState('');
-  const [cgpa, setCgpa] = useState('');
-  const [sportsScore, setSportsScore] = useState('');
-  const [culturalScore, setCulturalScore] = useState('');
-  const [communityService, setCommunityService] = useState('');
-  const [statementOfPurpose, setStatementOfPurpose] = useState('');
-  const [notOnProbation, setNotOnProbation] = useState(false);
-  const [readHandbook, setReadHandbook] = useState(false);
-  const [trueStatement, setTrueStatement] = useState(false);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [sportFiles, setSportFiles] = useState([]);
-  const [culturalFiles, setCulturalFiles] = useState([]);
-  const [academicFiles, setAcademicFiles] = useState([]);
-  const [otherFiles, setOtherFiles] = useState([]);
-
-  const [positions, setPositions] = useState([]);
-
-  // Expansion control:
-  // - requested: toggled by header click (persistent)
-  // - focus: set while textarea has focus (temporary but persistent while focused)
-  const [communityRequestedExpanded, setCommunityRequestedExpanded] = useState(false);
-  const [communityFocusExpanded, setCommunityFocusExpanded] = useState(false);
-
-  const [sopRequestedExpanded, setSopRequestedExpanded] = useState(false);
-  const [sopFocusExpanded, setSopFocusExpanded] = useState(false);
-
-  // Final expansion combines both (so focus keeps it open)
-  const communityExpanded = communityRequestedExpanded || communityFocusExpanded;
-  const sopExpanded = sopRequestedExpanded || sopFocusExpanded;
-
-  const communityRef = useRef(null);
-  const sopRef = useRef(null);
-
-  // Heights (tweakable)
-  // Collapsed height (visible when idle)
-  const collapsedHeight = 100; // px (user set)
-  // Reduced expansion height (less huge)
-  const communityMaxHeight = 320; // px when expanded
-  const sopMaxHeight = 320; // px when expanded
-
-  // Chakra `p={2}` equals 8px top + bottom = 16px
-  const containerVerticalPadding = 16;
-  const collapsedTextareaH = Math.max(40, collapsedHeight - containerVerticalPadding);
-  const communityTextareaMaxH = Math.max(120, communityMaxHeight - containerVerticalPadding);
-  const sopTextareaMaxH = Math.max(120, sopMaxHeight - containerVerticalPadding);
-
-  const instructions = [
-    'Statement of Purpose (SOP): Explain your motivation and goals for applying.',
-    'Mandatory Upload: Upload files for the "Sport" and "Cultural" sections in PDF or JPG format.',
-    'Optional Upload: Upload files for "Academic" and "Other" sections in various accepted formats if applicable.',
-    'Confirmation: Check the boxes to confirm you are not on probation, have read the handbook, and that your information is accurate.',
-    'The positions listed may vary depending on your academic program, so be sure to read through them carefully before selecting.',
-    'Submission: Ensure all required sections are complete before submission.',
-  ];
-
-  const photoInstructions = [
-    'Upload a formal passport-sized photo.',
-    'File size must be less than 1MB.',
-    'Accepted formats: JPEG, JPG, PNG.',
-    'Photo should be recent, clear, and against a plain background.',
-    'Ensure the photo is well-lit and shows your full face without accessories like hats or sunglasses.',
-    'Professional attire is recommended.',
-  ];
-
-  useEffect(() => {
-    async function loadUser() {
-      setLoading(true);
-      try {
-        const currentUser = authService.getCurrentUser();
-        setUser({
-          name: currentUser?.studentName || '',
-          studentId: currentUser?.studentCvueNo || '',
-          mobileNumber: currentUser?.contactNo || '',
-          email: currentUser?.email || '',
-          batch: currentUser?.batch || '',
-          gender: currentUser?.gender || '',
-          photoUrl: currentUser?.photo ? `/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
-        });
-      } catch (err) {
-        console.error('Failed to load user profile:', err);
-        setUser({});
-        toast({ title: 'Failed to load user details', status: 'warning', duration: 3000 });
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    async function loadPositions() {
-      try {
-        const response = await positionService.getAll();
-        setPositions(response.data || []);
-      } catch (err) {
-        console.error('Failed to load positions:', err);
-        toast({ title: 'Failed to load positions', status: 'error', duration: 3000 });
-      }
-    }
-
-    loadUser();
-    loadPositions();
-
-    const storedAgreement = localStorage.getItem('agreedToInstructions');
-    if (storedAgreement === 'true') {
-      setAgreedToInstructions(true);
-      setShowForm(true);
-    }
-
-    setIsApplicationOpen(true);
-  }, [toast]);
-
-  const handleAgreementChange = (e) => {
-    const checked = e.target.checked;
-    setAgreedToInstructions(checked);
-    localStorage.setItem('agreedToInstructions', checked);
-    if (checked) {
-      setShowForm(true);
-    }
-  };
-
-  const handlePhotoChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setPhotoFile(file);
-      const localUrl = URL.createObjectURL(file);
-      setUser((u) => ({ ...(u || {}), photoUrl: localUrl }));
-
-      const resp = await photoService.uploadPhoto(file);
-      const filename = resp?.filename || resp?.data?.filename || resp?.fileName;
-      if (!filename) {
-        toast({ title: 'Uploaded but backend did not return filename', status: 'warning' });
-        return;
-      }
-      const proxied = photoService.getPhotoUrl(filename);
-      setUser((u) => ({ ...(u || {}), photoUrl: proxied }));
-      toast({ title: 'Photo uploaded', status: 'success', duration: 2500 });
-    } catch (err) {
-      console.error('Photo upload error:', err);
-      toast({ title: 'Photo upload failed', status: 'error', duration: 4000 });
-    }
-  };
-
-  const handleFileChange = (e, setter) => {
-    setter(Array.from(e.target.files || []));
-  };
-
-  const calculateScore = (score) => {
-    if (score === '' || score === null) return '';
-    const num = Number(score);
-    if (isNaN(num)) return '';
-    let scaledScore;
-    if (num <= 100) {
-      scaledScore = num / 10;
-    } else {
-      const decayFactor = (num - 100) * 0.05;
-      const adjustedMarks = 100 + decayFactor;
-      scaledScore = adjustedMarks / 10;
-    }
-    return Math.round(scaledScore * 10) / 10;
-  };
-
-  const handleSportsScoreChange = (e) => {
-    const value = e.target.value;
-    setSportsScore(calculateScore(value));
-  };
-
-  const handleCulturalScoreChange = (e) => {
-    const value = e.target.value;
-    setCulturalScore(calculateScore(value));
-  };
-
-  const handleSubmit = async () => {
-    if (!trueStatement || sportFiles.length === 0 || culturalFiles.length === 0) {
-      toast({ title: 'Missing required fields', status: 'error', duration: 3000 });
-      return;
-    }
-
-    setLoading(true);
-    const formData = {
-      name: user?.name || '',
-      student_id: user?.studentId || '',
-      mobile_number: user?.mobileNumber || '',
-      email: user?.email || '',
-      position,
-      cgpa: parseFloat(cgpa),
-      sports_score: sportsScore,
-      cultural_score: culturalScore,
-      community_service: communityService,
-      statement_of_purpose: statementOfPurpose,
-      not_on_probation: notOnProbation ? 1 : 0,
-      read_handbook: readHandbook ? 1 : 0,
-      tru_statement: trueStatement ? 1 : 0,
-      Gender: user?.gender,
-      Batch: user?.batch,
-      Photo: photoFile ? photoFile.name : user?.photoUrl.split('/').pop().split('.jpg')[0],
-    };
-
-    try {
-      await formSubmissionService.create(formData);
-      toast({ title: 'Form submitted successfully', status: 'success', duration: 3000 });
-    } catch (error) {
-      toast({ title: 'Submission failed', status: 'error', duration: 3000 });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const GenderIcon = () => {
-    if (user?.gender === 'Male') {
-      return <Icon as={FaMale} color="blue.500" boxSize={6} />;
-    } else if (user?.gender === 'Female') {
-      return <Icon as={FaFemale} color="pink.500" boxSize={6} />;
-    }
-    return <Icon as={FaUser} color="gray.500" boxSize={6} />;
-  };
-
-  if (loading) {
-    return (
-      <Box p={8} textAlign="center" bg={bgColor}>
-        <CircularProgress isIndeterminate color="blue.500" />
-        <Text mt={4}>Loading application...</Text>
-      </Box>
-    );
-  }
-
-  if (!isApplicationOpen) {
-    return (
-      <Box p={8} textAlign="center" bg={bgColor}>
-        <Alert status="error">
-          <AlertIcon />
-          Application period has ended.
-        </Alert>
-      </Box>
-    );
-  }
-
-  const borderBoxStyle = {
-    bg: bgColor,
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: boxBorderColor,
-    borderRadius: 'lg',
-  };
-
-  const inputStyleProps = {
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: inputBorderColor,
-    _hover: { borderColor: inputHoverBorderColor },
-    transition: 'border-color 0.15s ease',
-  };
-
-  const primaryButtonLight = {
-    bg: primaryLightColor,
-    color: 'white',
-    _hover: { bg: primaryLightHover },
-  };
-  const primaryButtonDark = {
-    bgGradient: activeGradient,
-    color: 'white',
-    _hover: { bgGradient: hoverGradient },
-  };
-
-  const menuButtonStyle = {
-    bg: 'white',
-    color: 'gray.800',
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: inputBorderColor,
-    _hover: { bg: 'white' },
-  };
-
+  const titleTextColor = useColorModeValue('gray.600', 'gray.400');
+  const statTextColor = useColorModeValue(color, color);
+  const iconBg = useColorModeValue('gray.100', 'gray.700');
   return (
-    <Box p={{ base: 4, md: 8 }} bg={bgColor} color={textColor} borderRadius="xl">
-      <PageHeader title="Candidate Application Form" description="Apply for student council positions" />
-
-      {!showForm ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <MotionBox {...borderBoxStyle} mb={6} p={4} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 200 }}>
-            <Box p={0}>
-              <Text fontSize="xl" fontWeight="bold" mb={3}>Instructions</Text>
-              <List spacing={3}>
-                {instructions.map((instr, idx) => (
-                  <ListItem key={idx} display="flex" alignItems="center">
-                    <Icon as={ChakraCheckIcon} color="green.500" mr={2} />
-                    <Text>{instr}</Text>
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          </MotionBox>
-
-          <Checkbox isChecked={agreedToInstructions} onChange={handleAgreementChange} colorScheme="blue">
-            I have read and agree to the instructions and terms outlined above.
-          </Checkbox>
-        </motion.div>
-      ) : (
-        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
-          {/* Top Section */}
-          <HStack justify="space-between" mb={8} p={4} alignItems="center" flexWrap={{ base: 'wrap', md: 'nowrap' }} {...borderBoxStyle}>
-            <HStack spacing={4} flex="1" justify={{ base: 'center', md: 'flex-start' }} w="full">
-              <Image
-                src={photoFile ? URL.createObjectURL(photoFile) : user?.photoUrl || defaultProfilePhoto}
-                alt="Profile Photo"
-                borderRadius="full"
-                boxSize={{ base: '80px', md: '100px' }}
-                objectFit="cover"
-                cursor={user?.photoUrl === defaultProfilePhoto ? 'pointer' : 'default'}
-                onClick={user?.photoUrl === defaultProfilePhoto ? onPhotoModalOpen : undefined}
-                transition="transform 0.2s"
-                _hover={{ transform: 'scale(1.05)' }}
-              />
-              <VStack align="start" spacing={0}>
-                <HStack>
-                  <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold">{user?.name || 'Name'}</Text>
-                  <GenderIcon />
-                </HStack>
-                <Text fontSize={{ base: 'sm', md: 'md' }}>{user?.email || 'Email'}</Text>
-                <Text fontSize={{ base: 'sm', md: 'md' }}>{user?.mobileNumber || 'Mobile Number'}</Text>
-                <Text fontSize="sm" color="gray.500">Student ID: {user?.studentId || 'ID'}</Text>
-                <Text fontSize="sm" color="gray.500">Batch: {user?.batch || 'Batch'}</Text>
-              </VStack>
-            </HStack>
-            <Image src={flameLogo} alt="FLAME University Logo" boxSize={{ base: '80px', md: '120px' }} mt={{ base: 4, md: 0 }} alignSelf="center" />
-          </HStack>
-
-          {/* Form Fields */}
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-            <FormControl>
-              <FormLabel>Position Interested</FormLabel>
-              <Menu>
-                <MenuButton as={MotionButton} rightIcon={<ChevronDownIcon />} whileHover={{ scale: 1.02 }} {...menuButtonStyle}>
-                  {position || 'Select a position'}
-                </MenuButton>
-                <MenuList maxH="200px" overflowY="auto">
-                  {positions.map((pos) => (
-                    <MenuItem key={pos.id} onClick={() => setPosition(pos.description)} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
-                      {pos.description}
-                    </MenuItem>
-                  ))}
-                </MenuList>
-              </Menu>
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>CGPA - Academics Score</FormLabel>
-              <Input type="number" value={cgpa} onChange={(e) => setCgpa(e.target.value)} {...inputStyleProps} />
-            </FormControl>
-          </SimpleGrid>
-
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={4}>
-            <FormControl>
-              <FormLabel>Sports Score</FormLabel>
-              <MotionButton
-                onClick={onSportModalOpen}
-                leftIcon={<ArrowForwardIcon />}
-                whileHover={{ x: 4 }}
-                transition="0.2s"
-                {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
-              >
-                Open Sport Sheet
-              </MotionButton>
-              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleSportsScoreChange} {...inputStyleProps} />
-              <Text mt={1}>Calculated: {sportsScore || '—'}/10</Text>
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Cultural Score</FormLabel>
-              <MotionButton
-                onClick={onCulturalModalOpen}
-                leftIcon={<ArrowForwardIcon />}
-                whileHover={{ x: 4 }}
-                transition="0.2s"
-                {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
-              >
-                Open Cultural Sheet
-              </MotionButton>
-              <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleCulturalScoreChange} {...inputStyleProps} />
-              <Text mt={1}>Calculated: {culturalScore || '—'}/10</Text>
-            </FormControl>
-          </SimpleGrid>
-
-          {/* Community Service */}
-          <Box mt={4}>
-            <Box
-              as="button"
-              width="100%"
-              textAlign="left"
-              px={0}
-              py={0}
-              onClick={() => {
-                // toggle persistent expansion only on click
-                setCommunityRequestedExpanded((s) => !s);
-                // if we're expanding by click, focus textarea for discoverability
-                setTimeout(() => communityRef.current?.focus?.(), 0);
-              }}
-              aria-expanded={communityExpanded}
-              style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
-            >
-              <FormLabel mb={2} cursor="pointer">Community Service</FormLabel>
-            </Box>
-
-            <motion.div
-              layout
-              initial={false}
-              animate={{ maxHeight: communityExpanded ? communityMaxHeight : collapsedHeight }}
-              transition={heightTransition}
-              style={{ overflow: 'hidden', width: '100%' }}
-            >
-              <Box p={2} {...borderBoxStyle} display="block">
-                <Textarea
-                  ref={communityRef}
-                  value={communityService}
-                  onChange={(e) => setCommunityService(e.target.value)}
-                  onFocus={() => setCommunityFocusExpanded(true)}
-                  onBlur={() => setCommunityFocusExpanded(false)}
-                  borderWidth="0"
-                  boxShadow="none"
-                  _focus={{ boxShadow: 'none', outline: 'none' }}
-                  resize="vertical"
-                  style={{
-                    height: communityExpanded ? `${communityTextareaMaxH}px` : `${collapsedTextareaH}px`,
-                    overflowY: 'auto',
-                    transition: 'height 260ms ease-in-out',
-                  }}
-                />
-              </Box>
-            </motion.div>
+    <MotionCard
+      bg={bgColor}
+      border="1px solid"
+      borderColor={useColorModeValue('#e5e7eb', 'gray.600')}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.2 }}
+    >
+      <CardBody>
+        <HStack spacing={4}>
+          <Box p={3} bg={iconBg} borderRadius="lg">
+            <Icon as={icon} boxSize={6} color={statTextColor} />
           </Box>
-
-          {/* Statement of Purpose */}
-          <Box mt={4}>
-            <Box
-              as="button"
-              width="100%"
-              textAlign="left"
-              px={0}
-              py={0}
-              onClick={() => {
-                setSopRequestedExpanded((s) => !s);
-                setTimeout(() => sopRef.current?.focus?.(), 0);
-              }}
-              aria-expanded={sopExpanded}
-              style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
-            >
-              <FormLabel mb={2} cursor="pointer">Statement of Purpose</FormLabel>
-            </Box>
-
-            <motion.div
-              layout
-              initial={false}
-              animate={{ maxHeight: sopExpanded ? sopMaxHeight : collapsedHeight }}
-              transition={heightTransition}
-              style={{ overflow: 'hidden', width: '100%' }}
-            >
-              <Box p={2} {...borderBoxStyle} display="block">
-                <Textarea
-                  ref={sopRef}
-                  value={statementOfPurpose}
-                  onChange={(e) => setStatementOfPurpose(e.target.value)}
-                  onFocus={() => setSopFocusExpanded(true)}
-                  onBlur={() => setSopFocusExpanded(false)}
-                  borderWidth="0"
-                  boxShadow="none"
-                  _focus={{ boxShadow: 'none', outline: 'none' }}
-                  resize="vertical"
-                  style={{
-                    height: sopExpanded ? `${sopTextareaMaxH}px` : `${collapsedTextareaH}px`,
-                    overflowY: 'auto',
-                    transition: 'height 260ms ease-in-out',
-                  }}
-                />
-              </Box>
-            </motion.div>
+          <Box flex={1}>
+            <Text fontSize="sm" color={titleTextColor}>{title}</Text>
+            <Text fontSize="2xl" fontWeight="bold" color={statTextColor}>{stat}</Text>
           </Box>
-
-          {/* Uploads */}
-          <Box mt={6} p={4} {...borderBoxStyle}>
-            <Text fontWeight="semibold" mb={2}>Uploads</Text>
-            <Alert status="warning" mb={4} variant="subtle" bg="transparent" color={useColorModeValue('orange.700', 'yellow.200')}>
-              <AlertIcon color="yellow.300" />
-              Mandatory: Sport and Cultural (PDF/JPG)
-            </Alert>
-
-            <FormControl>
-              <FormLabel>Photo</FormLabel>
-              <Input type="file" accept="image/*" onChange={handlePhotoChange} />
-            </FormControl>
-
-            <FormControl mt={4}>
-              <FormLabel>Sport Files (Mandatory)</FormLabel>
-              <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setSportFiles)} />
-            </FormControl>
-
-            <FormControl mt={4}>
-              <FormLabel>Cultural Files (Mandatory)</FormLabel>
-              <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setCulturalFiles)} />
-            </FormControl>
-
-            <FormControl mt={4}>
-              <FormLabel>Academic Files (Optional)</FormLabel>
-              <Input type="file" multiple onChange={(e) => handleFileChange(e, setAcademicFiles)} />
-            </FormControl>
-
-            <FormControl mt={4}>
-              <FormLabel>Other Files (Optional)</FormLabel>
-              <Input type="file" multiple onChange={(e) => handleFileChange(e, setOtherFiles)} />
-            </FormControl>
-          </Box>
-
-          {/* Checkboxes */}
-          <VStack mt={4} align="start" spacing={3}>
-            <Checkbox isChecked={notOnProbation} onChange={(e) => setNotOnProbation(e.target.checked)} colorScheme="blue">Not on Probation</Checkbox>
-            <Checkbox isChecked={readHandbook} onChange={(e) => setReadHandbook(e.target.checked)} colorScheme="blue">I have read the handbook</Checkbox>
-            <Checkbox isChecked={trueStatement} onChange={(e) => setTrueStatement(e.target.checked)} colorScheme="blue">I confirm that the above statements are true</Checkbox>
-          </VStack>
-
-          <MotionButton
-            mt={6}
-            onClick={handleSubmit}
-            isLoading={loading}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            transition="0.12s"
-            {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
-          >
-            Submit
-          </MotionButton>
-        </motion.div>
-      )}
-
-      {/* Sport modal */}
-      <Modal isOpen={isSportModalOpen} onClose={onSportModalClose} size={{ base: 'full', md: 'xl' }}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Sport Score Sheet</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text>Sheet content here (fetch via API)</Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button onClick={onSportModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Cultural modal */}
-      <Modal isOpen={isCulturalModalOpen} onClose={onCulturalModalClose} size={{ base: 'full', md: 'xl' }}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Cultural Score Sheet</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text>Sheet content here (fetch via API)</Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button onClick={onCulturalModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Photo Upload Modal */}
-      <Modal isOpen={isPhotoModalOpen} onClose={onPhotoModalClose} size="sm">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Upload Photo</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={2} align="start">
-              {photoInstructions.map((instr, idx) => (
-                <Text key={idx}>{instr}</Text>
-              ))}
-              <Input type="file" accept="image/jpeg,image/jpg,image/png" onChange={handlePhotoChange} />
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button onClick={onPhotoModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Box>
+        </HStack>
+      </CardBody>
+    </MotionCard>
   );
 }
 
-export default ApplicationFormDashboard;
+function Dashboard() {
+  const user = JSON.parse(localStorage.getItem('user'));
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [genderBatchCount, setGenderBatchCount] = useState({ data: [], grandTotal: {} });
+  const [rcFilledCount, setRCFilledCount] = useState(0);
+  const [rcCount, setRCCount] = useState([]);
+  const [cityWithHighest, setCityWithHighest] = useState({ homeTown: 'None', count: 0 });
+  const [cityCount, setCityCount] = useState([]);
+  const [inOutCount, setInOutCount] = useState([]);
+  const [inOutBatchCount, setInOutBatchCount] = useState({ data: [], grandTotal: {} });
+
+  const genderModal = useDisclosure();
+  const rcModal = useDisclosure();
+  const cityModal = useDisclosure();
+  const inOutModal = useDisclosure();
+  const genderGraphModal = useDisclosure();
+  const cityGraphModal = useDisclosure();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role === 'Student') {
+      navigate('/award-form', { replace: true });
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    const socket = io("https://studenttracking.in:5173");
+    socket.on("connect", () => {
+      console.log("Connected to Socket.IO server:", socket.id);
+      socket.emit("requestData");
+    });
+    socket.on("updateData", (data) => {
+      console.log("Received real-time data:", data);
+      setTotalStudents(data.totalStudentCount.total);
+      setGenderBatchCount(data.genderBatchCount);
+      setRCFilledCount(data.rcFilledCount.total);
+      setRCCount(data.rcCount);
+      setCityWithHighest(data.cityWithHighestCount);
+      setCityCount(data.cityCount);
+      setInOutCount(data.inOutCount);
+      setInOutBatchCount(data.inOutBatchCount);
+    });
+    socket.on("disconnect", () => {
+      console.log("Disconnected from Socket.IO server");
+    });
+    return () => socket.disconnect();
+  }, []);
+
+  const COLORS = {
+    primary: '#2563eb',
+    secondary: '#10b981',
+    accent: '#6366f1',
+    warning: '#f97316',
+    lightBg: '#f9fafb',
+    textPrimary: '#111827',
+    textSecondary: '#6b7280',
+    white: '#ffffff',
+    border: '#e5e7eb',
+  };
+
+  const textColor = useColorModeValue(COLORS.textPrimary, 'white');
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const cardBorder = useColorModeValue(COLORS.border, 'gray.600');
+  const lightBg = useColorModeValue(COLORS.lightBg, 'gray.700');
+
+  const MotionTr = motion(Tr);
+
+  const renderSmallTable = (data, columns, maxRows = 4, headerColor, tableTextColor) => (
+    <Box overflowX="auto">
+      <ChakraTable size="sm" width="100%">
+        <Thead>
+          <Tr>
+            {columns.map((col, index) => (
+              <Th
+                key={index}
+                width={`${100 / columns.length}%`}
+                color={COLORS.white}
+                bg={headerColor}
+                textAlign="center"
+                whiteSpace="nowrap"
+                px={2}
+              >
+                {col}
+              </Th>
+            ))}
+          </Tr>
+        </Thead>
+        <Tbody>
+          {data.slice(0, maxRows).map((row, rowIndex) => (
+            <MotionTr
+              key={rowIndex}
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {Object.values(row).map((cell, cellIndex) => (
+                <Td key={cellIndex} textAlign="center" whiteSpace="nowrap" color={tableTextColor}>{cell}</Td>
+              ))}
+            </MotionTr>
+          ))}
+        </Tbody>
+      </ChakraTable>
+    </Box>
+  );
+
+  const renderFullTable = (data, columns, grandTotal = null, headerColor, tableTextColor) => (
+    <ChakraTable>
+      <Thead position="sticky" top={0} bg={cardBg} zIndex={1}>
+        <Tr>
+          {columns.map((col, index) => (
+            <Th
+              key={index}
+              width={`${100 / columns.length}%`}
+              color={COLORS.white}
+              bg={headerColor}
+              textAlign="center"
+              whiteSpace="nowrap"
+              px={2}
+            >
+              {col}
+            </Th>
+          ))}
+        </Tr>
+      </Thead>
+      <Tbody>
+        {data.map((row, rowIndex) => (
+          <MotionTr
+            key={rowIndex}
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {Object.values(row).map((cell, cellIndex) => (
+              <Td key={cellIndex} textAlign="center" whiteSpace="nowrap" color={tableTextColor}>{cell}</Td>
+            ))}
+          </MotionTr>
+        ))}
+        {grandTotal && (
+          <Tr bg={lightBg}>
+            <Td textAlign="center" color={tableTextColor}><strong>Grand Total</strong></Td>
+            {Object.values(grandTotal).map((total, index) => (
+              <Td key={index} textAlign="center" color={tableTextColor}><strong>{total}</strong></Td>
+            ))}
+          </Tr>
+        )}
+      </Tbody>
+    </ChakraTable>
+  );
+
+  const chartOptions = {
+    maintainAspectRatio: false,
+    responsive: true,
+    plugins: {
+      legend: { position: 'top', labels: { color: textColor } },
+      title: { display: false },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: textColor,
+          maxRotation: 45,
+          minRotation: 45,
+          font: { size: 12 },
+          autoSkip: false
+        },
+        title: {
+          display: true,
+          text: 'Batch',
+          color: textColor,
+        },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: textColor, stepSize: 1 },
+        title: {
+          display: true,
+          text: 'Student Count',
+          color: textColor,
+        },
+      },
+    },
+  };
+
+  const cityChartOptions = {
+    ...chartOptions,
+    scales: {
+      ...chartOptions.scales,
+      x: {
+        ...chartOptions.scales.x,
+        title: {
+          display: true,
+          text: 'HomeTown',
+          color: textColor,
+        },
+      },
+    },
+  };
+
+  const stackedChartOptions = {
+    ...chartOptions,
+    scales: {
+      ...chartOptions.scales,
+      x: {
+        ...chartOptions.scales.x,
+        stacked: true,
+        title: {
+          display: true,
+          text: 'Batch',
+          color: textColor,
+        },
+      },
+      y: {
+        ...chartOptions.scales.y,
+        stacked: true
+      },
+    },
+  };
+
+  const genderChartData = {
+    labels: genderBatchCount.data.map((item) => item.batch),
+    datasets: [
+      {
+        label: 'Female',
+        data: genderBatchCount.data.map((item) => item.female),
+        backgroundColor: 'rgba(236, 72, 153, 0.6)',
+      },
+      {
+        label: 'Male',
+        data: genderBatchCount.data.map((item) => item.male),
+        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+      },
+    ],
+  };
+
+  const cityChartData = {
+    labels: cityCount.map((item) => item.homeTown),
+    datasets: [
+      {
+        label: 'Student Count',
+        data: cityCount.map((item) => item.count),
+        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+      },
+    ],
+  };
+
+  const inOutChartData = {
+    labels: inOutBatchCount.data.map((item) => item.batch),
+    datasets: [
+      {
+        label: 'OUT',
+        data: inOutBatchCount.data.map((item) => item.out),
+        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+      },
+      {
+        label: 'IN',
+        data: inOutBatchCount.data.map((item) => item.in),
+        backgroundColor: 'rgba(34, 197, 94, 0.6)',
+      },
+    ],
+  };
+
+  const top5GenderBatches = [...genderBatchCount.data].sort((a, b) => b.total - a.total).slice(0, 5);
+  const top5GenderChartData = {
+    labels: top5GenderBatches.map((item) => item.batch),
+    datasets: [
+      {
+        label: 'Female',
+        data: top5GenderBatches.map((item) => item.female),
+        backgroundColor: 'rgba(236, 72, 153, 0.6)',
+      },
+      {
+        label: 'Male',
+        data: top5GenderBatches.map((item) => item.male),
+        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+      },
+    ],
+  };
+
+  const top5Cities = [...cityCount].sort((a, b) => b.count - a.count).slice(0, 5);
+  const top5CityChartData = {
+    labels: top5Cities.map((item) => item.homeTown),
+    datasets: [
+      {
+        label: 'Student Count',
+        data: top5Cities.map((item) => item.count),
+        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+      },
+    ],
+  };
+
+  return (
+    <>
+      <Box p={8} pb={20}> {/* Added padding-bottom to avoid overlap with fixed icon */}
+        <PageHeader
+          title={`Welcome back, ${user?.username || 'Admin'}`}
+          description="Here's an overview of the student tracking system"
+        />
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+          <StatCard
+            title="Total Students"
+            stat={totalStudents}
+            icon={UserGroupIcon}
+            color={COLORS.primary}
+          />
+          <StatCard
+            title="Students with RC"
+            stat={rcFilledCount}
+            icon={BuildingOfficeIcon}
+            color={COLORS.accent}
+          />
+          <StatCard
+            title={`Leading City (${cityWithHighest.homeTown})`}
+            stat={cityWithHighest.count}
+            icon={MapPinIcon}
+            color={COLORS.secondary}
+          />
+          <StatCard
+            title="Students Present"
+            stat={inOutCount.find((item) => item.inOut === 'IN')?.count || 0}
+            icon={CheckCircleIcon}
+            color={COLORS.warning}
+          />
+        </SimpleGrid>
+
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+          <MotionCard
+            bg={cardBg}
+            border="1px solid"
+            borderColor={cardBorder}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardHeader position="relative" pb={0}>
+              <HStack>
+                <Icon as={UserGroupIcon} boxSize={8} color={COLORS.primary} />
+                <VStack align="start">
+                  <Text fontSize="lg" fontWeight="bold" color={textColor}>Gender-wise Count</Text>
+                  <Text fontSize="2xl" fontWeight="bold" color={COLORS.primary}>{totalStudents}</Text>
+                </VStack>
+              </HStack>
+              <IconButton
+                aria-label="View more"
+                icon={<Icon as={ArrowsPointingOutIcon} />}
+                position="absolute"
+                top={2}
+                right={2}
+                onClick={genderModal.onOpen}
+              />
+            </CardHeader>
+            <CardBody>
+              {renderSmallTable(
+                genderBatchCount.data.map(({ batch, female, male, total }) => ({ batch, female, male, total })),
+                ['Batch', 'Female', 'Male', 'Total'],
+                4,
+                COLORS.primary,
+                textColor
+              )}
+            </CardBody>
+          </MotionCard>
+
+          <MotionCard
+            bg={cardBg}
+            border="1px solid"
+            borderColor={cardBorder}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardHeader position="relative" pb={0}>
+              <HStack>
+                <Icon as={BuildingOfficeIcon} boxSize={8} color={COLORS.accent} />
+                <VStack align="start">
+                  <Text fontSize="lg" fontWeight="bold" color={textColor}>RC-wise Count</Text>
+                  <Text fontSize="2xl" fontWeight="bold" color={COLORS.accent}>{rcFilledCount}</Text>
+                </VStack>
+              </HStack>
+              <IconButton
+                aria-label="View more"
+                icon={<Icon as={ArrowsPointingOutIcon} />}
+                position="absolute"
+                top={2}
+                right={2}
+                onClick={rcModal.onOpen}
+              />
+            </CardHeader>
+            <CardBody>
+              {renderSmallTable(
+                rcCount.map(({ rcName, count }) => ({ rcName, count })),
+                ['RC Name', 'Student Count'],
+                4,
+                COLORS.accent,
+                textColor
+              )}
+            </CardBody>
+          </MotionCard>
+
+          <MotionCard
+            bg={cardBg}
+            border="1px solid"
+            borderColor={cardBorder}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardHeader position="relative" pb={0}>
+              <HStack>
+                <Icon as={MapPinIcon} boxSize={8} color={COLORS.secondary} />
+                <VStack align="start">
+                  <Text fontSize="lg" fontWeight="bold" color={textColor}>HomeTown-wise Count</Text>
+                  <Text fontSize="2xl" fontWeight="bold" color={COLORS.secondary}>{cityWithHighest.count}</Text>
+                </VStack>
+              </HStack>
+              <IconButton
+                aria-label="View more"
+                icon={<Icon as={ArrowsPointingOutIcon} />}
+                position="absolute"
+                top={2}
+                right={2}
+                onClick={cityModal.onOpen}
+              />
+            </CardHeader>
+            <CardBody>
+              {renderSmallTable(
+                cityCount.map(({ homeTown, count }) => ({ homeTown, count })),
+                ['HomeTown', 'Student Count'],
+                4,
+                COLORS.secondary,
+                textColor
+              )}
+            </CardBody>
+          </MotionCard>
+
+          <MotionCard
+            bg={cardBg}
+            border="1px solid"
+            borderColor={cardBorder}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardHeader position="relative" pb={0}>
+              <HStack>
+                <Icon as={CheckCircleIcon} boxSize={8} color={COLORS.warning} />
+                <VStack align="start">
+                  <Text fontSize="lg" fontWeight="bold" color={textColor}>IN/OUT Count</Text>
+                  <Text fontSize="2xl" fontWeight="bold" color={COLORS.warning}>
+                    {inOutCount.find((item) => item.inOut === 'IN')?.count || 0}
+                  </Text>
+                </VStack>
+              </HStack>
+              <IconButton
+                aria-label="View more"
+                icon={<Icon as={ArrowsPointingOutIcon} />}
+                position="absolute"
+                top={2}
+                right={2}
+                onClick={inOutModal.onOpen}
+              />
+            </CardHeader>
+            <CardBody>
+              {renderSmallTable(
+                inOutBatchCount.data.map(({ batch, in: inCount, out, total }) => ({ batch, in: inCount, out, total })),
+                ['Batch', 'IN', 'OUT', 'Total'],
+                4,
+                COLORS.warning,
+                textColor
+              )}
+            </CardBody>
+          </MotionCard>
+        </SimpleGrid>
+
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={6}>
+          <MotionCard
+            bg={cardBg}
+            border="1px solid"
+            borderColor={cardBorder}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardHeader position="relative">
+              <Text fontSize="lg" fontWeight="bold" color={textColor}>Gender Distribution by Batch (Top 5)</Text>
+              <IconButton
+                aria-label="View full graph"
+                icon={<Icon as={ArrowsPointingOutIcon} />}
+                position="absolute"
+                top={2}
+                right={2}
+                onClick={genderGraphModal.onOpen}
+              />
+            </CardHeader>
+            <CardBody>
+              <Box height="300px">
+                <Bar data={top5GenderChartData} options={chartOptions} />
+              </Box>
+            </CardBody>
+          </MotionCard>
+
+          <MotionCard
+            bg={cardBg}
+            border="1px solid"
+            borderColor={cardBorder}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardHeader position="relative">
+              <Text fontSize="lg" fontWeight="bold" color={textColor}>Students by HomeTown (Top 5)</Text>
+              <IconButton
+                aria-label="View full graph"
+                icon={<Icon as={ArrowsPointingOutIcon} />}
+                position="absolute"
+                top={2}
+                right={2}
+                onClick={cityGraphModal.onOpen}
+              />
+            </CardHeader>
+            <CardBody>
+              <Box height="300px">
+                <Bar data={top5CityChartData} options={cityChartOptions} />
+              </Box>
+            </CardBody>
+          </MotionCard>
+        </SimpleGrid>
+
+        <SimpleGrid columns={1} spacing={6} mt={6}>
+          <MotionCard
+            bg={cardBg}
+            border="1px solid"
+            borderColor={cardBorder}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardHeader>
+              <Text fontSize="lg" fontWeight="bold" color={textColor}>IN/OUT Distribution by Batch (Stacked)</Text>
+            </CardHeader>
+            <CardBody>
+              <Box height="300px">
+                <Bar data={inOutChartData} options={stackedChartOptions} />
+              </Box>
+            </CardBody>
+          </MotionCard>
+        </SimpleGrid>
+
+        <Modal isOpen={genderModal.isOpen} onClose={genderModal.onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent maxHeight="80vh" overflowY="auto" bg={cardBg}>
+            <ModalHeader color={COLORS.primary}>Gender-wise Student Count</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              {renderFullTable(
+                genderBatchCount.data.map(({ batch, female, male, total }) => ({ batch, female, male, total })),
+                ['Batch', 'Female', 'Male', 'Total'],
+                genderBatchCount.grandTotal,
+                COLORS.primary,
+                textColor
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button bg={COLORS.primary} color={COLORS.white} onClick={genderModal.onClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        <Modal isOpen={rcModal.isOpen} onClose={rcModal.onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent maxHeight="80vh" overflowY="auto" bg={cardBg}>
+            <ModalHeader color={COLORS.accent}>RC-wise Student Count</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              {renderFullTable(
+                rcCount.map(({ rcName, count }) => ({ rcName, count })),
+                ['RC Name', 'Student Count'],
+                null,
+                COLORS.accent,
+                textColor
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button bg={COLORS.accent} color={COLORS.white} onClick={rcModal.onClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        <Modal isOpen={cityModal.isOpen} onClose={cityModal.onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent maxHeight="80vh" overflowY="auto" bg={cardBg}>
+            <ModalHeader color={COLORS.secondary}>HomeTown-wise Student Count</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              {renderFullTable(
+                cityCount.map(({ homeTown, count }) => ({ homeTown, count })),
+                ['HomeTown', 'Student Count'],
+                null,
+                COLORS.secondary,
+                textColor
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button bg={COLORS.secondary} color={COLORS.white} onClick={cityModal.onClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        <Modal isOpen={inOutModal.isOpen} onClose={inOutModal.onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent maxHeight="80vh" overflowY="auto" bg={cardBg}>
+            <ModalHeader color={COLORS.warning}>Batch-wise IN/OUT Count</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              {renderFullTable(
+                inOutBatchCount.data.map((item) => ({
+                  batch: item.batch,
+                  in: item.in || 0,
+                  out: item.out || 0,
+                  noPunch: item.noPunch || 0,
+                  total: item.total || 0,
+                })),
+                ['Batch', 'IN', 'OUT', 'NO PUNCH', 'Total'],
+                inOutBatchCount.grandTotal,
+                COLORS.warning,
+                textColor
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button bg={COLORS.warning} color={COLORS.white} onClick={inOutModal.onClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        <Modal isOpen={genderGraphModal.isOpen} onClose={genderGraphModal.onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent maxHeight="80vh" overflowY="auto" bg={cardBg}>
+            <ModalHeader color={COLORS.primary}>Full Gender Distribution by Batch</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <Box height="500px">
+                <Bar data={genderChartData} options={chartOptions} />
+              </Box>
+            </ModalBody>
+            <ModalFooter>
+              <Button bg={COLORS.primary} color={COLORS.white} onClick={genderGraphModal.onClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        <Modal isOpen={cityGraphModal.isOpen} onClose={cityGraphModal.onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent maxHeight="80vh" overflowY="auto" bg={cardBg}>
+            <ModalHeader color={COLORS.secondary}>Full Students by HomeTown</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <Box height="500px">
+                <Bar
+                  data={{
+                    labels: cityCount.filter((item) => item.count > 20).map((item) => item.homeTown),
+                    datasets: [
+                      {
+                        label: 'Student Count',
+                        data: cityCount.filter((item) => item.count > 20).map((item) => item.count),
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                      },
+                    ],
+                  }}
+                  options={cityChartOptions}
+                />
+              </Box>
+              <Text fontSize="sm" color={useColorModeValue(COLORS.textSecondary, 'gray.400')} mt={2}>
+                Note: Cities with student count values less than 20 are not shown on this graph.
+              </Text>
+            </ModalBody>
+            <ModalFooter>
+              <Button bg={COLORS.secondary} color={COLORS.white} onClick={cityGraphModal.onClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </Box>
+      <ChatbotModal userId={user?.id} />
+    </>
+  );
+}
+
+export default Dashboard;

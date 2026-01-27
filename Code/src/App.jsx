@@ -1,11 +1,11 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { 
-  ChakraProvider, 
-  ColorModeScript, 
-  Spinner, 
+import {
+  ChakraProvider,
+  ColorModeScript,
+  Spinner,
   Center,
-  extendTheme 
+  extendTheme
 } from '@chakra-ui/react'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
@@ -16,7 +16,7 @@ import NotFound from './pages/NotFound'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Users = lazy(() => import('./pages/Users'))
 const Roles = lazy(() => import('./pages/StudentInfoTable'))
-const Analytics = lazy(() => import('./pages/Analytics'))
+const AwardForm = lazy(() => import('./pages/AwardForm'))
 const Calendar = lazy(() => import('./pages/Calendar'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Departments = lazy(() => import('./pages/StudentHouseTracking'))
@@ -73,7 +73,7 @@ function App() {
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/login" element={<Login />} />
-              
+
               <Route
                 element={
                   <ProtectedRoute>
@@ -84,7 +84,7 @@ function App() {
                 <Route path="/declaration-form" element={<DeclarationForm />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/roles" element={<Roles />} />
-                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/award-form" element={<AwardForm />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/departments" element={<Departments />} />
