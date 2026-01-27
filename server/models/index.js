@@ -12,7 +12,6 @@ const Queue = require('./Queue');
 const RoleSetting = require('./RoleSetting');
 const StudentData = require('./StudentData');
 const StudentLogs = require('./StudentLogs');
-const Positions = require('./Positions');
 const LegalDocument = require('./LegalDocument');
 const academicAttachment = require('./academicAttachment');
 const SportAttachment = require('./SportAttachment');
@@ -37,7 +36,6 @@ const models = {
   RoleSetting,
   StudentData,
   StudentLogs,
-  Positions,
   LegalDocument,
   academicAttachment,
   SportAttachment,

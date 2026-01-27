@@ -49,7 +49,7 @@ const formController = {
     try {
       const {
         name, studentId, mobileNumber, gender, batch, email,
-        academicLevel, position, cgpa, sportsScore, culturalScore,
+        academicLevel, cgpa, sportsScore, culturalScore,
         notOnProbation, trueStatement, sop, communityService,
         selected_role
       } = req.body;
@@ -61,7 +61,6 @@ const formController = {
         mobile_number: mobileNumber,
         gender,
         batch,
-        position,
         academic_level: academicLevel,
         selected_role: selected_role,
         statement_of_purpose: sop,

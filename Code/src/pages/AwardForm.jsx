@@ -14,7 +14,7 @@ import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
 import { formProcessingService } from '../services/formProcessingService';
 import { authService } from '../services/authService';
-import { positionService } from '../services/positionService';
+// positionService removed
 import flameLogo from '../assets/img/FLAME.png';
 
 const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
@@ -46,7 +46,7 @@ function ApplicationFormDashboard() {
     const [formData, setFormData] = useState({
         name: '', studentId: '', mobileNumber: '', email: '',
         gender: '', batch: '', photoUrl: defaultProfilePhoto,
-        academicLevel: '', position: '', cgpa: '', sportsRawScore: '',
+        academicLevel: '', cgpa: '', sportsRawScore: '',
         culturalRawScore: '', sportsScore: '', culturalScore: '',
         notOnProbation: false, trueStatement: false,
         sop: '', communityService: ''
@@ -58,7 +58,7 @@ function ApplicationFormDashboard() {
     const [culturalFiles, setCulturalFiles] = useState([]);
     const [academicFiles, setAcademicFiles] = useState([]);
 
-    const [positions, setPositions] = useState([]);
+    const [photoExists, setPhotoExists] = useState(false);
 
     const fetchStatusAndPrefill = async () => {
         try {
@@ -75,11 +75,8 @@ function ApplicationFormDashboard() {
                     ...prefillData.prefill,
                     photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
                 }));
+                setPhotoExists(prefillData.photoExists);
                 setFilledRoles(prefillData.filledRoles || []);
-
-                // 3. Load Positions
-                const posResp = await positionService.getAll();
-                setPositions(posResp.data || []);
             }
         } catch (err) {
             console.error('Initialization error:', err);
@@ -269,17 +266,19 @@ function ApplicationFormDashboard() {
                             <HStack spacing={8} align="center" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
                                 <Box position="relative">
                                     <Image src={formData.photoUrl} boxSize="150px" borderRadius="2xl" objectFit="cover" border="4px solid" borderColor="white" boxShadow="md" fallbackSrc={defaultProfilePhoto} />
-                                    <Box position="absolute" bottom="-2" right="-2" bg="blue.500" p={3} borderRadius="xl" cursor="pointer" onClick={onPhotoModalOpen} boxShadow="lg" _hover={{ bg: 'blue.600', transform: 'scale(1.1)' }} transition="0.2s">
-                                        <Icon as={FaCamera} color="white" />
-                                    </Box>
+                                    {!photoExists && (
+                                        <Box position="absolute" bottom="-2" right="-2" bg="blue.500" p={3} borderRadius="xl" cursor="pointer" onClick={onPhotoModalOpen} boxShadow="lg" _hover={{ bg: 'blue.600', transform: 'scale(1.1)' }} transition="0.2s">
+                                            <Icon as={FaCamera} color="white" />
+                                        </Box>
+                                    )}
                                 </Box>
                                 <VStack align="start" spacing={1} flex="1">
                                     <Text fontSize="3xl" fontWeight="black" color="gray.800">{formData.name || 'Student Name'}</Text>
                                     <HStack spacing={3} color="gray.600" fontSize="lg">
                                         <Icon as={FaUser} />
-                                        <Text>{formData.studentId || 'ID'} | {formData.batch || 'Batch'}</Text>
+                                        <Text>{formData.student_id || 'ID'} | {formData.batch || 'Batch'}</Text>
                                     </HStack>
-                                    <Text color="gray.500">{formData.email} • {formData.mobileNumber}</Text>
+                                    <Text color="gray.500">{formData.email} • {formData.mobile_number}</Text>
                                 </VStack>
                                 <Image src={flameLogo} alt="FLAME Logo" h="60px" opacity={0.6} display={{ base: 'none', sm: 'block' }} />
                             </HStack>

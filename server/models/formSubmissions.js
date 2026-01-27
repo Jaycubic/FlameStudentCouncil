@@ -19,10 +19,6 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
     type: DataTypes.STRING(20),
     allowNull: false,
   },
-  position: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
   academic_level: {
     type: DataTypes.STRING,
     allowNull: true,
