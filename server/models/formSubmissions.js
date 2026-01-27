@@ -21,43 +21,47 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
   },
   position: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
+  },
+  Academic_level: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   cgpa: {
     type: DataTypes.DECIMAL(4, 2),
-    allowNull: false,
+    allowNull: true,
   },
   cgpa_verification: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   sports_score: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   cultural_score: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   community_service: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true,
   },
   statement_of_purpose: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true,
   },
   not_on_probation: {
     type: DataTypes.BOOLEAN,
-    allowNull: false,
+    allowNull: true,
   },
   read_handbook: {
     type: DataTypes.BOOLEAN,
-    allowNull: false,
+    allowNull: true,
   },
   tru_statement: {
     type: DataTypes.BOOLEAN,
-    allowNull: false,
+    allowNull: true,
   },
   email: {
     type: DataTypes.STRING,

@@ -27,6 +27,7 @@ const organizationRoutes = require("./routes/organizationRoutes.js");
 const legalRoutes = require(`./routes/LegalDocumentRoutes.js`);
 const footerRoutes = require(`./routes/footerRoutes.js`);
 const formSubmissionRoutes = require('./routes/formSubmissionRoutes.js');
+const formProcessingRoutes = require('./routes/formProcessingRoutes.js');
 const formSubmissionController = require('./controllers/formSubmissionController.js');
 
 const app = express();
@@ -77,6 +78,7 @@ app.use('/api/activity-tracker', require('./routes/activityTrackerRoutes.js'));
 app.use('/api/settings', require('./routes/settingsRoutes.js'));
 app.use('/legal-documents', legalRoutes);
 app.use('/api/form-submissions', formSubmissionRoutes);
+app.use('/api/form-processing', formProcessingRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -152,6 +152,8 @@ function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = authService.getCurrentUser()
+
+  if (user?.role === 'Student') return null;
   const { isOpen, onOpen, onClose } = useDisclosure()
   const isDesktop = useBreakpointValue({ base: false, md: true })
   const [isCollapsed, setIsCollapsed] = useState(isDesktop)

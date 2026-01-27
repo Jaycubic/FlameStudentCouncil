@@ -5,6 +5,7 @@ const { validateToken, requireAdmin } = require('../middleware/auth'); // adjust
 
 // Public create endpoint? If you want submissions from unauthenticated clients, remove validateToken.
 router.post('/', validateToken, formController.create);
+router.post('/submit', validateToken, formController.uploadMiddleware, formController.submitForm);
 
 // Bulk enqueue
 router.post('/bulk', validateToken, formController.bulkCreate);

@@ -15,6 +15,9 @@ const StudentLogs = require('./StudentLogs');
 const Positions = require('./Positions');
 const LegalDocument = require('./LegalDocument');
 const academicAttachment = require('./academicAttachment');
+const SportAttachment = require('./SportAttachment');
+const CulturalAttachment = require('./CulturalAttachment');
+const TimeSettings = require('./TimeSettings');
 const footer = require('./footer');
 const formSubmissions = require('./formSubmissions');
 const EmployeeStudentMaster = require('./EmployeeStudentMaster');
@@ -37,6 +40,9 @@ const models = {
   Positions,
   LegalDocument,
   academicAttachment,
+  SportAttachment,
+  CulturalAttachment,
+  TimeSettings,
   footer,
   formSubmissions,
   EmployeeStudentMaster,
@@ -66,5 +72,15 @@ Queue.belongsTo(Counter, { foreignKey: 'counter_id' });
 
 Role.hasMany(RoleSetting, { foreignKey: 'role_id' });
 RoleSetting.belongsTo(Role, { foreignKey: 'role_id' });
+
+// Form Submission Associations
+formSubmissions.hasMany(academicAttachment, { foreignKey: 'submission_id' });
+academicAttachment.belongsTo(formSubmissions, { foreignKey: 'submission_id' });
+
+formSubmissions.hasMany(SportAttachment, { foreignKey: 'submission_id' });
+SportAttachment.belongsTo(formSubmissions, { foreignKey: 'submission_id' });
+
+formSubmissions.hasMany(CulturalAttachment, { foreignKey: 'submission_id' });
+CulturalAttachment.belongsTo(formSubmissions, { foreignKey: 'submission_id' });
 
 module.exports = models;

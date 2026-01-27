@@ -35,6 +35,21 @@ class FormSubmissionService {
       throw error;
     }
   }
+
+  async submit(formData) {
+    try {
+      const response = await fetch('https://flameawards.in:8082/api/form-submissions/submit', {
+        method: 'POST',
+        body: formData, // No Content-Type header needed for FormData
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Submission failed');
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export const formSubmissionService = new FormSubmissionService();

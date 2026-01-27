@@ -1,64 +1,26 @@
-// src/pages/AwardForm.jsx
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Box,
-    VStack,
-    HStack,
-    Text,
-    Checkbox,
-    Button,
-    Input,
-    Textarea,
-    FormControl,
-    FormLabel,
-    Image,
-    Icon,
-    useColorModeValue,
-    useDisclosure,
-    Modal,
-    ModalOverlay,
-    ModalContent,
-    ModalHeader,
-    ModalCloseButton,
-    ModalBody,
-    ModalFooter,
-    useToast,
-    SimpleGrid,
-    Alert,
-    AlertIcon,
-    CircularProgress,
-    List,
-    ListItem,
-    Menu,
-    MenuButton,
-    MenuList,
-    MenuItem,
+    Box, VStack, HStack, Text, Checkbox, Button, Input, Textarea,
+    FormControl, FormLabel, Image, Icon, useColorModeValue, useDisclosure,
+    Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton,
+    ModalBody, ModalFooter, useToast, SimpleGrid, Alert, AlertIcon,
+    CircularProgress, List, ListItem, Menu, MenuButton, MenuList, MenuItem,
+    Container, ScaleFade, Fade, Divider, Badge
 } from '@chakra-ui/react';
-import {
-    ChevronDownIcon,
-    ArrowForwardIcon,
-    CheckIcon as ChakraCheckIcon,
-} from '@chakra-ui/icons';
-import { FaMale, FaFemale, FaUser } from 'react-icons/fa';
+import { ChevronDownIcon, ArrowForwardIcon, CheckIcon as ChakraCheckIcon } from '@chakra-ui/icons';
+import { FaMale, FaFemale, FaUser, FaCamera, FaTrophy, FaMusic, FaGraduationCap, FaChevronLeft } from 'react-icons/fa';
 import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
+import { formProcessingService } from '../services/formProcessingService';
 import { authService } from '../services/authService';
 import { positionService } from '../services/positionService';
-import { photoService } from '../services/photoService';
-
-// Import logo
 import flameLogo from '../assets/img/FLAME.png';
 
-// Placeholder for profile photo if none
 const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-
-// Motion-wrapped Chakra components
 const MotionBox = motion(Box);
-const MotionButton = motion(Button);
-
-// Use a tweened height animation for smooth static expansion (no spring jitter while scrolling)
-const heightTransition = { duration: 0.28, ease: 'easeInOut' };
+const MotionVStack = motion(VStack);
+const MotionHStack = motion(HStack);
 
 function ApplicationFormDashboard() {
     const toast = useToast();
@@ -67,614 +29,503 @@ function ApplicationFormDashboard() {
     const { isOpen: isPhotoModalOpen, onOpen: onPhotoModalOpen, onClose: onPhotoModalClose } = useDisclosure();
 
     const bgColor = useColorModeValue('white', 'gray.800');
-    const textColor = useColorModeValue('gray.800', 'white');
+    const panelBg = useColorModeValue('gray.50', 'gray.700');
+    const boxBorderColor = useColorModeValue('blue.200', 'blue.500');
+    const accentColor = 'blue.500';
 
-    // Border / input colors
-    const boxBorderColor = useColorModeValue('blue.300', 'pink.500');
-    const inputBorderColor = useColorModeValue('blue.400', 'pink.500');
-    const inputHoverBorderColor = useColorModeValue('blue.500', 'pink.600');
-
-    const hoverGradient = useColorModeValue(
-        'linear-gradient(90deg,#60a5fa,#93c5fd)',
-        'linear-gradient(90deg,#9f7aea,#f472b6)'
-    );
-    const activeGradient = useColorModeValue(
-        'linear-gradient(90deg,#3b82f6,#60a5fa)',
-        'linear-gradient(90deg,#7c3aed,#ec4899)'
-    );
-
-    const primaryLightColor = 'blue.500';
-    const primaryLightHover = 'blue.600';
-
-    // User / form state
-    const [user, setUser] = useState(null);
-    const [agreedToInstructions, setAgreedToInstructions] = useState(false);
-    const [showForm, setShowForm] = useState(false);
-    const [isApplicationOpen, setIsApplicationOpen] = useState(true);
+    // State management
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+    const [isApplicationOpen, setIsApplicationOpen] = useState(true);
+    const [appStatusMessage, setAppStatusMessage] = useState('');
+    const [agreedToInstructions, setAgreedToInstructions] = useState(false);
+    const [selectedRole, setSelectedRole] = useState(''); // trailblazer, sports_person, cultural_person
+    const [submissionDone, setSubmissionDone] = useState(false);
+    const [filledRoles, setFilledRoles] = useState([]);
 
-    const [position, setPosition] = useState('');
-    const [cgpa, setCgpa] = useState('');
-    const [sportsScore, setSportsScore] = useState('');
-    const [culturalScore, setCulturalScore] = useState('');
-    const [communityService, setCommunityService] = useState('');
-    const [statementOfPurpose, setStatementOfPurpose] = useState('');
-    const [notOnProbation, setNotOnProbation] = useState(false);
-    const [readHandbook, setReadHandbook] = useState(false);
-    const [trueStatement, setTrueStatement] = useState(false);
+    // Prefilled/Form Data
+    const [formData, setFormData] = useState({
+        name: '', studentId: '', mobileNumber: '', email: '',
+        gender: '', batch: '', photoUrl: defaultProfilePhoto,
+        academicLevel: '', position: '', cgpa: '', sportsRawScore: '',
+        culturalRawScore: '', sportsScore: '', culturalScore: '',
+        notOnProbation: false, trueStatement: false,
+        sop: '', communityService: ''
+    });
+
+    // File states
     const [photoFile, setPhotoFile] = useState(null);
     const [sportFiles, setSportFiles] = useState([]);
     const [culturalFiles, setCulturalFiles] = useState([]);
     const [academicFiles, setAcademicFiles] = useState([]);
-    const [otherFiles, setOtherFiles] = useState([]);
 
     const [positions, setPositions] = useState([]);
 
-    // Expansion control:
-    // - requested: toggled by header click (persistent)
-    // - focus: set while textarea has focus (temporary but persistent while focused)
-    const [communityRequestedExpanded, setCommunityRequestedExpanded] = useState(false);
-    const [communityFocusExpanded, setCommunityFocusExpanded] = useState(false);
-
-    const [sopRequestedExpanded, setSopRequestedExpanded] = useState(false);
-    const [sopFocusExpanded, setSopFocusExpanded] = useState(false);
-
-    // Final expansion combines both (so focus keeps it open)
-    const communityExpanded = communityRequestedExpanded || communityFocusExpanded;
-    const sopExpanded = sopRequestedExpanded || sopFocusExpanded;
-
-    const communityRef = useRef(null);
-    const sopRef = useRef(null);
-
-    // Heights (tweakable)
-    // Collapsed height (visible when idle)
-    const collapsedHeight = 100; // px (user set)
-    // Reduced expansion height (less huge)
-    const communityMaxHeight = 320; // px when expanded
-    const sopMaxHeight = 320; // px when expanded
-
-    // Chakra `p={2}` equals 8px top + bottom = 16px
-    const containerVerticalPadding = 16;
-    const collapsedTextareaH = Math.max(40, collapsedHeight - containerVerticalPadding);
-    const communityTextareaMaxH = Math.max(120, communityMaxHeight - containerVerticalPadding);
-    const sopTextareaMaxH = Math.max(120, sopMaxHeight - containerVerticalPadding);
-
-    const instructions = [
-        'Statement of Purpose (SOP): Explain your motivation and goals for applying.',
-        'Mandatory Upload: Upload files for the "Sport" and "Cultural" sections in PDF or JPG format.',
-        'Optional Upload: Upload files for "Academic" and "Other" sections in various accepted formats if applicable.',
-        'Confirmation: Check the boxes to confirm you are not on probation, have read the handbook, and that your information is accurate.',
-        'The positions listed may vary depending on your academic program, so be sure to read through them carefully before selecting.',
-        'Submission: Ensure all required sections are complete before submission.',
-    ];
-
-    const photoInstructions = [
-        'Upload a formal passport-sized photo.',
-        'File size must be less than 1MB.',
-        'Accepted formats: JPEG, JPG, PNG.',
-        'Photo should be recent, clear, and against a plain background.',
-        'Ensure the photo is well-lit and shows your full face without accessories like hats or sunglasses.',
-        'Professional attire is recommended.',
-    ];
-
     useEffect(() => {
-        async function loadUser() {
+        const initForm = async () => {
             setLoading(true);
             try {
-                const currentUser = authService.getCurrentUser();
-                setUser({
-                    name: currentUser?.studentName || '',
-                    studentId: currentUser?.studentCvueNo || '',
-                    mobileNumber: currentUser?.contactNo || '',
-                    email: currentUser?.email || '',
-                    batch: currentUser?.batch || '',
-                    gender: currentUser?.gender || '',
-                    photoUrl: currentUser?.photo ? `/photos/${currentUser.photo}.jpg` : defaultProfilePhoto,
-                });
+                // 1. Check Application Status
+                const status = await formProcessingService.getApplicationStatus();
+                setIsApplicationOpen(status.isOpen);
+                setAppStatusMessage(status.message);
+
+                if (status.isOpen) {
+                    // 2. Load Prefill Data
+                    const prefillData = await formProcessingService.getPrefillData();
+                    setFormData(prev => ({
+                        ...prev,
+                        ...prefillData.prefill,
+                        photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
+                    }));
+                    setFilledRoles(prefillData.filledRoles || []);
+
+                    // 3. Load Positions
+                    const posResp = await positionService.getAll();
+                    setPositions(posResp.data || []);
+                }
             } catch (err) {
-                console.error('Failed to load user profile:', err);
-                setUser({});
-                toast({ title: 'Failed to load user details', status: 'warning', duration: 3000 });
+                console.error('Initialization error:', err);
+                toast({ title: 'System Error', description: 'Failed to initialize form. Please try again later.', status: 'error', duration: 5000 });
             } finally {
                 setLoading(false);
             }
-        }
-
-        async function loadPositions() {
-            try {
-                const response = await positionService.getAll();
-                setPositions(response.data || []);
-            } catch (err) {
-                console.error('Failed to load positions:', err);
-                toast({ title: 'Failed to load positions', status: 'error', duration: 3000 });
-            }
-        }
-
-        loadUser();
-        loadPositions();
-
-        const storedAgreement = localStorage.getItem('agreedToInstructions');
-        if (storedAgreement === 'true') {
-            setAgreedToInstructions(true);
-            setShowForm(true);
-        }
-
-        setIsApplicationOpen(true);
+        };
+        initForm();
     }, [toast]);
 
-    const handleAgreementChange = (e) => {
-        const checked = e.target.checked;
-        setAgreedToInstructions(checked);
-        localStorage.setItem('agreedToInstructions', checked);
-        if (checked) {
-            setShowForm(true);
-        }
+    const handleRoleSelect = (role) => {
+        setSelectedRole(role);
     };
 
-    const handlePhotoChange = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
             setPhotoFile(file);
-            const localUrl = URL.createObjectURL(file);
-            setUser((u) => ({ ...(u || {}), photoUrl: localUrl }));
-
-            const resp = await photoService.uploadPhoto(file);
-            const filename = resp?.filename || resp?.data?.filename || resp?.fileName;
-            if (!filename) {
-                toast({ title: 'Uploaded but backend did not return filename', status: 'warning' });
-                return;
-            }
-            const proxied = photoService.getPhotoUrl(filename);
-            setUser((u) => ({ ...(u || {}), photoUrl: proxied }));
-            toast({ title: 'Photo uploaded', status: 'success', duration: 2500 });
-        } catch (err) {
-            console.error('Photo upload error:', err);
-            toast({ title: 'Photo upload failed', status: 'error', duration: 4000 });
+            setFormData(prev => ({ ...prev, photoUrl: URL.createObjectURL(file) }));
+            onPhotoModalClose();
         }
     };
 
-    const handleFileChange = (e, setter) => {
-        setter(Array.from(e.target.files || []));
-    };
-
-    const calculateScore = (score) => {
-        if (score === '' || score === null) return '';
-        const num = Number(score);
+    const calculateScore = (value) => {
+        const num = parseFloat(value);
         if (isNaN(num)) return '';
-        let scaledScore;
-        if (num <= 100) {
-            scaledScore = num / 10;
-        } else {
-            const decayFactor = (num - 100) * 0.05;
-            const adjustedMarks = 100 + decayFactor;
-            scaledScore = adjustedMarks / 10;
-        }
-        return Math.round(scaledScore * 10) / 10;
+        if (num <= 100) return (num / 10).toFixed(1);
+        return ((100 + (num - 100) * 0.05) / 10).toFixed(1);
     };
 
-    const handleSportsScoreChange = (e) => {
-        const value = e.target.value;
-        setSportsScore(calculateScore(value));
-    };
-
-    const handleCulturalScoreChange = (e) => {
-        const value = e.target.value;
-        setCulturalScore(calculateScore(value));
-    };
-
-    const handleSubmit = async () => {
-        if (!trueStatement || sportFiles.length === 0 || culturalFiles.length === 0) {
-            toast({ title: 'Missing required fields', status: 'error', duration: 3000 });
+    const handleSubmission = async () => {
+        // Basic Validation
+        if (!formData.trueStatement) {
+            toast({ title: 'Required', description: 'Please confirm that the information provided is accurate.', status: 'warning' });
             return;
         }
 
-        setLoading(true);
-        const formData = {
-            name: user?.name || '',
-            student_id: user?.studentId || '',
-            mobile_number: user?.mobileNumber || '',
-            email: user?.email || '',
-            position,
-            cgpa: parseFloat(cgpa),
-            sports_score: sportsScore,
-            cultural_score: culturalScore,
-            community_service: communityService,
-            statement_of_purpose: statementOfPurpose,
-            not_on_probation: notOnProbation ? 1 : 0,
-            read_handbook: readHandbook ? 1 : 0,
-            tru_statement: trueStatement ? 1 : 0,
-            Gender: user?.gender,
-            Batch: user?.batch,
-            Photo: photoFile ? photoFile.name : user?.photoUrl.split('/').pop().split('.jpg')[0],
-        };
+        const data = new FormData();
+        data.append('selected_role', selectedRole);
+        Object.keys(formData).forEach(key => {
+            if (key !== 'photoUrl') data.append(key, formData[key]);
+        });
 
+        if (photoFile) data.append('photo', photoFile);
+        sportFiles.forEach(file => data.append('sport_attachment', file));
+        culturalFiles.forEach(file => data.append('cultural_attachment', file));
+        academicFiles.forEach(file => data.append('academic_attachments', file));
+
+        setSubmitting(true);
         try {
-            await formSubmissionService.create(formData);
-            toast({ title: 'Form submitted successfully', status: 'success', duration: 3000 });
-        } catch (error) {
-            toast({ title: 'Submission failed', status: 'error', duration: 3000 });
+            await formSubmissionService.submit(data);
+            setSubmissionDone(true);
+            toast({ title: 'Success', description: 'Your application has been submitted successfully!', status: 'success' });
+        } catch (err) {
+            toast({ title: 'Error', description: err.message, status: 'error' });
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
-    const GenderIcon = () => {
-        if (user?.gender === 'Male') {
-            return <Icon as={FaMale} color="blue.500" boxSize={6} />;
-        } else if (user?.gender === 'Female') {
-            return <Icon as={FaFemale} color="pink.500" boxSize={6} />;
-        }
-        return <Icon as={FaUser} color="gray.500" boxSize={6} />;
-    };
+    if (loading && !formData.name) return (
+        <Container centerContent py={20} bg={bgColor} minH="100vh">
+            <VStack spacing={4}>
+                <CircularProgress isIndeterminate color="blue.500" size="60px" />
+                <Text fontSize="lg" fontWeight="medium">Preparing your application...</Text>
+            </VStack>
+        </Container>
+    );
 
-    if (loading) {
-        return (
-            <Box p={8} textAlign="center" bg={bgColor}>
-                <CircularProgress isIndeterminate color="blue.500" />
-                <Text mt={4}>Loading application...</Text>
-            </Box>
-        );
-    }
-
-    if (!isApplicationOpen) {
-        return (
-            <Box p={8} textAlign="center" bg={bgColor}>
-                <Alert status="error">
-                    <AlertIcon />
-                    Application period has ended.
+    if (!isApplicationOpen) return (
+        <Container centerContent py={20} bg={bgColor} minH="100vh">
+            <MotionBox initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" borderRadius="2xl" p={12} boxShadow="xl">
+                    <AlertIcon boxSize="50px" mr={0} />
+                    <Text mt={6} mb={2} fontSize="3xl" fontWeight="bold">{appStatusMessage || 'APPLICATION PERIOD HAS ENDED'}</Text>
+                    <Text fontSize="lg" color="gray.600">The application window is currently closed. Please check back later.</Text>
+                    <Button mt={8} size="lg" colorScheme="blue" variant="outline" onClick={() => authService.logout()}>Logout</Button>
                 </Alert>
-            </Box>
-        );
-    }
+            </MotionBox>
+        </Container>
+    );
 
-    const borderBoxStyle = {
-        bg: bgColor,
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: boxBorderColor,
-        borderRadius: 'lg',
-    };
-
-    const inputStyleProps = {
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: inputBorderColor,
-        _hover: { borderColor: inputHoverBorderColor },
-        transition: 'border-color 0.15s ease',
-    };
-
-    const primaryButtonLight = {
-        bg: primaryLightColor,
-        color: 'white',
-        _hover: { bg: primaryLightHover },
-    };
-    const primaryButtonDark = {
-        bgGradient: activeGradient,
-        color: 'white',
-        _hover: { bgGradient: hoverGradient },
-    };
-
-    const menuButtonStyle = {
-        bg: 'white',
-        color: 'gray.800',
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: inputBorderColor,
-        _hover: { bg: 'white' },
-    };
+    if (submissionDone) return (
+        <Container centerContent py={20} bg={bgColor} minH="100vh">
+            <MotionBox initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', damping: 20 }}>
+                <VStack spacing={8} p={12} bgGradient="linear(to-br, blue.600, blue.800)" color="white" borderRadius="3xl" textAlign="center" boxShadow="2xl" maxW="lg">
+                    <Icon as={ChakraCheckIcon} boxSize={16} p={4} bg="whiteAlpha.300" borderRadius="full" />
+                    <VStack spacing={4}>
+                        <Text fontSize="4xl" fontWeight="bold">Congratulations!</Text>
+                        <Text fontSize="lg" lineHeight="tall">Your application for the Trailblazer Awards has been received. Our committee will review your documents and reach out via email.</Text>
+                    </VStack>
+                    <Divider borderColor="whiteAlpha.300" />
+                    <Text fontSize="sm" opacity={0.8}>You can now securely logout or close this window.</Text>
+                    <Button size="lg" colorScheme="yellow" color="blue.800" fontWeight="bold" w="full" onClick={() => authService.logout()}>Logout</Button>
+                </VStack>
+            </MotionBox>
+        </Container>
+    );
 
     return (
-        <Box p={{ base: 4, md: 8 }} bg={bgColor} color={textColor} borderRadius="xl">
-            <PageHeader title="Candidate Application Form" description="Apply for student council positions" />
+        <Box p={{ base: 4, md: 8 }} bg={bgColor} minH="100vh">
+            <PageHeader title="Trailblazer Awards 2024" description="Flame University's Most Prestigious Honors" />
 
-            {!showForm ? (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-                    <MotionBox {...borderBoxStyle} mb={6} p={4} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 200 }}>
-                        <Box p={0}>
-                            <Text fontSize="xl" fontWeight="bold" mb={3}>Instructions</Text>
-                            <List spacing={3}>
-                                {instructions.map((instr, idx) => (
-                                    <ListItem key={idx} display="flex" alignItems="center">
-                                        <Icon as={ChakraCheckIcon} color="green.500" mr={2} />
-                                        <Text>{instr}</Text>
-                                    </ListItem>
-                                ))}
+            <AnimatePresence mode="wait">
+                {!agreedToInstructions ? (
+                    <MotionVStack key="instructions" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} spacing={8} align="stretch" mt={6}>
+                        <Box p={{ base: 6, md: 10 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
+                            <Text fontSize="2xl" fontWeight="bold" mb={6} color="blue.600">Important Instructions</Text>
+                            <List spacing={5}>
+                                <ListItem display="flex" alignItems="start">
+                                    <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
+                                    <Text><b>Formal Photograph:</b> A passport-sized formal photo is mandatory for all applicants.</Text>
+                                </ListItem>
+                                <ListItem display="flex" alignItems="start">
+                                    <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
+                                    <Text><b>Evidence & Proof:</b> For Sports/Cultural Person roles, you must provide verifiable proof and score sheets.</Text>
+                                </ListItem>
+                                <ListItem display="flex" alignItems="start">
+                                    <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
+                                    <Text><b>Trailblazer Role:</b> Requires a comprehensive submission including Academic, Sport, and Cultural achievements.</Text>
+                                </ListItem>
+                                <ListItem display="flex" alignItems="start">
+                                    <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
+                                    <Text><b>Integrity:</b> Any false information provided will lead to immediate disqualification and disciplinary action.</Text>
+                                </ListItem>
                             </List>
+                            <Divider my={8} />
+                            <Checkbox isChecked={agreedToInstructions} onChange={(e) => setAgreedToInstructions(e.target.checked)} colorScheme="blue" size="lg">
+                                <Text fontSize="md" fontWeight="medium">I have read, understood, and agree to follow the instructions and terms mentioned above.</Text>
+                            </Checkbox>
                         </Box>
-                    </MotionBox>
-
-                    <Checkbox isChecked={agreedToInstructions} onChange={handleAgreementChange} colorScheme="blue">
-                        I have read and agree to the instructions and terms outlined above.
-                    </Checkbox>
-                </motion.div>
-            ) : (
-                <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
-                    {/* Top Section */}
-                    <HStack justify="space-between" mb={8} p={4} alignItems="center" flexWrap={{ base: 'wrap', md: 'nowrap' }} {...borderBoxStyle}>
-                        <HStack spacing={4} flex="1" justify={{ base: 'center', md: 'flex-start' }} w="full">
-                            <Image
-                                src={photoFile ? URL.createObjectURL(photoFile) : user?.photoUrl || defaultProfilePhoto}
-                                alt="Profile Photo"
-                                borderRadius="full"
-                                boxSize={{ base: '80px', md: '100px' }}
-                                objectFit="cover"
-                                cursor={user?.photoUrl === defaultProfilePhoto ? 'pointer' : 'default'}
-                                onClick={user?.photoUrl === defaultProfilePhoto ? onPhotoModalOpen : undefined}
-                                transition="transform 0.2s"
-                                _hover={{ transform: 'scale(1.05)' }}
+                        <Button h="60px" fontSize="lg" colorScheme="blue" isDisabled={!agreedToInstructions} onClick={() => setAgreedToInstructions(true)} rightIcon={<ArrowForwardIcon />}>Proceed to Application</Button>
+                    </MotionVStack>
+                ) : !selectedRole ? (
+                    <MotionVStack key="role-selection" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} spacing={12} mt={12}>
+                        <VStack spacing={2}>
+                            <Text fontSize="3xl" fontWeight="black" textAlign="center">Identify Your Application Path</Text>
+                            <Text fontSize="lg" color="gray.500" textAlign="center">Select the primary award category you are applying for</Text>
+                        </VStack>
+                        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full" maxW="1000px">
+                            <RoleCard
+                                title="Trailblazer"
+                                description="Overall excellence in Academics, Sports, and Culture."
+                                icon={FaGraduationCap}
+                                color="purple"
+                                disabled={filledRoles.includes('Trailblazer')}
+                                onClick={() => handleRoleSelect('trailblazer')}
                             />
-                            <VStack align="start" spacing={0}>
-                                <HStack>
-                                    <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold">{user?.name || 'Name'}</Text>
-                                    <GenderIcon />
-                                </HStack>
-                                <Text fontSize={{ base: 'sm', md: 'md' }}>{user?.email || 'Email'}</Text>
-                                <Text fontSize={{ base: 'sm', md: 'md' }}>{user?.mobileNumber || 'Mobile Number'}</Text>
-                                <Text fontSize="sm" color="gray.500">Student ID: {user?.studentId || 'ID'}</Text>
-                                <Text fontSize="sm" color="gray.500">Batch: {user?.batch || 'Batch'}</Text>
-                            </VStack>
+                            <RoleCard
+                                title="Sports Person"
+                                description="Exceptional achievements and leadership in athletics."
+                                icon={FaTrophy}
+                                color="orange"
+                                disabled={filledRoles.includes('Sports Person')}
+                                onClick={() => handleRoleSelect('sports_person')}
+                            />
+                            <RoleCard
+                                title="Cultural Person"
+                                description="Outstanding contribution to arts, music, and culture."
+                                icon={FaMusic}
+                                color="pink"
+                                disabled={filledRoles.includes('Cultural Person')}
+                                onClick={() => handleRoleSelect('cultural_person')}
+                            />
+                        </SimpleGrid>
+                    </MotionVStack>
+                ) : (
+                    <MotionVStack key="form-content" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} spacing={10} mt={8} align="stretch">
+                        <HStack justify="space-between" align="center">
+                            <Button leftIcon={<FaChevronLeft />} variant="ghost" onClick={() => setSelectedRole('')}>Change Role Path</Button>
+                            <Badge colorScheme="blue" p={2} borderRadius="md" fontSize="md">Applying as: {selectedRole.replace('_', ' ').toUpperCase()}</Badge>
                         </HStack>
-                        <Image src={flameLogo} alt="FLAME University Logo" boxSize={{ base: '80px', md: '120px' }} mt={{ base: 4, md: 0 }} alignSelf="center" />
-                    </HStack>
 
-                    {/* Form Fields */}
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                        <FormControl>
-                            <FormLabel>Position Interested</FormLabel>
-                            <Menu>
-                                <MenuButton as={MotionButton} rightIcon={<ChevronDownIcon />} whileHover={{ scale: 1.02 }} {...menuButtonStyle}>
-                                    {position || 'Select a position'}
-                                </MenuButton>
-                                <MenuList maxH="200px" overflowY="auto">
-                                    {positions.map((pos) => (
-                                        <MenuItem key={pos.id} onClick={() => setPosition(pos.description)} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
-                                            {pos.description}
-                                        </MenuItem>
-                                    ))}
-                                </MenuList>
-                            </Menu>
-                        </FormControl>
-
-                        <FormControl>
-                            <FormLabel>CGPA - Academics Score</FormLabel>
-                            <Input type="number" value={cgpa} onChange={(e) => setCgpa(e.target.value)} {...inputStyleProps} />
-                        </FormControl>
-                    </SimpleGrid>
-
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mt={4}>
-                        <FormControl>
-                            <FormLabel>Sports Score</FormLabel>
-                            <MotionButton
-                                onClick={onSportModalOpen}
-                                leftIcon={<ArrowForwardIcon />}
-                                whileHover={{ x: 4 }}
-                                transition="0.2s"
-                                {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
-                            >
-                                Open Sport Sheet
-                            </MotionButton>
-                            <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleSportsScoreChange} {...inputStyleProps} />
-                            <Text mt={1}>Calculated: {sportsScore || '—'}/10</Text>
-                        </FormControl>
-
-                        <FormControl>
-                            <FormLabel>Cultural Score</FormLabel>
-                            <MotionButton
-                                onClick={onCulturalModalOpen}
-                                leftIcon={<ArrowForwardIcon />}
-                                whileHover={{ x: 4 }}
-                                transition="0.2s"
-                                {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
-                            >
-                                Open Cultural Sheet
-                            </MotionButton>
-                            <Input mt={2} type="number" placeholder="Enter raw score" onChange={handleCulturalScoreChange} {...inputStyleProps} />
-                            <Text mt={1}>Calculated: {culturalScore || '—'}/10</Text>
-                        </FormControl>
-                    </SimpleGrid>
-
-                    {/* Community Service */}
-                    <Box mt={4}>
-                        <Box
-                            as="button"
-                            width="100%"
-                            textAlign="left"
-                            px={0}
-                            py={0}
-                            onClick={() => {
-                                // toggle persistent expansion only on click
-                                setCommunityRequestedExpanded((s) => !s);
-                                // if we're expanding by click, focus textarea for discoverability
-                                setTimeout(() => communityRef.current?.focus?.(), 0);
-                            }}
-                            aria-expanded={communityExpanded}
-                            style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
-                        >
-                            <FormLabel mb={2} cursor="pointer">Community Service</FormLabel>
+                        {/* User Profile Card */}
+                        <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
+                            <HStack spacing={8} align="center" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
+                                <Box position="relative">
+                                    <Image src={formData.photoUrl} boxSize="150px" borderRadius="2xl" objectFit="cover" border="4px solid" borderColor="white" boxShadow="md" />
+                                    <Box position="absolute" bottom="-2" right="-2" bg="blue.500" p={3} borderRadius="xl" cursor="pointer" onClick={onPhotoModalOpen} boxShadow="lg" _hover={{ bg: 'blue.600', transform: 'scale(1.1)' }} transition="0.2s">
+                                        <Icon as={FaCamera} color="white" />
+                                    </Box>
+                                </Box>
+                                <VStack align="start" spacing={1} flex="1">
+                                    <Text fontSize="3xl" fontWeight="black" color="gray.800">{formData.name}</Text>
+                                    <HStack spacing={3} color="gray.600" fontSize="lg">
+                                        <Icon as={FaUser} />
+                                        <Text>{formData.studentId} | {formData.batch}</Text>
+                                    </HStack>
+                                    <Text color="gray.500">{formData.email} • {formData.mobileNumber}</Text>
+                                </VStack>
+                                <Image src={flameLogo} alt="FLAME Logo" h="60px" opacity={0.6} />
+                            </HStack>
                         </Box>
 
-                        <motion.div
-                            layout
-                            initial={false}
-                            animate={{ maxHeight: communityExpanded ? communityMaxHeight : collapsedHeight }}
-                            transition={heightTransition}
-                            style={{ overflow: 'hidden', width: '100%' }}
-                        >
-                            <Box p={2} {...borderBoxStyle} display="block">
-                                <Textarea
-                                    ref={communityRef}
-                                    value={communityService}
-                                    onChange={(e) => setCommunityService(e.target.value)}
-                                    onFocus={() => setCommunityFocusExpanded(true)}
-                                    onBlur={() => setCommunityFocusExpanded(false)}
-                                    borderWidth="0"
-                                    boxShadow="none"
-                                    _focus={{ boxShadow: 'none', outline: 'none' }}
-                                    resize="vertical"
-                                    style={{
-                                        height: communityExpanded ? `${communityTextareaMaxH}px` : `${collapsedTextareaH}px`,
-                                        overflowY: 'auto',
-                                        transition: 'height 260ms ease-in-out',
-                                    }}
-                                />
+                        {/* Dynamically Rendered Form Sections */}
+                        <VStack spacing={10} align="stretch">
+                            {/* Academic Section */}
+                            {(selectedRole === 'trailblazer') && (
+                                <Section title="Academic Achievements">
+                                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Academic Level</FormLabel>
+                                            <Menu w="full">
+                                                <MenuButton as={Button} w="full" rightIcon={<ChevronDownIcon />} textAlign="left">
+                                                    {formData.academicLevel || 'Current academic year'}
+                                                </MenuButton>
+                                                <MenuList>
+                                                    {['UG1', 'UG2', 'UG3', 'PG1', 'PG2', 'PG3', 'Masters'].map(lvl => (
+                                                        <MenuItem key={lvl} onClick={() => setFormData({ ...formData, academicLevel: lvl })}>{lvl}</MenuItem>
+                                                    ))}
+                                                </MenuList>
+                                            </Menu>
+                                        </FormControl>
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Applying for Position</FormLabel>
+                                            <Menu w="full">
+                                                <MenuButton as={Button} w="full" rightIcon={<ChevronDownIcon />} textAlign="left">
+                                                    {formData.position || 'Select Position'}
+                                                </MenuButton>
+                                                <MenuList>
+                                                    {positions.map(pos => (
+                                                        <MenuItem key={pos.id} onClick={() => setFormData({ ...formData, position: pos.title })}>{pos.title}</MenuItem>
+                                                    ))}
+                                                </MenuList>
+                                            </Menu>
+                                        </FormControl>
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Cumulative Grade Point Average (CGPA)</FormLabel>
+                                            <Input type="number" step="0.01" placeholder="e.g. 3.85" value={formData.cgpa} onChange={(e) => setFormData({ ...formData, cgpa: e.target.value })} />
+                                            <Text fontSize="xs" mt={1} color="gray.500">Provide your latest verified CGPA.</Text>
+                                        </FormControl>
+                                    </SimpleGrid>
+                                    <FormControl mt={6} isRequired>
+                                        <FormLabel fontWeight="bold">Academic Proof (PDF/Image)</FormLabel>
+                                        <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setAcademicFiles(Array.from(e.target.files))} />
+                                    </FormControl>
+                                </Section>
+                            )}
+
+                            {/* Trailblazer Additional Fields */}
+                            {selectedRole === 'trailblazer' && (
+                                <Section title="Involvement & Purpose">
+                                    <VStack spacing={6} align="stretch">
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Statement of Purpose (SOP)</FormLabel>
+                                            <Textarea
+                                                placeholder="Why do you deserve this award? Tell us about your journey and achievements..."
+                                                value={formData.sop}
+                                                onChange={(e) => setFormData({ ...formData, sop: e.target.value })}
+                                                minH="150px"
+                                            />
+                                            <Text fontSize="xs" mt={1} color="gray.500">Maximum 500 words.</Text>
+                                        </FormControl>
+
+                                        <FormControl>
+                                            <FormLabel fontWeight="bold">Community Service & Social Responsibility</FormLabel>
+                                            <Textarea
+                                                placeholder="Describe your contributions to the community..."
+                                                value={formData.communityService}
+                                                onChange={(e) => setFormData({ ...formData, communityService: e.target.value })}
+                                                minH="100px"
+                                            />
+                                        </FormControl>
+                                    </VStack>
+                                </Section>
+                            )}
+
+                            {/* Sport Section */}
+                            {(selectedRole === 'trailblazer' || selectedRole === 'sports_person') && (
+                                <Section title="Sports & Athletics">
+                                    <VStack spacing={6} align="stretch">
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Sports Score Calculation</FormLabel>
+                                            <HStack spacing={4}>
+                                                <Button leftIcon={<FaTrophy />} colorScheme="blue" variant="outline" onClick={onSportModalOpen}>Calculate via Score Sheet</Button>
+                                                <Input maxW="200px" placeholder="Enter raw score" value={formData.sportsRawScore} onChange={(e) => setFormData({ ...formData, sportsRawScore: e.target.value, sportsScore: calculateScore(e.target.value) })} />
+                                                <Box px={4} py={2} bg="blue.50" borderRadius="md" border="1px solid" borderColor="blue.200">
+                                                    <Text fontWeight="black" color="blue.700">Final: {formData.sportsScore || '0.0'}/10</Text>
+                                                </Box>
+                                            </HStack>
+                                        </FormControl>
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Sports Certificates & Attachments</FormLabel>
+                                            <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setSportFiles(Array.from(e.target.files))} />
+                                            <Text fontSize="xs" mt={1} color="gray.500">Upload all relevant certificates and proof of participation/winners.</Text>
+                                        </FormControl>
+                                    </VStack>
+                                </Section>
+                            )}
+
+                            {/* Cultural Section */}
+                            {(selectedRole === 'trailblazer' || selectedRole === 'cultural_person') && (
+                                <Section title="Cultural & Arts">
+                                    <VStack spacing={6} align="stretch">
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Cultural Score Calculation</FormLabel>
+                                            <HStack spacing={4}>
+                                                <Button leftIcon={<FaMusic />} colorScheme="pink" variant="outline" onClick={onCulturalModalOpen}>Calculate via Score Sheet</Button>
+                                                <Input maxW="200px" placeholder="Enter raw score" value={formData.culturalRawScore} onChange={(e) => setFormData({ ...formData, culturalRawScore: e.target.value, culturalScore: calculateScore(e.target.value) })} />
+                                                <Box px={4} py={2} bg="pink.50" borderRadius="md" border="1px solid" borderColor="pink.200">
+                                                    <Text fontWeight="black" color="pink.700">Final: {formData.culturalScore || '0.0'}/10</Text>
+                                                </Box>
+                                            </HStack>
+                                        </FormControl>
+                                        <FormControl isRequired>
+                                            <FormLabel fontWeight="bold">Cultural Certificates & Attachments</FormLabel>
+                                            <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setCulturalFiles(Array.from(e.target.files))} />
+                                            <Text fontSize="xs" mt={1} color="gray.500">Upload all relevant certificates, event photos, or proof of artistic excellence.</Text>
+                                        </FormControl>
+                                    </VStack>
+                                </Section>
+                            )}
+
+                            {/* Verification Section */}
+                            <Box p={8} borderRadius="2xl" bg="gray.800" color="white" boxShadow="lg">
+                                <Text fontSize="xl" fontWeight="bold" mb={6}>Final Declaration</Text>
+                                <Divider mb={6} opacity={0.2} />
+                                <VStack align="start" spacing={4}>
+                                    <Checkbox isChecked={formData.notOnProbation} onChange={(e) => setFormData({ ...formData, notOnProbation: e.target.checked })} colorScheme="yellow">
+                                        I hereby declare that I am not currently on academic or disciplinary probation.
+                                    </Checkbox>
+                                    <Checkbox isChecked={formData.trueStatement} onChange={(e) => setFormData({ ...formData, trueStatement: e.target.checked })} colorScheme="yellow">
+                                        I confirm that all information and documents provided in this application are true and accurate to the best of my knowledge.
+                                    </Checkbox>
+                                </VStack>
+                                <Button mt={10} size="lg" colorScheme="yellow" color="gray.900" fontWeight="black" w="full" h="70px" fontSize="xl" isLoading={submitting} loadingText="Submitting Application..." onClick={handleSubmission}>
+                                    SUBMIT APPLICATION
+                                </Button>
                             </Box>
-                        </motion.div>
-                    </Box>
+                        </VStack>
+                    </MotionVStack>
+                )}
+            </AnimatePresence>
 
-                    {/* Statement of Purpose */}
-                    <Box mt={4}>
-                        <Box
-                            as="button"
-                            width="100%"
-                            textAlign="left"
-                            px={0}
-                            py={0}
-                            onClick={() => {
-                                setSopRequestedExpanded((s) => !s);
-                                setTimeout(() => sopRef.current?.focus?.(), 0);
-                            }}
-                            aria-expanded={sopExpanded}
-                            style={{ cursor: 'pointer', background: 'transparent', border: 'none' }}
-                        >
-                            <FormLabel mb={2} cursor="pointer">Statement of Purpose</FormLabel>
-                        </Box>
-
-                        <motion.div
-                            layout
-                            initial={false}
-                            animate={{ maxHeight: sopExpanded ? sopMaxHeight : collapsedHeight }}
-                            transition={heightTransition}
-                            style={{ overflow: 'hidden', width: '100%' }}
-                        >
-                            <Box p={2} {...borderBoxStyle} display="block">
-                                <Textarea
-                                    ref={sopRef}
-                                    value={statementOfPurpose}
-                                    onChange={(e) => setStatementOfPurpose(e.target.value)}
-                                    onFocus={() => setSopFocusExpanded(true)}
-                                    onBlur={() => setSopFocusExpanded(false)}
-                                    borderWidth="0"
-                                    boxShadow="none"
-                                    _focus={{ boxShadow: 'none', outline: 'none' }}
-                                    resize="vertical"
-                                    style={{
-                                        height: sopExpanded ? `${sopTextareaMaxH}px` : `${collapsedTextareaH}px`,
-                                        overflowY: 'auto',
-                                        transition: 'height 260ms ease-in-out',
-                                    }}
-                                />
-                            </Box>
-                        </motion.div>
-                    </Box>
-
-                    {/* Uploads */}
-                    <Box mt={6} p={4} {...borderBoxStyle}>
-                        <Text fontWeight="semibold" mb={2}>Uploads</Text>
-                        <Alert status="warning" mb={4} variant="subtle" bg="transparent" color={useColorModeValue('orange.700', 'yellow.200')}>
-                            <AlertIcon color="yellow.300" />
-                            Mandatory: Sport and Cultural (PDF/JPG)
-                        </Alert>
-
-                        <FormControl>
-                            <FormLabel>Photo</FormLabel>
-                            <Input type="file" accept="image/*" onChange={handlePhotoChange} />
-                        </FormControl>
-
-                        <FormControl mt={4}>
-                            <FormLabel>Sport Files (Mandatory)</FormLabel>
-                            <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setSportFiles)} />
-                        </FormControl>
-
-                        <FormControl mt={4}>
-                            <FormLabel>Cultural Files (Mandatory)</FormLabel>
-                            <Input type="file" multiple accept=".pdf,.jpg" onChange={(e) => handleFileChange(e, setCulturalFiles)} />
-                        </FormControl>
-
-                        <FormControl mt={4}>
-                            <FormLabel>Academic Files (Optional)</FormLabel>
-                            <Input type="file" multiple onChange={(e) => handleFileChange(e, setAcademicFiles)} />
-                        </FormControl>
-
-                        <FormControl mt={4}>
-                            <FormLabel>Other Files (Optional)</FormLabel>
-                            <Input type="file" multiple onChange={(e) => handleFileChange(e, setOtherFiles)} />
-                        </FormControl>
-                    </Box>
-
-                    {/* Checkboxes */}
-                    <VStack mt={4} align="start" spacing={3}>
-                        <Checkbox isChecked={notOnProbation} onChange={(e) => setNotOnProbation(e.target.checked)} colorScheme="blue">Not on Probation</Checkbox>
-                        <Checkbox isChecked={readHandbook} onChange={(e) => setReadHandbook(e.target.checked)} colorScheme="blue">I have read the handbook</Checkbox>
-                        <Checkbox isChecked={trueStatement} onChange={(e) => setTrueStatement(e.target.checked)} colorScheme="blue">I confirm that the above statements are true</Checkbox>
-                    </VStack>
-
-                    <MotionButton
-                        mt={6}
-                        onClick={handleSubmit}
-                        isLoading={loading}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition="0.12s"
-                        {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}
-                    >
-                        Submit
-                    </MotionButton>
-                </motion.div>
-            )}
-
-            {/* Sport modal */}
-            <Modal isOpen={isSportModalOpen} onClose={onSportModalClose} size={{ base: 'full', md: 'xl' }}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Sport Score Sheet</ModalHeader>
+            {/* Support Modals */}
+            <Modal isOpen={isPhotoModalOpen} onClose={onPhotoModalClose} isCentered size="sm">
+                <ModalOverlay backdropFilter="blur(5px)" />
+                <ModalContent borderRadius="2xl">
+                    <ModalHeader>Update Profile Photo</ModalHeader>
                     <ModalCloseButton />
-                    <ModalBody>
-                        <Text>Sheet content here (fetch via API)</Text>
+                    <ModalBody pb={8}>
+                        <VStack spacing={4}>
+                            <Box w="full" h="120px" p={6} border="2px dashed" borderColor="blue.200" borderRadius="xl" textAlign="center" _hover={{ borderColor: 'blue.400' }} cursor="pointer" position="relative">
+                                <Input type="file" opacity={0} position="absolute" w="full" h="full" top={0} left={0} cursor="pointer" accept="image/*" onChange={handlePhotoChange} />
+                                <Icon as={FaCamera} boxSize={8} color="blue.500" mb={2} />
+                                <Text fontWeight="bold">Click to Upload</Text>
+                                <Text fontSize="xs" color="gray.500">JPG, PNG (Max 2MB)</Text>
+                            </Box>
+                            <Text fontSize="xs" color="gray.500" textAlign="center">Formal passport size photo with a plain background is highly recommended.</Text>
+                        </VStack>
                     </ModalBody>
-                    <ModalFooter>
-                        <Button onClick={onSportModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
-                    </ModalFooter>
                 </ModalContent>
             </Modal>
 
-            {/* Cultural modal */}
-            <Modal isOpen={isCulturalModalOpen} onClose={onCulturalModalClose} size={{ base: 'full', md: 'xl' }}>
+            <Modal isOpen={isSportModalOpen} onClose={onSportModalClose} size="3xl" scrollBehavior="inside">
                 <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Cultural Score Sheet</ModalHeader>
+                <ModalContent borderRadius="2xl">
+                    <ModalHeader borderBottomWidth="1px">Sports Excellence Score Sheet</ModalHeader>
                     <ModalCloseButton />
-                    <ModalBody>
-                        <Text>Sheet content here (fetch via API)</Text>
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button onClick={onCulturalModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
-
-            {/* Photo Upload Modal */}
-            <Modal isOpen={isPhotoModalOpen} onClose={onPhotoModalClose} size="sm">
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Upload Photo</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
-                        <VStack spacing={2} align="start">
-                            {photoInstructions.map((instr, idx) => (
-                                <Text key={idx}>{instr}</Text>
-                            ))}
-                            <Input type="file" accept="image/jpeg,image/jpg,image/png" onChange={handlePhotoChange} />
+                    <ModalBody py={6}>
+                        <VStack spacing={4} align="stretch">
+                            <Alert status="info" borderRadius="md"><AlertIcon /> Use this sheet to calculate your total achievements raw score.</Alert>
+                            <Box p={6} bg="gray.50" borderRadius="xl" minH="400px">
+                                <Text color="gray.500" textAlign="center" mt={20}>Dynamic Score Sheet Component Integration Pending...</Text>
+                                <Text textAlign="center" fontSize="sm" mt={4}>Please enter the final calculated score in the main form.</Text>
+                            </Box>
                         </VStack>
                     </ModalBody>
                     <ModalFooter>
-                        <Button onClick={onPhotoModalClose} {...(useColorModeValue(primaryButtonLight, primaryButtonDark))}>Close</Button>
+                        <Button colorScheme="blue" onClick={onSportModalClose}>Close Sheet</Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+
+            <Modal isOpen={isCulturalModalOpen} onClose={onCulturalModalClose} size="3xl" scrollBehavior="inside">
+                <ModalOverlay />
+                <ModalContent borderRadius="2xl">
+                    <ModalHeader borderBottomWidth="1px">Cultural Excellence Score Sheet</ModalHeader>
+                    <ModalCloseButton />
+                    <ModalBody py={6}>
+                        <VStack spacing={4} align="stretch">
+                            <Alert status="info" borderRadius="md" colorScheme="pink"><AlertIcon /> Calculate your artistic and cultural contributions.</Alert>
+                            <Box p={6} bg="pink.50" borderRadius="xl" minH="400px">
+                                <Text color="pink.400" textAlign="center" mt={20}>Dynamic Cultural Score Sheet Integration Pending...</Text>
+                                <Text textAlign="center" fontSize="sm" mt={4} color="pink.400">Please enter the total marks in the main form.</Text>
+                            </Box>
+                        </VStack>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button colorScheme="pink" onClick={onCulturalModalClose}>Close Sheet</Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>
         </Box>
     );
 }
+
+const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
+    const colorMap = {
+        purple: { bg: 'purple.50', border: 'purple.200', icon: 'purple.500', active: 'purple.400' },
+        orange: { bg: 'orange.50', border: 'orange.200', icon: 'orange.500', active: 'orange.400' },
+        pink: { bg: 'pink.50', border: 'pink.200', icon: 'pink.500', active: 'pink.400' }
+    };
+    const c = colorMap[color] || colorMap.purple;
+
+    return (
+        <VStack
+            as="button"
+            onClick={onClick}
+            disabled={disabled}
+            p={8}
+            bg={disabled ? 'gray.50' : c.bg}
+            borderWidth="2px"
+            borderColor={disabled ? 'gray.200' : c.border}
+            borderRadius="3xl"
+            spacing={4}
+            transition="all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+            opacity={disabled ? 0.6 : 1}
+            _hover={!disabled ? { transform: 'translateY(-12px)', boxShadow: '2xl', borderColor: c.active } : {}}
+            _active={{ transform: 'scale(0.95)' }}
+            position="relative"
+            overflow="hidden"
+        >
+            <Icon as={icon} boxSize={12} color={disabled ? 'gray.400' : c.icon} />
+            <VStack spacing={1}>
+                <Text fontWeight="black" fontSize="xl">{title}</Text>
+                <Text fontSize="sm" color="gray.500" textAlign="center">{description}</Text>
+            </VStack>
+            {disabled && (
+                <Badge position="absolute" top={4} right={4} colorScheme="red" variant="solid">Already Completed</Badge>
+            )}
+        </VStack>
+    );
+};
+
+const Section = ({ title, children }) => (
+    <Box>
+        <Text fontSize="xl" fontWeight="black" mb={4} color="gray.700">{title}</Text>
+        <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg="white" borderWidth="1px" borderColor="gray.100" boxShadow="sm">
+            {children}
+        </Box>
+    </Box>
+);
 
 export default ApplicationFormDashboard;

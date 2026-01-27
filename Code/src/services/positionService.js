@@ -111,6 +111,10 @@ class PositionService {
       throw err;
     }
   }
+
+  async getAll() {
+    return this.fetchPositions();
+  }
 }
 
 export const positionService = new PositionService();
