@@ -33,7 +33,7 @@ export default function WellbeingDeclarations() {
   const toast = useToast();
   const bgColor = useColorModeValue('white', 'gray.800');
   const gradientBg = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
-  const ATTACH_BASE = 'http://192.168.8.10:8082/api/wellbeing-form/attachments';
+  const ATTACH_BASE = 'https://flameawards.in:8082/api/wellbeing-form/attachments';
 
   // fetch & init
   const fetchAll = async () => {

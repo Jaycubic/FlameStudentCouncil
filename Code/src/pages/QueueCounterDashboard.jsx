@@ -97,7 +97,7 @@ function ReportDayDashboard() {
   }, [reportedCurrentPage, filters.department]);
 
   useEffect(() => {
-    const socket = io('http://192.168.8.10:8082', {
+    const socket = io('https://flameawards.in:8082', {
       withCredentials: true,
       query: { token: localStorage.getItem('token') },
     });

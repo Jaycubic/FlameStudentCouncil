@@ -10,12 +10,10 @@ function ProtectedRoute({ children }) {
   const isAuthenticated = authService.isAuthenticated()
 
   useEffect(() => {
-    // Check if token exists in localStorage
-    const token = localStorage.getItem('token')
-    if (!token) {
-      navigate('/login', { replace: true })
+    if (!isAuthenticated) {
+      navigate('/login', { replace: true, state: { from: location } })
     }
-  }, [navigate])
+  }, [isAuthenticated, navigate, location])
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
