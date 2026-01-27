@@ -1,3 +1,4 @@
+// src/components/layout/Header.jsx
 import { useState, useEffect } from 'react'
 import {
   Box,

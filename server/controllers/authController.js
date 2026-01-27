@@ -107,6 +107,7 @@ const generateEncryptedAccessToken = (user, roleName, req, deviceIdOverride = nu
   const fingerprintHash = getFingerprintHash(deviceId, userAgent, user.id.toString());
   const payload = {
     userId: user.id,
+    email: user.email,
     role: roleName,
     fpHash: fingerprintHash
   };
