@@ -1,5 +1,5 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const sequelize = require("../config/connection");
 const ActivityTracker = require('./ActivityTracker');
 
 const StudentData = sequelize.define(
@@ -10,143 +10,131 @@ const StudentData = sequelize.define(
       autoIncrement: true,
       primaryKey: true,
     },
-    RCName: {
-      type: DataTypes.STRING,
-      field: "RC Name",
-      allowNull: true,
-    },
-    Batch: {
+    rc_name: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    StudentName: {
-      type: DataTypes.STRING,
-      field: "Student Name",
-      allowNull: true,
-    },
-    Photo: {
+    batch: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    Status: {
+    student_name: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    StudentStatus: {
+    photo: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    WithDrawnDate: {
+    status: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    student_status: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    with_drawn_date: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-    WithDrawnReason: {
+    with_drawn_reason: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    WithDrawnComment: {
+    with_drawn_comment: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    Gender: {
+    gender: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    NoOfDays: {
+    no_of_days: {
       type: DataTypes.FLOAT,
-      field: "No.of Days",
       allowNull: true,
     },
-    DOB: {
+    dob: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-    EmailID: {
+    email_id: {
       type: DataTypes.STRING,
-      field: "Email ID",
       allowNull: true,
     },
-    ContactNo: {
+    contact_no: {
       type: DataTypes.FLOAT,
       allowNull: true,
     },
-    HomeTown: {
+    home_town: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    House: {
+    house: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    HousingBlock: {
-      type: DataTypes.STRING,
-      field: "Housing Block",
-      allowNull: true,
-    },
-    FatherName: {
+    housing_block: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    FatherEmailID: {
+    father_name: {
       type: DataTypes.STRING,
-      field: "Father Email ID",
       allowNull: true,
     },
-    FatherMobileNo: {
+    father_email_id: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    father_mobile_no: {
       type: DataTypes.FLOAT,
-      field: "Father Mobile No.",
       allowNull: true,
     },
-    MotherName: {
+    mother_name: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    MotherEmailID: {
+    mother_email_id: {
       type: DataTypes.STRING,
-      field: "Mother Email ID",
       allowNull: true,
     },
-    MotherMobileNo: {
+    mother_mobile_no: {
       type: DataTypes.FLOAT,
-      field: "Mother Mobile No.",
       allowNull: true,
     },
-    StudentCvueNo: {
+    student_cvue_no: {
       type: DataTypes.INTEGER,
-      field: "Student Cvue No.",
       allowNull: true,
     },
-    INOUT: {
+    inout: {
       type: DataTypes.STRING,
-      field: "IN-OUT",
       allowNull: true,
     },
-    DeviceName: {
+    device_name: {
       type: DataTypes.STRING,
-      field: "Device Name",
       allowNull: true,
     },
-    LastPunchDate: {
+    last_punch_date: {
       type: DataTypes.DATE,
-      field: "Last Punch Date",
       allowNull: true,
     },
-    DeviceId: {
+    device_id: {
       type: DataTypes.FLOAT,
       allowNull: true,
     },
-    Reported: {
+    reported: {
       type: DataTypes.TINYINT,
       defaultValue: 0,
       allowNull: false,
     },
-    AccompanyWith: {
+    accompany_with: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
   },
   {
-    tableName: "studentdata",
+    tableName: "student_data",
+    schema: "app",
     timestamps: false,
   }
 );
@@ -157,8 +145,8 @@ StudentData.afterCreate(async (student, options) => {
   if (performedBy) {
     await ActivityTracker.create({
       performedBy,
-      activityType: 'student_added',
-      details: { studentId: student.id }
+      activity_type: 'student_added',
+      details: { student_id: student.id }
     });
   }
 });
@@ -168,8 +156,8 @@ StudentData.afterDestroy(async (student, options) => {
   if (performedBy) {
     await ActivityTracker.create({
       performedBy,
-      activityType: 'student_deleted',
-      details: { studentId: student.id }
+      activity_type: 'student_deleted',
+      details: { student_id: student.id }
     });
   }
 });
