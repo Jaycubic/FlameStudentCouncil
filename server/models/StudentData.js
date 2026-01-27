@@ -1,3 +1,4 @@
+// models/StudentData.js
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/connection");
 const ActivityTracker = require('./ActivityTracker');

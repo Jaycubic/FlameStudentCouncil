@@ -1,5 +1,5 @@
 // controllers/authController.js
-const { User, Role, RoleSetting } = require('../models');
+const { User, Role, RoleSetting, StudentData } = require('../models');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { google } = require('googleapis');
@@ -577,18 +577,48 @@ const authController = {
       const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
       const userInfo = await oauth2.userinfo.get();
       const googleEmail = userInfo.data.email;
-      const user = await User.findOne({ where: { email: googleEmail } });
+      let user = await User.findOne({ where: { email: googleEmail } });
+
       if (!user) {
-        const errorMessage = 'Email not found. Please contact administrators for registration';
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+        // Search in StudentData for onboarding
+        const student = await StudentData.findOne({ where: { email_id: googleEmail } });
+        if (student) {
+          // Find the Student role
+          const studentRole = await Role.findOne({ where: { name: 'Student' } });
+          if (!studentRole) {
+            const errorMessage = 'Student role not configured in the system. Please contact admin.';
+            return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+          }
+
+          // Create new user record
+          user = await User.create({
+            user_id: student.student_cvue_no,
+            username: student.student_name,
+            employee_name: student.student_name,
+            user_type: 'Student',
+            email: googleEmail,
+            department: student.batch,
+            role_id: studentRole.id,
+            is_active: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          });
+          console.log(`✅ Automatically onboarded student: ${googleEmail}`);
+        } else {
+          const errorMessage = 'Email not found. Please contact administrators for registration';
+          return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+        }
       }
+
       const role = await Role.findByPk(user.role_id);
       if (!role) {
         const errorMessage = 'Role not found for user';
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
       }
-      if (role.name === 'admin' || role.name === 'SportsVisitingFaculty' || role.name === 'SportsFaculty') {
-        const errorMessage = 'This role cannot use Google Sign-In. Please use email and password to log in.';
+
+      // Restrict GSO to 'Student' role as per requirement
+      if (role.name !== 'Student') {
+        const errorMessage = 'This account can not use Google Sign-In. Please use your respective login method.';
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
       }
       await user.update({
