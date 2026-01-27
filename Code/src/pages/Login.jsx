@@ -73,7 +73,7 @@ function Login() {
       localStorage.setItem('expiresAt', expiresAtParam);
       authService.init(); // Init AFTER setting storage to avoid clearing the new session
       const parsedUser = JSON.parse(decodeURIComponent(userParam));
-      const redirectPath = parsedUser?.role === 'Student' ? '/award-form' : '/';
+      const redirectPath = '/'; // Temporarily redirecting everyone to dashboard for testing
       toast({ title: 'Login Successful', status: 'success', duration: 3000 });
       setIsNavigating(true);
       setTimeout(() => navigate(redirectPath), 1500);
