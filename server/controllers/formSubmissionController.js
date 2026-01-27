@@ -121,7 +121,6 @@ const formController = {
     }
   },
 
-  // Keeping existing methods for compatibility/admin use
   async getAll(req, res) {
     try {
       const { limit = 50, offset = 0 } = req.query;
@@ -145,6 +144,59 @@ const formController = {
     } catch (err) {
       return res.status(500).json({ message: 'Error fetching submission', error: err.message });
     }
+  },
+
+  async create(req, res) {
+    try {
+      const created = await formSubmissions.create(req.body);
+      return res.status(201).json(created);
+    } catch (err) {
+      return res.status(500).json({ message: 'Error creating submission', error: err.message });
+    }
+  },
+
+  async bulkCreate(req, res) {
+    try {
+      const created = await formSubmissions.bulkCreate(req.body);
+      return res.status(201).json(created);
+    } catch (err) {
+      return res.status(500).json({ message: 'Error bulk creating submissions', error: err.message });
+    }
+  },
+
+  async createImmediate(req, res) {
+    try {
+      const created = await formSubmissions.create(req.body);
+      return res.status(201).json(created);
+    } catch (err) {
+      return res.status(500).json({ message: 'Error creating submission immediately', error: err.message });
+    }
+  },
+
+  async update(req, res) {
+    try {
+      const item = await formSubmissions.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Not found' });
+      await item.update(req.body);
+      return res.json(item);
+    } catch (err) {
+      return res.status(500).json({ message: 'Error updating submission', error: err.message });
+    }
+  },
+
+  async delete(req, res) {
+    try {
+      const item = await formSubmissions.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Not found' });
+      await item.destroy();
+      return res.json({ message: 'Deleted successfully' });
+    } catch (err) {
+      return res.status(500).json({ message: 'Error deleting submission', error: err.message });
+    }
+  },
+
+  startQueueWorker() {
+    console.log('✅ Form submission queue worker initialized (Immediate processing active)');
   }
 };
 
