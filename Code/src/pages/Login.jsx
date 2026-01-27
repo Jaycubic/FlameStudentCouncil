@@ -63,23 +63,26 @@ function Login() {
   const qrCanvasRef = useRef(null);
 
   useEffect(() => {
-    authService.init();
     const query = new URLSearchParams(location.search);
-    const user = query.get('user');
-    const expiresAt = query.get('expiresAt');
+    const userParam = query.get('user');
+    const expiresAtParam = query.get('expiresAt');
     const errorMsg = query.get('error');
-    if (user && expiresAt) {
-      localStorage.setItem('user', user);
-      localStorage.setItem('expiresAt', expiresAt);
-      const parsedUser = JSON.parse(decodeURIComponent(user));
+
+    if (userParam && expiresAtParam) {
+      localStorage.setItem('user', userParam);
+      localStorage.setItem('expiresAt', expiresAtParam);
+      authService.init(); // Init AFTER setting storage to avoid clearing the new session
+      const parsedUser = JSON.parse(decodeURIComponent(userParam));
       const redirectPath = parsedUser?.role === 'Student' ? '/award-form' : '/';
       toast({ title: 'Login Successful', status: 'success', duration: 3000 });
       setIsNavigating(true);
       setTimeout(() => navigate(redirectPath), 1500);
     } else if (errorMsg) {
+      authService.init();
       setError(decodeURIComponent(errorMsg));
       setIsProcessing(false);
     } else {
+      authService.init();
       setIsProcessing(false);
     }
   }, [location, navigate, toast]);
