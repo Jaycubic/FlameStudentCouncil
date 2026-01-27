@@ -1,25 +1,53 @@
-import { authService } from './authService';
+// services/formProcessingService.js
+import { load } from '@fingerprintjs/fingerprintjs';
 
 const API_URL = 'https://flameawards.in:8082/api/form-processing';
 
-export const formProcessingService = {
+class FormProcessingService {
+    async getDeviceId() {
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            const fp = await load();
+            const result = await fp.get();
+            deviceId = result.visitorId;
+            localStorage.setItem('deviceId', deviceId);
+        }
+        return deviceId;
+    }
+
     async getPrefillData() {
-        const response = await fetch(`${API_URL}/prefill`, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        if (!response.ok) throw new Error('Failed to fetch prefill data');
-        return response.json();
-    },
+        try {
+            const deviceId = await this.getDeviceId();
+            const response = await fetch(`${API_URL}/prefill`, {
+                headers: {
+                    'x-device-id': deviceId
+                },
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error('Failed to fetch prefill data');
+            return response.json();
+        } catch (error) {
+            console.error('Prefill fetch error:', error);
+            throw error;
+        }
+    }
 
     async getApplicationStatus() {
-        const response = await fetch(`${API_URL}/status`, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        if (!response.ok) throw new Error('Failed to fetch application status');
-        return response.json();
+        try {
+            const deviceId = await this.getDeviceId();
+            const response = await fetch(`${API_URL}/status`, {
+                headers: {
+                    'x-device-id': deviceId
+                },
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error('Failed to fetch application status');
+            return response.json();
+        } catch (error) {
+            console.error('Status fetch error:', error);
+            throw error;
+        }
     }
-};
+}
+
+export const formProcessingService = new FormProcessingService();

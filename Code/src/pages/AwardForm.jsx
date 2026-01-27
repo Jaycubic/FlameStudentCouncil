@@ -31,7 +31,6 @@ function ApplicationFormDashboard() {
     const bgColor = useColorModeValue('white', 'gray.800');
     const panelBg = useColorModeValue('gray.50', 'gray.700');
     const boxBorderColor = useColorModeValue('blue.200', 'blue.500');
-    const accentColor = 'blue.500';
 
     // State management
     const [loading, setLoading] = useState(true);
@@ -61,35 +60,38 @@ function ApplicationFormDashboard() {
 
     const [positions, setPositions] = useState([]);
 
+    const fetchStatusAndPrefill = async () => {
+        try {
+            // 1. Check Application Status
+            const status = await formProcessingService.getApplicationStatus();
+            setIsApplicationOpen(status.isOpen);
+            setAppStatusMessage(status.message);
+
+            if (status.isOpen) {
+                // 2. Load Prefill Data
+                const prefillData = await formProcessingService.getPrefillData();
+                setFormData(prev => ({
+                    ...prev,
+                    ...prefillData.prefill,
+                    photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
+                }));
+                setFilledRoles(prefillData.filledRoles || []);
+
+                // 3. Load Positions
+                const posResp = await positionService.getAll();
+                setPositions(posResp.data || []);
+            }
+        } catch (err) {
+            console.error('Initialization error:', err);
+            toast({ title: 'System Error', description: 'Failed to initialize form. Please try again later.', status: 'error', duration: 5000 });
+        }
+    };
+
     useEffect(() => {
         const initForm = async () => {
             setLoading(true);
-            try {
-                // 1. Check Application Status
-                const status = await formProcessingService.getApplicationStatus();
-                setIsApplicationOpen(status.isOpen);
-                setAppStatusMessage(status.message);
-
-                if (status.isOpen) {
-                    // 2. Load Prefill Data
-                    const prefillData = await formProcessingService.getPrefillData();
-                    setFormData(prev => ({
-                        ...prev,
-                        ...prefillData.prefill,
-                        photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
-                    }));
-                    setFilledRoles(prefillData.filledRoles || []);
-
-                    // 3. Load Positions
-                    const posResp = await positionService.getAll();
-                    setPositions(posResp.data || []);
-                }
-            } catch (err) {
-                console.error('Initialization error:', err);
-                toast({ title: 'System Error', description: 'Failed to initialize form. Please try again later.', status: 'error', duration: 5000 });
-            } finally {
-                setLoading(false);
-            }
+            await fetchStatusAndPrefill();
+            setLoading(false);
         };
         initForm();
     }, [toast]);
@@ -137,6 +139,8 @@ function ApplicationFormDashboard() {
             await formSubmissionService.submit(data);
             setSubmissionDone(true);
             toast({ title: 'Success', description: 'Your application has been submitted successfully!', status: 'success' });
+            // Refresh prefill to update filledRoles
+            await fetchStatusAndPrefill();
         } catch (err) {
             toast({ title: 'Error', description: err.message, status: 'error' });
         } finally {
@@ -173,11 +177,14 @@ function ApplicationFormDashboard() {
                     <Icon as={ChakraCheckIcon} boxSize={16} p={4} bg="whiteAlpha.300" borderRadius="full" />
                     <VStack spacing={4}>
                         <Text fontSize="4xl" fontWeight="bold">Congratulations!</Text>
-                        <Text fontSize="lg" lineHeight="tall">Your application for the Trailblazer Awards has been received. Our committee will review your documents and reach out via email.</Text>
+                        <Text fontSize="lg" lineHeight="tall">Your application for the {selectedRole.replace('_', ' ').toUpperCase()} Award has been received. Our committee will review your documents.</Text>
                     </VStack>
                     <Divider borderColor="whiteAlpha.300" />
-                    <Text fontSize="sm" opacity={0.8}>You can now securely logout or close this window.</Text>
-                    <Button size="lg" colorScheme="yellow" color="blue.800" fontWeight="bold" w="full" onClick={() => authService.logout()}>Logout</Button>
+                    <VStack w="full" spacing={3}>
+                        <Button size="lg" colorScheme="yellow" color="blue.800" fontWeight="bold" w="full" onClick={() => { setSubmissionDone(false); setSelectedRole(''); }}>Apply for Another Category</Button>
+                        <Button size="lg" variant="outline" color="white" _hover={{ bg: 'whiteAlpha.200' }} w="full" onClick={() => authService.logout()}>Logout</Button>
+                    </VStack>
+                    <Text fontSize="sm" opacity={0.8}>You can securely logout or apply for more awards if eligible.</Text>
                 </VStack>
             </MotionBox>
         </Container>
@@ -203,7 +210,7 @@ function ApplicationFormDashboard() {
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>Trailblazer Role:</b> Requires a comprehensive submission including Academic, Sport, and Cultural achievements.</Text>
+                                    <Text><b>Trailblazer Role:</b> Requires a combined submission of both Sport and Cultural achievements.</Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
@@ -212,7 +219,7 @@ function ApplicationFormDashboard() {
                             </List>
                             <Divider my={8} />
                             <Checkbox isChecked={agreedToInstructions} onChange={(e) => setAgreedToInstructions(e.target.checked)} colorScheme="blue" size="lg">
-                                <Text fontSize="md" fontWeight="medium">I have read, understood, and agree to follow the instructions and terms mentioned above.</Text>
+                                <Text fontSize="md" fontWeight="medium">I have read and understood the instructions and agree to provide accurate information.</Text>
                             </Checkbox>
                         </Box>
                         <Button h="60px" fontSize="lg" colorScheme="blue" isDisabled={!agreedToInstructions} onClick={() => setAgreedToInstructions(true)} rightIcon={<ArrowForwardIcon />}>Proceed to Application</Button>
@@ -226,7 +233,7 @@ function ApplicationFormDashboard() {
                         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full" maxW="1000px">
                             <RoleCard
                                 title="Trailblazer"
-                                description="Overall excellence in Academics, Sports, and Culture."
+                                description="Comprehensive excellence in both Sports and Culture."
                                 icon={FaGraduationCap}
                                 color="purple"
                                 disabled={filledRoles.includes('Trailblazer')}
@@ -261,104 +268,32 @@ function ApplicationFormDashboard() {
                         <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
                             <HStack spacing={8} align="center" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
                                 <Box position="relative">
-                                    <Image src={formData.photoUrl} boxSize="150px" borderRadius="2xl" objectFit="cover" border="4px solid" borderColor="white" boxShadow="md" />
+                                    <Image src={formData.photoUrl} boxSize="150px" borderRadius="2xl" objectFit="cover" border="4px solid" borderColor="white" boxShadow="md" fallbackSrc={defaultProfilePhoto} />
                                     <Box position="absolute" bottom="-2" right="-2" bg="blue.500" p={3} borderRadius="xl" cursor="pointer" onClick={onPhotoModalOpen} boxShadow="lg" _hover={{ bg: 'blue.600', transform: 'scale(1.1)' }} transition="0.2s">
                                         <Icon as={FaCamera} color="white" />
                                     </Box>
                                 </Box>
                                 <VStack align="start" spacing={1} flex="1">
-                                    <Text fontSize="3xl" fontWeight="black" color="gray.800">{formData.name}</Text>
+                                    <Text fontSize="3xl" fontWeight="black" color="gray.800">{formData.name || 'Student Name'}</Text>
                                     <HStack spacing={3} color="gray.600" fontSize="lg">
                                         <Icon as={FaUser} />
-                                        <Text>{formData.studentId} | {formData.batch}</Text>
+                                        <Text>{formData.studentId || 'ID'} | {formData.batch || 'Batch'}</Text>
                                     </HStack>
                                     <Text color="gray.500">{formData.email} • {formData.mobileNumber}</Text>
                                 </VStack>
-                                <Image src={flameLogo} alt="FLAME Logo" h="60px" opacity={0.6} />
+                                <Image src={flameLogo} alt="FLAME Logo" h="60px" opacity={0.6} display={{ base: 'none', sm: 'block' }} />
                             </HStack>
                         </Box>
 
-                        {/* Dynamically Rendered Form Sections */}
                         <VStack spacing={10} align="stretch">
-                            {/* Academic Section */}
-                            {(selectedRole === 'trailblazer') && (
-                                <Section title="Academic Achievements">
-                                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Academic Level</FormLabel>
-                                            <Menu w="full">
-                                                <MenuButton as={Button} w="full" rightIcon={<ChevronDownIcon />} textAlign="left">
-                                                    {formData.academicLevel || 'Current academic year'}
-                                                </MenuButton>
-                                                <MenuList>
-                                                    {['UG1', 'UG2', 'UG3', 'PG1', 'PG2', 'PG3', 'Masters'].map(lvl => (
-                                                        <MenuItem key={lvl} onClick={() => setFormData({ ...formData, academicLevel: lvl })}>{lvl}</MenuItem>
-                                                    ))}
-                                                </MenuList>
-                                            </Menu>
-                                        </FormControl>
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Applying for Position</FormLabel>
-                                            <Menu w="full">
-                                                <MenuButton as={Button} w="full" rightIcon={<ChevronDownIcon />} textAlign="left">
-                                                    {formData.position || 'Select Position'}
-                                                </MenuButton>
-                                                <MenuList>
-                                                    {positions.map(pos => (
-                                                        <MenuItem key={pos.id} onClick={() => setFormData({ ...formData, position: pos.title })}>{pos.title}</MenuItem>
-                                                    ))}
-                                                </MenuList>
-                                            </Menu>
-                                        </FormControl>
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Cumulative Grade Point Average (CGPA)</FormLabel>
-                                            <Input type="number" step="0.01" placeholder="e.g. 3.85" value={formData.cgpa} onChange={(e) => setFormData({ ...formData, cgpa: e.target.value })} />
-                                            <Text fontSize="xs" mt={1} color="gray.500">Provide your latest verified CGPA.</Text>
-                                        </FormControl>
-                                    </SimpleGrid>
-                                    <FormControl mt={6} isRequired>
-                                        <FormLabel fontWeight="bold">Academic Proof (PDF/Image)</FormLabel>
-                                        <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setAcademicFiles(Array.from(e.target.files))} />
-                                    </FormControl>
-                                </Section>
-                            )}
-
-                            {/* Trailblazer Additional Fields */}
-                            {selectedRole === 'trailblazer' && (
-                                <Section title="Involvement & Purpose">
-                                    <VStack spacing={6} align="stretch">
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Statement of Purpose (SOP)</FormLabel>
-                                            <Textarea
-                                                placeholder="Why do you deserve this award? Tell us about your journey and achievements..."
-                                                value={formData.sop}
-                                                onChange={(e) => setFormData({ ...formData, sop: e.target.value })}
-                                                minH="150px"
-                                            />
-                                            <Text fontSize="xs" mt={1} color="gray.500">Maximum 500 words.</Text>
-                                        </FormControl>
-
-                                        <FormControl>
-                                            <FormLabel fontWeight="bold">Community Service & Social Responsibility</FormLabel>
-                                            <Textarea
-                                                placeholder="Describe your contributions to the community..."
-                                                value={formData.communityService}
-                                                onChange={(e) => setFormData({ ...formData, communityService: e.target.value })}
-                                                minH="100px"
-                                            />
-                                        </FormControl>
-                                    </VStack>
-                                </Section>
-                            )}
-
                             {/* Sport Section */}
                             {(selectedRole === 'trailblazer' || selectedRole === 'sports_person') && (
-                                <Section title="Sports & Athletics">
+                                <Section title="Sports & Athletics Achievements">
                                     <VStack spacing={6} align="stretch">
                                         <FormControl isRequired>
                                             <FormLabel fontWeight="bold">Sports Score Calculation</FormLabel>
                                             <HStack spacing={4}>
-                                                <Button leftIcon={<FaTrophy />} colorScheme="blue" variant="outline" onClick={onSportModalOpen}>Calculate via Score Sheet</Button>
+                                                <Button leftIcon={<FaTrophy />} colorScheme="blue" variant="outline" onClick={onSportModalOpen}>Calculate Score</Button>
                                                 <Input maxW="200px" placeholder="Enter raw score" value={formData.sportsRawScore} onChange={(e) => setFormData({ ...formData, sportsRawScore: e.target.value, sportsScore: calculateScore(e.target.value) })} />
                                                 <Box px={4} py={2} bg="blue.50" borderRadius="md" border="1px solid" borderColor="blue.200">
                                                     <Text fontWeight="black" color="blue.700">Final: {formData.sportsScore || '0.0'}/10</Text>
@@ -366,9 +301,9 @@ function ApplicationFormDashboard() {
                                             </HStack>
                                         </FormControl>
                                         <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Sports Certificates & Attachments</FormLabel>
+                                            <FormLabel fontWeight="bold">Sports Evidence (Certificates/Photos)</FormLabel>
                                             <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setSportFiles(Array.from(e.target.files))} />
-                                            <Text fontSize="xs" mt={1} color="gray.500">Upload all relevant certificates and proof of participation/winners.</Text>
+                                            <Text fontSize="xs" mt={1} color="gray.500">Upload all relevant proof of athletic achievements.</Text>
                                         </FormControl>
                                     </VStack>
                                 </Section>
@@ -376,12 +311,12 @@ function ApplicationFormDashboard() {
 
                             {/* Cultural Section */}
                             {(selectedRole === 'trailblazer' || selectedRole === 'cultural_person') && (
-                                <Section title="Cultural & Arts">
+                                <Section title="Cultural & Arts Excellence">
                                     <VStack spacing={6} align="stretch">
                                         <FormControl isRequired>
                                             <FormLabel fontWeight="bold">Cultural Score Calculation</FormLabel>
                                             <HStack spacing={4}>
-                                                <Button leftIcon={<FaMusic />} colorScheme="pink" variant="outline" onClick={onCulturalModalOpen}>Calculate via Score Sheet</Button>
+                                                <Button leftIcon={<FaMusic />} colorScheme="pink" variant="outline" onClick={onCulturalModalOpen}>Calculate Score</Button>
                                                 <Input maxW="200px" placeholder="Enter raw score" value={formData.culturalRawScore} onChange={(e) => setFormData({ ...formData, culturalRawScore: e.target.value, culturalScore: calculateScore(e.target.value) })} />
                                                 <Box px={4} py={2} bg="pink.50" borderRadius="md" border="1px solid" borderColor="pink.200">
                                                     <Text fontWeight="black" color="pink.700">Final: {formData.culturalScore || '0.0'}/10</Text>
@@ -389,9 +324,9 @@ function ApplicationFormDashboard() {
                                             </HStack>
                                         </FormControl>
                                         <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Cultural Certificates & Attachments</FormLabel>
+                                            <FormLabel fontWeight="bold">Cultural Evidence (Proof/Media)</FormLabel>
                                             <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setCulturalFiles(Array.from(e.target.files))} />
-                                            <Text fontSize="xs" mt={1} color="gray.500">Upload all relevant certificates, event photos, or proof of artistic excellence.</Text>
+                                            <Text fontSize="xs" mt={1} color="gray.500">Upload certificates or media reflecting your artistic excellence.</Text>
                                         </FormControl>
                                     </VStack>
                                 </Section>
@@ -403,14 +338,14 @@ function ApplicationFormDashboard() {
                                 <Divider mb={6} opacity={0.2} />
                                 <VStack align="start" spacing={4}>
                                     <Checkbox isChecked={formData.notOnProbation} onChange={(e) => setFormData({ ...formData, notOnProbation: e.target.checked })} colorScheme="yellow">
-                                        I hereby declare that I am not currently on academic or disciplinary probation.
+                                        I am not currently on academic or disciplinary probation.
                                     </Checkbox>
                                     <Checkbox isChecked={formData.trueStatement} onChange={(e) => setFormData({ ...formData, trueStatement: e.target.checked })} colorScheme="yellow">
-                                        I confirm that all information and documents provided in this application are true and accurate to the best of my knowledge.
+                                        I confirm all documents provided are true and accurate.
                                     </Checkbox>
                                 </VStack>
-                                <Button mt={10} size="lg" colorScheme="yellow" color="gray.900" fontWeight="black" w="full" h="70px" fontSize="xl" isLoading={submitting} loadingText="Submitting Application..." onClick={handleSubmission}>
-                                    SUBMIT APPLICATION
+                                <Button mt={10} size="lg" colorScheme="yellow" color="gray.900" fontWeight="black" w="full" h="70px" fontSize="xl" isLoading={submitting} loadingText="Submitting..." onClick={handleSubmission}>
+                                    SUBMIT {selectedRole.replace('_', ' ').toUpperCase()} APPLICATION
                                 </Button>
                             </Box>
                         </VStack>
@@ -432,7 +367,6 @@ function ApplicationFormDashboard() {
                                 <Text fontWeight="bold">Click to Upload</Text>
                                 <Text fontSize="xs" color="gray.500">JPG, PNG (Max 2MB)</Text>
                             </Box>
-                            <Text fontSize="xs" color="gray.500" textAlign="center">Formal passport size photo with a plain background is highly recommended.</Text>
                         </VStack>
                     </ModalBody>
                 </ModalContent>
@@ -441,19 +375,15 @@ function ApplicationFormDashboard() {
             <Modal isOpen={isSportModalOpen} onClose={onSportModalClose} size="3xl" scrollBehavior="inside">
                 <ModalOverlay />
                 <ModalContent borderRadius="2xl">
-                    <ModalHeader borderBottomWidth="1px">Sports Excellence Score Sheet</ModalHeader>
+                    <ModalHeader borderBottomWidth="1px">Sports Score Sheet</ModalHeader>
                     <ModalCloseButton />
                     <ModalBody py={6}>
-                        <VStack spacing={4} align="stretch">
-                            <Alert status="info" borderRadius="md"><AlertIcon /> Use this sheet to calculate your total achievements raw score.</Alert>
-                            <Box p={6} bg="gray.50" borderRadius="xl" minH="400px">
-                                <Text color="gray.500" textAlign="center" mt={20}>Dynamic Score Sheet Component Integration Pending...</Text>
-                                <Text textAlign="center" fontSize="sm" mt={4}>Please enter the final calculated score in the main form.</Text>
-                            </Box>
+                        <VStack spacing={4} align="stretch" minH="400px" justify="center" bg="gray.50" borderRadius="xl">
+                            <Text color="gray.500" textAlign="center">Dynamic Score Sheet Integration Pending...</Text>
                         </VStack>
                     </ModalBody>
                     <ModalFooter>
-                        <Button colorScheme="blue" onClick={onSportModalClose}>Close Sheet</Button>
+                        <Button colorScheme="blue" onClick={onSportModalClose}>Return to Form</Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>
@@ -461,19 +391,15 @@ function ApplicationFormDashboard() {
             <Modal isOpen={isCulturalModalOpen} onClose={onCulturalModalClose} size="3xl" scrollBehavior="inside">
                 <ModalOverlay />
                 <ModalContent borderRadius="2xl">
-                    <ModalHeader borderBottomWidth="1px">Cultural Excellence Score Sheet</ModalHeader>
+                    <ModalHeader borderBottomWidth="1px">Cultural Score Sheet</ModalHeader>
                     <ModalCloseButton />
                     <ModalBody py={6}>
-                        <VStack spacing={4} align="stretch">
-                            <Alert status="info" borderRadius="md" colorScheme="pink"><AlertIcon /> Calculate your artistic and cultural contributions.</Alert>
-                            <Box p={6} bg="pink.50" borderRadius="xl" minH="400px">
-                                <Text color="pink.400" textAlign="center" mt={20}>Dynamic Cultural Score Sheet Integration Pending...</Text>
-                                <Text textAlign="center" fontSize="sm" mt={4} color="pink.400">Please enter the total marks in the main form.</Text>
-                            </Box>
+                        <VStack spacing={4} align="stretch" minH="400px" justify="center" bg="pink.50" borderRadius="xl">
+                            <Text color="pink.400" textAlign="center">Dynamic Score Sheet Integration Pending...</Text>
                         </VStack>
                     </ModalBody>
                     <ModalFooter>
-                        <Button colorScheme="pink" onClick={onCulturalModalClose}>Close Sheet</Button>
+                        <Button colorScheme="pink" onClick={onCulturalModalClose}>Return to Form</Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>
@@ -500,20 +426,20 @@ const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
             borderColor={disabled ? 'gray.200' : c.border}
             borderRadius="3xl"
             spacing={4}
-            transition="all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+            transition="all 0.3s"
             opacity={disabled ? 0.6 : 1}
-            _hover={!disabled ? { transform: 'translateY(-12px)', boxShadow: '2xl', borderColor: c.active } : {}}
-            _active={{ transform: 'scale(0.95)' }}
+            _hover={!disabled ? { transform: 'translateY(-8px)', boxShadow: 'xl', borderColor: c.active } : {}}
             position="relative"
             overflow="hidden"
+            textAlign="center"
         >
             <Icon as={icon} boxSize={12} color={disabled ? 'gray.400' : c.icon} />
             <VStack spacing={1}>
                 <Text fontWeight="black" fontSize="xl">{title}</Text>
-                <Text fontSize="sm" color="gray.500" textAlign="center">{description}</Text>
+                <Text fontSize="sm" color="gray.500">{description}</Text>
             </VStack>
             {disabled && (
-                <Badge position="absolute" top={4} right={4} colorScheme="red" variant="solid">Already Completed</Badge>
+                <Badge position="absolute" top={4} right={4} colorScheme="green" variant="solid">Submitted</Badge>
             )}
         </VStack>
     );
@@ -521,7 +447,7 @@ const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
 
 const Section = ({ title, children }) => (
     <Box>
-        <Text fontSize="xl" fontWeight="black" mb={4} color="gray.700">{title}</Text>
+        <Text fontSize="xl" fontWeight="black" mb={4} color="gray.700" px={2}>{title}</Text>
         <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg="white" borderWidth="1px" borderColor="gray.100" boxShadow="sm">
             {children}
         </Box>

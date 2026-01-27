@@ -8,11 +8,11 @@ const formProcessingController = {
     // Get data to prefill the form
     async getPrefillData(req, res) {
         try {
-            const { studentId, email } = req.user; // Assumes validateToken sets req.user
+            const email = req.user.email; // Assumes validateToken sets req.user
 
-            // 1. Fetch from StudentData
+            // 1. Fetch from StudentData using email_id
             const student = await StudentData.findOne({
-                where: { student_cvue_no: studentId }
+                where: { email_id: email }
             });
 
             if (!student) {
@@ -20,15 +20,20 @@ const formProcessingController = {
             }
 
             // 2. Check for photo in local directory
+            // The photo column in StudentData typically holds a number (id)
             let photoExists = false;
             const extensions = ['.jpg', '.jpeg', '.png'];
             let foundPhoto = null;
+            const photoBase = student.photo;
 
-            for (const ext of extensions) {
-                if (fs.existsSync(path.join(PHOTO_DIR, `${studentId}${ext}`))) {
-                    photoExists = true;
-                    foundPhoto = `${studentId}${ext}`;
-                    break;
+            if (photoBase) {
+                for (const ext of extensions) {
+                    const photoPath = path.join(PHOTO_DIR, `${photoBase}${ext}`);
+                    if (fs.existsSync(photoPath)) {
+                        photoExists = true;
+                        foundPhoto = `${photoBase}${ext}`;
+                        break;
+                    }
                 }
             }
 
@@ -39,13 +44,18 @@ const formProcessingController = {
 
             const filledRoles = [];
             if (existingSubmission) {
-                if (existingSubmission.cgpa && parseFloat(existingSubmission.cgpa) !== 0) {
+                // If they have a non-zero sports score, they've applied for Sports Person or Trailblazer
+                // We need to know which actual roles they "confirmed"
+                // For now, let's look at the scores as a proxy, or maybe we should have saved the role.
+                // If cgpa is set, it was likely a Trailblazer application (old logic)
+                // New logic: Trailblazer is combined.
+                if (existingSubmission.cgpa && parseFloat(existingSubmission.cgpa) > 0) {
                     filledRoles.push('Trailblazer');
                 }
-                if (existingSubmission.sports_score && existingSubmission.sports_score !== '0') {
+                if (existingSubmission.sports_score && existingSubmission.sports_score !== '0' && existingSubmission.sports_score !== '') {
                     filledRoles.push('Sports Person');
                 }
-                if (existingSubmission.cultural_score && existingSubmission.cultural_score !== '0') {
+                if (existingSubmission.cultural_score && existingSubmission.cultural_score !== '0' && existingSubmission.cultural_score !== '') {
                     filledRoles.push('Cultural Person');
                 }
             }
@@ -53,7 +63,7 @@ const formProcessingController = {
             return res.json({
                 prefill: {
                     name: student.student_name,
-                    student_id: student.student_cvue_no,
+                    student_id: student.student_cvue_no ? student.student_cvue_no.toString() : '',
                     mobile_number: student.contact_no ? student.contact_no.toString() : '',
                     gender: student.gender,
                     batch: student.batch,
@@ -79,7 +89,6 @@ const formProcessingController = {
             });
 
             if (!settings) {
-                // If no settings found, we might want to default to closed or open
                 return res.json({ isOpen: true, message: 'Settings not configured, defaulting to open.' });
             }
 
@@ -94,15 +103,15 @@ const formProcessingController = {
                 return res.json({ isOpen: false, message: 'APPLICATION PERIOD HAS ENDED' });
             }
 
-            // Time parsing logic (simplified)
+            // Time parsing logic 
             const [startH, startM] = settings.start_time.split(':');
             const [endH, endM] = settings.end_time.split(':');
 
             const startTime = new Date();
-            startTime.setHours(startH, startM, 0);
+            startTime.setHours(parseInt(startH), parseInt(startM), 0);
 
             const endTime = new Date();
-            endTime.setHours(endH, endM, 0);
+            endTime.setHours(parseInt(endH), parseInt(endM), 0);
 
             if (now < startTime) {
                 return res.json({ isOpen: false, message: 'Applications Not Yet Opened today.' });
