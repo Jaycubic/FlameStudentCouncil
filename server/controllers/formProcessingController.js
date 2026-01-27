@@ -37,28 +37,18 @@ const formProcessingController = {
                 }
             }
 
-            // 3. Check for existing submission status
-            const existingSubmission = await formSubmissions.findOne({
+            // 3. Check for existing submission status (multiple possible now)
+            const submissions = await formSubmissions.findAll({
                 where: { email: email }
             });
 
-            const filledRoles = [];
-            if (existingSubmission) {
-                // If they have a non-zero sports score, they've applied for Sports Person or Trailblazer
-                // We need to know which actual roles they "confirmed"
-                // For now, let's look at the scores as a proxy, or maybe we should have saved the role.
-                // If cgpa is set, it was likely a Trailblazer application (old logic)
-                // New logic: Trailblazer is combined.
-                if (existingSubmission.cgpa && parseFloat(existingSubmission.cgpa) > 0) {
-                    filledRoles.push('Trailblazer');
-                }
-                if (existingSubmission.sports_score && existingSubmission.sports_score !== '0' && existingSubmission.sports_score !== '') {
-                    filledRoles.push('Sports Person');
-                }
-                if (existingSubmission.cultural_score && existingSubmission.cultural_score !== '0' && existingSubmission.cultural_score !== '') {
-                    filledRoles.push('Cultural Person');
-                }
-            }
+            const filledRolesMap = {
+                'trailblazer': 'Trailblazer',
+                'sports_person': 'Sports Person',
+                'cultural_person': 'Cultural Person'
+            };
+
+            const filledRoles = submissions.map(s => filledRolesMap[s.selected_role] || s.selected_role);
 
             return res.json({
                 prefill: {
@@ -72,7 +62,7 @@ const formProcessingController = {
                 },
                 photoExists,
                 filledRoles,
-                submission_id: existingSubmission ? existingSubmission.id : null
+                submission_id: submissions.length > 0 ? submissions[0].id : null
             });
 
         } catch (error) {

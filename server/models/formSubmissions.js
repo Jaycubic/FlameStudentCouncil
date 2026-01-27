@@ -23,7 +23,7 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  Academic_level: {
+  academic_level: {
     type: DataTypes.STRING,
     allowNull: true,
   },
@@ -95,6 +95,10 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
   },
   photo: {
     type: DataTypes.STRING,
+    allowNull: true,
+  },
+  selected_role: {
+    type: DataTypes.STRING(50),
     allowNull: true,
   },
 }, {

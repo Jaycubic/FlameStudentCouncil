@@ -62,7 +62,8 @@ const formController = {
         gender,
         batch,
         position,
-        Academic_level: academicLevel,
+        academic_level: academicLevel,
+        selected_role: selected_role,
         statement_of_purpose: sop,
         community_service: communityService,
         not_on_probation: notOnProbation === 'true' || notOnProbation === true,
@@ -85,13 +86,15 @@ const formController = {
         updateData.photo = req.files['photo'][0].filename;
       }
 
-      // 3. Find or Create/Update submission
-      let submission = await formSubmissions.findOne({ where: { email } });
+      // 3. Find or Create/Update submission for this specific role
+      let submission = await formSubmissions.findOne({
+        where: { email, selected_role }
+      });
 
       if (submission) {
         await submission.update(updateData);
       } else {
-        submission = await formSubmissions.create({ ...updateData, email });
+        submission = await formSubmissions.create({ ...updateData, email, selected_role });
       }
 
       // 4. Handle Attachments (Clear old if updating? For now we just add more)
