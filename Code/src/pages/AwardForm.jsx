@@ -41,6 +41,7 @@ function ApplicationFormDashboard() {
     const [selectedRole, setSelectedRole] = useState(''); // trailblazer, sports_person, cultural_person
     const [submissionDone, setSubmissionDone] = useState(false);
     const [filledRoles, setFilledRoles] = useState([]);
+    const [allCompleted, setAllCompleted] = useState(false);
 
     // Prefilled/Form Data
     const [formData, setFormData] = useState({
@@ -76,7 +77,11 @@ function ApplicationFormDashboard() {
                     photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
                 }));
                 setPhotoExists(prefillData.photoExists);
-                setFilledRoles(prefillData.filledRoles || []);
+                const roles = prefillData.filledRoles || [];
+                setFilledRoles(roles);
+                if (roles.length >= 3) {
+                    setAllCompleted(true);
+                }
             }
         } catch (err) {
             console.error('Initialization error:', err);
@@ -93,7 +98,17 @@ function ApplicationFormDashboard() {
         initForm();
     }, [toast]);
 
-    const handleRoleSelect = (role) => {
+    const handleRoleSelect = (role, title) => {
+        if (filledRoles.includes(title)) {
+            toast({
+                title: 'Already Submitted',
+                description: `You have already applied for the ${title} Award.`,
+                status: 'info',
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
         setSelectedRole(role);
     };
 
@@ -151,6 +166,27 @@ function ApplicationFormDashboard() {
                 <CircularProgress isIndeterminate color="blue.500" size="60px" />
                 <Text fontSize="lg" fontWeight="medium">Preparing your application...</Text>
             </VStack>
+        </Container>
+    );
+
+    if (allCompleted) return (
+        <Container centerContent py={20} bg={bgColor} minH="100vh">
+            <MotionBox initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', damping: 20 }}>
+                <VStack spacing={10} p={{ base: 8, md: 16 }} bgGradient="linear(to-br, green.500, green.700)" color="white" borderRadius="3xl" textAlign="center" boxShadow="2xl" maxW="xl">
+                    <Box bg="whiteAlpha.200" p={6} borderRadius="full">
+                        <Icon as={ChakraCheckIcon} boxSize={20} />
+                    </Box>
+                    <VStack spacing={4}>
+                        <Text fontSize={{ base: "3xl", md: "5xl" }} fontWeight="black">All Done!</Text>
+                        <Text fontSize="xl" opacity={0.9} lineHeight="tall">You have successfully submitted applications for all award categories: <b>Trailblazer, Sports Person, and Cultural Person</b>.</Text>
+                    </VStack>
+                    <Divider borderColor="whiteAlpha.300" />
+                    <VStack w="full" spacing={6}>
+                        <Text fontSize="md" fontStyle="italic">"Excellence is not an act, but a habit." - Aristotle</Text>
+                        <Button size="lg" variant="solid" colorScheme="whiteAlpha" bg="white" color="green.700" _hover={{ bg: 'gray.100' }} w="full" h="70px" fontSize="xl" fontWeight="bold" onClick={() => authService.logout()}>LOGOUT SECURELY</Button>
+                    </VStack>
+                </VStack>
+            </MotionBox>
         </Container>
     );
 
@@ -234,7 +270,7 @@ function ApplicationFormDashboard() {
                                 icon={FaGraduationCap}
                                 color="purple"
                                 disabled={filledRoles.includes('Trailblazer')}
-                                onClick={() => handleRoleSelect('trailblazer')}
+                                onClick={() => handleRoleSelect('trailblazer', 'Trailblazer')}
                             />
                             <RoleCard
                                 title="Sports Person"
@@ -242,7 +278,7 @@ function ApplicationFormDashboard() {
                                 icon={FaTrophy}
                                 color="orange"
                                 disabled={filledRoles.includes('Sports Person')}
-                                onClick={() => handleRoleSelect('sports_person')}
+                                onClick={() => handleRoleSelect('sports_person', 'Sports Person')}
                             />
                             <RoleCard
                                 title="Cultural Person"
@@ -250,7 +286,7 @@ function ApplicationFormDashboard() {
                                 icon={FaMusic}
                                 color="pink"
                                 disabled={filledRoles.includes('Cultural Person')}
-                                onClick={() => handleRoleSelect('cultural_person')}
+                                onClick={() => handleRoleSelect('cultural_person', 'Cultural Person')}
                             />
                         </SimpleGrid>
                     </MotionVStack>

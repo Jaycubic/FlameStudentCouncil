@@ -1,4 +1,4 @@
-const { StudentData, formSubmissions, TimeSettings } = require('../models');
+const { StudentData, TrailblazerAward, SportsPersonAward, CulturalPersonAward, TimeSettings } = require('../models');
 const path = require('path');
 const fs = require('fs');
 
@@ -8,9 +8,9 @@ const formProcessingController = {
     // Get data to prefill the form
     async getPrefillData(req, res) {
         try {
-            const email = req.user.email; // Assumes validateToken sets req.user
+            const email = req.user.email;
 
-            // 1. Fetch from StudentData using email_id
+            // 1. Fetch from StudentData
             const student = await StudentData.findOne({
                 where: { email_id: email }
             });
@@ -19,8 +19,7 @@ const formProcessingController = {
                 return res.status(404).json({ message: 'Student data not found in registration records.' });
             }
 
-            // 2. Check for photo in local directory
-            // The photo column in StudentData typically holds a number (id)
+            // 2. Check for photo
             let photoExists = false;
             const extensions = ['.jpg', '.jpeg', '.png'];
             let foundPhoto = null;
@@ -37,18 +36,17 @@ const formProcessingController = {
                 }
             }
 
-            // 3. Check for existing submission status (multiple possible now)
-            const submissions = await formSubmissions.findAll({
-                where: { email: email }
-            });
+            // 3. Check for existing submissions in ALL tables
+            const [trailblazer, sports, cultural] = await Promise.all([
+                TrailblazerAward.findOne({ where: { email } }),
+                SportsPersonAward.findOne({ where: { email } }),
+                CulturalPersonAward.findOne({ where: { email } })
+            ]);
 
-            const filledRolesMap = {
-                'trailblazer': 'Trailblazer',
-                'sports_person': 'Sports Person',
-                'cultural_person': 'Cultural Person'
-            };
-
-            const filledRoles = submissions.map(s => filledRolesMap[s.selected_role] || s.selected_role);
+            const filledRoles = [];
+            if (trailblazer) filledRoles.push('Trailblazer');
+            if (sports) filledRoles.push('Sports Person');
+            if (cultural) filledRoles.push('Cultural Person');
 
             return res.json({
                 prefill: {
@@ -61,8 +59,7 @@ const formProcessingController = {
                     photo: foundPhoto
                 },
                 photoExists,
-                filledRoles,
-                submission_id: submissions.length > 0 ? submissions[0].id : null
+                filledRoles
             });
 
         } catch (error) {
@@ -85,7 +82,6 @@ const formProcessingController = {
             const now = new Date();
             const createdAt = new Date(settings.created_at);
 
-            // Calculate days difference
             const diffTime = Math.abs(now - createdAt);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -93,7 +89,6 @@ const formProcessingController = {
                 return res.json({ isOpen: false, message: 'APPLICATION PERIOD HAS ENDED' });
             }
 
-            // Time parsing logic 
             const [startH, startM] = settings.start_time.split(':');
             const [endH, endM] = settings.end_time.split(':');
 

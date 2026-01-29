@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/connection');
 
-const FormSubmissions = sequelize.define('FormSubmissions', {
+const TrailblazerAward = sequelize.define('TrailblazerAward', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -71,7 +71,7 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
   status: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    defaultValue: 'pending',
+    defaultValue: 'Submitted',
   },
   ramzi_score: {
     type: DataTypes.DECIMAL(10, 2),
@@ -83,7 +83,7 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
   },
   gender: {
     type: DataTypes.STRING,
-    allowNull: true,
+    allowNull: false,
   },
   batch: {
     type: DataTypes.STRING,
@@ -93,12 +93,12 @@ const FormSubmissions = sequelize.define('FormSubmissions', {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  selected_role: {
-    type: DataTypes.STRING(50),
-    allowNull: true,
-  },
 }, {
-  tableName: 'form_submissions',
+  tableName: 'trailblazer_awards',
+  schema: 'app',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
 });
 
-module.exports = FormSubmissions;
+module.exports = TrailblazerAward;

@@ -1,5 +1,12 @@
-// controllers/formSubmissionController.js
-const { formSubmissions, SportAttachment, CulturalAttachment, academicAttachment, StudentData } = require('../models');
+const {
+  TrailblazerAward,
+  SportsPersonAward,
+  CulturalPersonAward,
+  SportAttachment,
+  CulturalAttachment,
+  academicAttachment,
+  StudentData
+} = require('../models');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -37,7 +44,6 @@ const upload = multer({ storage }).fields([
 ]);
 
 const formController = {
-  // Middleware-like function to handle file uploads
   uploadMiddleware: (req, res, next) => {
     upload(req, res, (err) => {
       if (err) return res.status(400).json({ message: 'File upload error', error: err.message });
@@ -54,49 +60,59 @@ const formController = {
         selected_role
       } = req.body;
 
-      // 1. Prepare Update Data with correct mapping
-      const updateData = {
+      // Validation: Gender is mandatory as requested
+      if (!gender) {
+        return res.status(400).json({ message: 'Gender is mandatory.' });
+      }
+
+      // 1. Determine which model to use
+      let AwardModel;
+      if (selected_role === 'trailblazer') AwardModel = TrailblazerAward;
+      else if (selected_role === 'sports_person') AwardModel = SportsPersonAward;
+      else if (selected_role === 'cultural_person') AwardModel = CulturalPersonAward;
+      else return res.status(400).json({ message: 'Invalid award category selected.' });
+
+      // 2. Prepare Data
+      const submissionData = {
         name,
         student_id: studentId,
         mobile_number: mobileNumber,
         gender,
         batch,
-        academic_level: academicLevel,
-        selected_role: selected_role,
-        statement_of_purpose: sop,
-        community_service: communityService,
+        email,
         not_on_probation: notOnProbation === 'true' || notOnProbation === true,
         tru_statement: trueStatement === 'true' || trueStatement === true,
-        status: 'pending'
+        status: 'Submitted'
       };
 
-      // Role specific overrides
+      // Category specific fields
       if (selected_role === 'trailblazer') {
-        updateData.cgpa = cgpa ? parseFloat(cgpa) : null;
-        updateData.sports_score = sportsScore;
-        updateData.cultural_score = culturalScore;
+        submissionData.academic_level = academicLevel;
+        submissionData.cgpa = cgpa ? parseFloat(cgpa) : null;
+        submissionData.sports_score = sportsScore;
+        submissionData.cultural_score = culturalScore;
+        submissionData.statement_of_purpose = sop;
+        submissionData.community_service = communityService;
       } else if (selected_role === 'sports_person') {
-        updateData.sports_score = sportsScore;
+        submissionData.sports_score = sportsScore;
       } else if (selected_role === 'cultural_person') {
-        updateData.cultural_score = culturalScore;
+        submissionData.cultural_score = culturalScore;
       }
 
       if (req.files['photo']) {
-        updateData.photo = req.files['photo'][0].filename;
+        submissionData.photo = req.files['photo'][0].filename;
       }
 
-      // 3. Find or Create/Update submission for this specific role
-      let submission = await formSubmissions.findOne({
-        where: { email, selected_role }
-      });
+      // 3. Find or Create submission for this student and award type
+      let submission = await AwardModel.findOne({ where: { email } });
 
       if (submission) {
-        await submission.update(updateData);
+        await submission.update(submissionData);
       } else {
-        submission = await formSubmissions.create({ ...updateData, email, selected_role });
+        submission = await AwardModel.create(submissionData);
       }
 
-      // 4. Handle Attachments (Clear old if updating? For now we just add more)
+      // 4. Handle Attachments
       const attachmentJobs = [];
       if (req.files['sport_attachment']) {
         req.files['sport_attachment'].forEach(file => {
@@ -116,89 +132,27 @@ const formController = {
 
       await Promise.all(attachmentJobs);
 
-      return res.status(200).json({ message: 'Form submitted successfully', submission_id: submission.id });
+      return res.status(200).json({ message: `${selected_role.replace('_', ' ')} submitted successfully`, submission_id: submission.id });
     } catch (error) {
       console.error('Submission error:', error);
       return res.status(500).json({ message: 'Error submitting form', error: error.message });
     }
   },
 
+  // Combined getAll for all award types if needed, or separate methods
   async getAll(req, res) {
     try {
-      const { limit = 50, offset = 0 } = req.query;
-      const { count, rows } = await formSubmissions.findAndCountAll({
-        limit: parseInt(limit, 10),
-        offset: parseInt(offset, 10),
-      });
-      return res.json({ data: rows, total: count });
+      const trailblazers = await TrailblazerAward.findAll();
+      const sports = await SportsPersonAward.findAll();
+      const cultural = await CulturalPersonAward.findAll();
+      return res.json({ trailblazers, sports, cultural });
     } catch (err) {
       return res.status(500).json({ message: 'Error fetching submissions', error: err.message });
     }
   },
 
-  async getOne(req, res) {
-    try {
-      const item = await formSubmissions.findByPk(req.params.id, {
-        include: [academicAttachment, SportAttachment, CulturalAttachment]
-      });
-      if (!item) return res.status(404).json({ message: 'Not found' });
-      return res.json(item);
-    } catch (err) {
-      return res.status(500).json({ message: 'Error fetching submission', error: err.message });
-    }
-  },
-
-  async create(req, res) {
-    try {
-      const created = await formSubmissions.create(req.body);
-      return res.status(201).json(created);
-    } catch (err) {
-      return res.status(500).json({ message: 'Error creating submission', error: err.message });
-    }
-  },
-
-  async bulkCreate(req, res) {
-    try {
-      const created = await formSubmissions.bulkCreate(req.body);
-      return res.status(201).json(created);
-    } catch (err) {
-      return res.status(500).json({ message: 'Error bulk creating submissions', error: err.message });
-    }
-  },
-
-  async createImmediate(req, res) {
-    try {
-      const created = await formSubmissions.create(req.body);
-      return res.status(201).json(created);
-    } catch (err) {
-      return res.status(500).json({ message: 'Error creating submission immediately', error: err.message });
-    }
-  },
-
-  async update(req, res) {
-    try {
-      const item = await formSubmissions.findByPk(req.params.id);
-      if (!item) return res.status(404).json({ message: 'Not found' });
-      await item.update(req.body);
-      return res.json(item);
-    } catch (err) {
-      return res.status(500).json({ message: 'Error updating submission', error: err.message });
-    }
-  },
-
-  async delete(req, res) {
-    try {
-      const item = await formSubmissions.findByPk(req.params.id);
-      if (!item) return res.status(404).json({ message: 'Not found' });
-      await item.destroy();
-      return res.json({ message: 'Deleted successfully' });
-    } catch (err) {
-      return res.status(500).json({ message: 'Error deleting submission', error: err.message });
-    }
-  },
-
-  startQueueWorker() {
-    console.log('✅ Form submission queue worker initialized (Immediate processing active)');
+  async startQueueWorker() {
+    console.log('✅ Award submission tables routing active');
   }
 };
 
