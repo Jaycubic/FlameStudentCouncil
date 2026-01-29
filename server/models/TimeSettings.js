@@ -1,3 +1,4 @@
+// models/TimeSettings.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/connection');
 
@@ -6,6 +7,18 @@ const TimeSettings = sequelize.define('TimeSettings', {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
+    },
+    title: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    start_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+    },
+    end_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
     },
     start_time: {
         type: DataTypes.TIME,

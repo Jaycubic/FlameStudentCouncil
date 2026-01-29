@@ -1,3 +1,4 @@
+// src/App.jsx
 import { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import {
@@ -30,6 +31,7 @@ const DeclarationForm = lazy(() => import('./pages/DeclarationForm'))
 const ReportDay = lazy(() => import('./pages/ReportDay'))
 const QueueCounterDashboard = lazy(() => import('./pages/QueueCounterDashboard'))
 const StudentStatus = lazy(() => import('./pages/StudentStatusTracking'))
+const TimeManagement = lazy(() => import('./pages/TimeManagement'))
 
 // Theme configuration
 const theme = extendTheme({
@@ -97,6 +99,7 @@ function App() {
                 <Route path="/report-day" element={<ReportDay />} />
                 <Route path="/report-day-dashboard" element={<QueueCounterDashboard />} />
                 <Route path="/studentStatus" element={<StudentStatus />} />
+                <Route path="/time-management" element={<TimeManagement />} />
                 <Route path="/" element={<Dashboard />} />
               </Route>
 

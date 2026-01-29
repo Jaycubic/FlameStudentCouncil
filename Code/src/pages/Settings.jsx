@@ -1,3 +1,4 @@
+// src/pages/Settings.jsx
 import {
   Box,
   Card,
@@ -117,7 +118,7 @@ function Settings() {
   const handle2FAToggle = async (roleId, newValue) => {
     try {
       await settingsService.updateSettingForRole(roleId, '2fa_enabled', newValue.toString())
-      setRolesWith2FA(prev => prev.map(role => 
+      setRolesWith2FA(prev => prev.map(role =>
         role.id === roleId ? { ...role, twoFAEnabled: newValue } : role
       ))
       toast({
@@ -247,7 +248,7 @@ function Settings() {
               <TabPanel>
                 <VStack spacing={6} align="start">
                   <Text fontSize="lg" fontWeight="medium">Notification Preferences</Text>
-                  
+
                   <Stack spacing={4} width="full">
                     <HStack justify="space-between">
                       <Box>
@@ -302,7 +303,7 @@ function Settings() {
               <TabPanel>
                 <VStack spacing={6} align="start">
                   <Text fontSize="lg" fontWeight="medium">Appearance Settings</Text>
-                  
+
                   <Stack spacing={4} width="full">
                     <HStack justify="space-between">
                       <Box>

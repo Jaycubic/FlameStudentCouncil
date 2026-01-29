@@ -14,6 +14,7 @@ import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
 import { formProcessingService } from '../services/formProcessingService';
 import { authService } from '../services/authService';
+import { timeSettingsService } from '../services/timeSettingsService';
 // positionService removed
 import flameLogo from '../assets/img/FLAME.png';
 
@@ -45,6 +46,9 @@ function ApplicationFormDashboard() {
     const [submissionDone, setSubmissionDone] = useState(false);
     const [filledRoles, setFilledRoles] = useState([]);
     const [allCompleted, setAllCompleted] = useState(false);
+    const [timeSettings, setTimeSettings] = useState(null);
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+    const [timerStatus, setTimerStatus] = useState('Checking...'); // 'Opening In', 'Closing In', 'Closed'
 
     // Prefilled/Form Data
     const [formData, setFormData] = useState({
@@ -66,31 +70,91 @@ function ApplicationFormDashboard() {
 
     const fetchStatusAndPrefill = async () => {
         try {
-            // 1. Check Application Status
-            const status = await formProcessingService.getApplicationStatus();
-            setIsApplicationOpen(status.isOpen);
-            setAppStatusMessage(status.message);
+            // 1. Fetch Time Settings & Title
+            const timeRes = await timeSettingsService.getSettings();
+            let currentSettings = null;
+            if (timeRes.success && timeRes.data) {
+                currentSettings = timeRes.data;
+                setTimeSettings(currentSettings);
+            }
 
-            if (status.isOpen) {
-                // 2. Load Prefill Data
-                const prefillData = await formProcessingService.getPrefillData();
-                setFormData(prev => ({
-                    ...prev,
-                    ...prefillData.prefill,
-                    photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
-                }));
-                setPhotoExists(prefillData.photoExists);
-                const roles = prefillData.filledRoles || [];
-                setFilledRoles(roles);
-                if (roles.length >= 3) {
-                    setAllCompleted(true);
+            // 2. Load Prefill Data
+            const prefillData = await formProcessingService.getPrefillData();
+            setFormData(prev => ({
+                ...prev,
+                ...prefillData.prefill,
+                photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
+            }));
+            setPhotoExists(prefillData.photoExists);
+            const roles = prefillData.filledRoles || [];
+            setFilledRoles(roles);
+            if (roles.length >= 3) {
+                setAllCompleted(true);
+            }
+
+            // 3. Determine Application Access based on Time Settings
+            if (currentSettings && currentSettings.start_date) {
+                const now = new Date();
+                const startDate = new Date(`${currentSettings.start_date}T${currentSettings.start_time}`);
+                const endDate = new Date(`${currentSettings.end_date}T${currentSettings.end_time}`);
+
+                if (now < startDate) {
+                    setIsApplicationOpen(false);
+                    setAppStatusMessage('The Application Form has not yet opened.');
+                } else if (now > endDate) {
+                    setIsApplicationOpen(false);
+                    setAppStatusMessage('The Application window is now closed.');
+                } else {
+                    setIsApplicationOpen(true);
                 }
+            } else {
+                setIsApplicationOpen(false);
+                setAppStatusMessage('The Form has not yet opened. (Settings missing)');
             }
         } catch (err) {
             console.error('Initialization error:', err);
             toast({ title: 'System Error', description: 'Failed to initialize form. Please try again later.', status: 'error', duration: 5000 });
         }
     };
+
+    useEffect(() => {
+        const calculateTimeLeft = () => {
+            if (!timeSettings) return;
+
+            const now = new Date();
+            const startDate = new Date(`${timeSettings.start_date}T${timeSettings.start_time}`);
+            const endDate = new Date(`${timeSettings.end_date}T${timeSettings.end_time}`);
+
+            let targetDate = null;
+            if (now < startDate) {
+                setTimerStatus('Opening In');
+                targetDate = startDate;
+            } else if (now <= endDate) {
+                setTimerStatus('Closing In');
+                targetDate = endDate;
+            } else {
+                setTimerStatus('Closed');
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+                return;
+            }
+
+            const difference = targetDate - now;
+            if (difference > 0) {
+                setTimeLeft({
+                    days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+                    hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+                    minutes: Math.floor((difference / 1000 / 60) % 60),
+                    seconds: Math.floor((difference / 1000) % 60)
+                });
+            } else {
+                setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+            }
+        };
+
+        const timer = setInterval(calculateTimeLeft, 1000);
+        calculateTimeLeft(); // initial call
+        return () => clearInterval(timer);
+    }, [timeSettings]);
 
     useEffect(() => {
         const initForm = async () => {
@@ -227,8 +291,31 @@ function ApplicationFormDashboard() {
     );
 
     return (
-        <Box p={{ base: 4, md: 8 }} bg={bgColor} minH="100vh">
-            <PageHeader title="Trailblazer Awards 2026" description="Flame University's Most Prestigious Honors" />
+        <Box p={{ base: 4, md: 8 }} bg={bgColor} minH="100vh" position="relative">
+            {/* Real-time Countdown UI */}
+            <Box
+                position="absolute"
+                top={{ base: 2, md: 6 }}
+                right={{ base: 4, md: 8 }}
+                zIndex={10}
+            >
+                <HStack spacing={3} bg={useColorModeValue('white', 'gray.700')} p={3} borderRadius="2xl" boxShadow="md" border="1px solid" borderColor={boxBorderColor}>
+                    <VStack spacing={0} align="end">
+                        <Text fontSize="xs" fontWeight="bold" color="blue.500" textTransform="uppercase">{timerStatus}</Text>
+                        <HStack spacing={1} fontWeight="black" fontSize="lg" color={textColor}>
+                            <Text>{String(timeLeft.days).padStart(2, '0')}d</Text>
+                            <Text>:</Text>
+                            <Text>{String(timeLeft.hours).padStart(2, '0')}h</Text>
+                            <Text>:</Text>
+                            <Text>{String(timeLeft.minutes).padStart(2, '0')}m</Text>
+                            <Text>:</Text>
+                            <Text color="blue.500">{String(timeLeft.seconds).padStart(2, '0')}s</Text>
+                        </HStack>
+                    </VStack>
+                </HStack>
+            </Box>
+
+            <PageHeader title={timeSettings?.title || "Trailblazer Awards"} description="Flame University's Most Prestigious Honors" />
 
             <AnimatePresence mode="wait">
                 {!agreedToInstructions ? (

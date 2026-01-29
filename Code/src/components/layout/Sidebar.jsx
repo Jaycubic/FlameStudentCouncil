@@ -1,4 +1,4 @@
-/* eslint-disable react/prop-types */
+// src/components/layout/Sidebar.jsx
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -201,6 +201,7 @@ function Sidebar() {
 
   const mainNavigation = allNavigation.filter(item => item.roles.includes(user?.role))
   const secondaryNavigation = [
+    { name: 'Time & Title', href: '/time-management', icon: CalendarIcon, roles: ['admin'] },
     { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
     { name: 'Logout', href: '#', icon: ArrowLeftOnRectangleIcon, onClick: () => { authService.logout(); navigate('/login') }, roles: ['admin', 'RC', 'user'] },
   ].filter(item => item.roles.includes(user?.role))
