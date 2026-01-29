@@ -31,6 +31,9 @@ function ApplicationFormDashboard() {
     const bgColor = useColorModeValue('white', 'gray.800');
     const panelBg = useColorModeValue('gray.50', 'gray.700');
     const boxBorderColor = useColorModeValue('blue.200', 'blue.500');
+    const textColor = useColorModeValue('gray.800', 'white');
+    const secondaryTextColor = useColorModeValue('gray.600', 'gray.300');
+    const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
 
     // State management
     const [loading, setLoading] = useState(true);
@@ -196,7 +199,7 @@ function ApplicationFormDashboard() {
                 <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" borderRadius="2xl" p={12} boxShadow="xl">
                     <AlertIcon boxSize="50px" mr={0} />
                     <Text mt={6} mb={2} fontSize="3xl" fontWeight="bold">{appStatusMessage || 'APPLICATION PERIOD HAS ENDED'}</Text>
-                    <Text fontSize="lg" color="gray.600">The application window is currently closed. Please check back later.</Text>
+                    <Text fontSize="lg" color={secondaryTextColor}>The application window is currently closed. Please check back later.</Text>
                     <Button mt={8} size="lg" colorScheme="blue" variant="outline" onClick={() => authService.logout()}>Logout</Button>
                 </Alert>
             </MotionBox>
@@ -225,7 +228,7 @@ function ApplicationFormDashboard() {
 
     return (
         <Box p={{ base: 4, md: 8 }} bg={bgColor} minH="100vh">
-            <PageHeader title="Trailblazer Awards 2024" description="Flame University's Most Prestigious Honors" />
+            <PageHeader title="Trailblazer Awards 2026" description="Flame University's Most Prestigious Honors" />
 
             <AnimatePresence mode="wait">
                 {!agreedToInstructions ? (
@@ -261,7 +264,7 @@ function ApplicationFormDashboard() {
                     <MotionVStack key="role-selection" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} spacing={12} mt={12}>
                         <VStack spacing={2}>
                             <Text fontSize="3xl" fontWeight="black" textAlign="center">Identify Your Application Path</Text>
-                            <Text fontSize="lg" color="gray.500" textAlign="center">Select the primary award category you are applying for</Text>
+                            <Text fontSize="lg" color={mutedTextColor} textAlign="center">Select the primary award category you are applying for</Text>
                         </VStack>
                         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full" maxW="1000px">
                             <RoleCard
@@ -309,12 +312,12 @@ function ApplicationFormDashboard() {
                                     )}
                                 </Box>
                                 <VStack align="start" spacing={1} flex="1">
-                                    <Text fontSize="3xl" fontWeight="black" color="gray.800">{formData.name || 'Student Name'}</Text>
-                                    <HStack spacing={3} color="gray.600" fontSize="lg">
+                                    <Text fontSize="3xl" fontWeight="black" color={textColor}>{formData.name || 'Student Name'}</Text>
+                                    <HStack spacing={3} color={secondaryTextColor} fontSize="lg">
                                         <Icon as={FaUser} />
-                                        <Text>{formData.student_id || 'ID'} | {formData.batch || 'Batch'}</Text>
+                                        <Text>{formData.gender || 'Gender'} | {formData.student_id || 'ID'} | {formData.batch || 'Batch'}</Text>
                                     </HStack>
-                                    <Text color="gray.500">{formData.email} • {formData.mobile_number}</Text>
+                                    <Text color={mutedTextColor}>{formData.email} • {formData.mobile_number}</Text>
                                 </VStack>
                                 <Image src={flameLogo} alt="FLAME Logo" h="60px" opacity={0.6} display={{ base: 'none', sm: 'block' }} />
                             </HStack>
@@ -470,8 +473,8 @@ const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
         >
             <Icon as={icon} boxSize={12} color={disabled ? 'gray.400' : c.icon} />
             <VStack spacing={1}>
-                <Text fontWeight="black" fontSize="xl">{title}</Text>
-                <Text fontSize="sm" color="gray.500">{description}</Text>
+                <Text fontWeight="black" fontSize="xl" color={useColorModeValue('gray.800', 'white')}>{title}</Text>
+                <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')}>{description}</Text>
             </VStack>
             {disabled && (
                 <Badge position="absolute" top={4} right={4} colorScheme="green" variant="solid">Submitted</Badge>
@@ -480,13 +483,19 @@ const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
     );
 };
 
-const Section = ({ title, children }) => (
-    <Box>
-        <Text fontSize="xl" fontWeight="black" mb={4} color="gray.700" px={2}>{title}</Text>
-        <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg="white" borderWidth="1px" borderColor="gray.100" boxShadow="sm">
-            {children}
+const Section = ({ title, children }) => {
+    const textColor = useColorModeValue('gray.700', 'whiteAlpha.900');
+    const sectionBg = useColorModeValue('white', 'gray.800');
+    const borderColor = useColorModeValue('gray.100', 'gray.700');
+
+    return (
+        <Box>
+            <Text fontSize="xl" fontWeight="black" mb={4} color={textColor} px={2}>{title}</Text>
+            <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg={sectionBg} borderWidth="1px" borderColor={borderColor} boxShadow="sm">
+                {children}
+            </Box>
         </Box>
-    </Box>
-);
+    );
+};
 
 export default ApplicationFormDashboard;
