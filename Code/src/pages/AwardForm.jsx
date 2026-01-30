@@ -7,7 +7,7 @@ import {
     Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton,
     ModalBody, ModalFooter, useToast, SimpleGrid, Alert, AlertIcon,
     CircularProgress, List, ListItem, Menu, MenuButton, MenuList, MenuItem,
-    Container, ScaleFade, Fade, Divider, Badge
+    Container, ScaleFade, Fade, Divider, Badge, FormHelperText
 } from '@chakra-ui/react';
 import { ChevronDownIcon, ArrowForwardIcon, CheckIcon as ChakraCheckIcon } from '@chakra-ui/icons';
 import { FaMale, FaFemale, FaUser, FaCamera, FaTrophy, FaMusic, FaGraduationCap, FaChevronLeft } from 'react-icons/fa';

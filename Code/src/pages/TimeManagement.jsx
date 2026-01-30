@@ -238,6 +238,81 @@ function TimeManagement() {
                                     </SimpleGrid>
                                 </Box>
 
+                                <Divider />
+
+                                <Box>
+                                    <HStack mb={4}>
+                                        <Icon as={DocumentTextIcon} boxSize={5} color="purple.500" />
+                                        <Text fontSize="lg" fontWeight="bold">Master Sheet Management</Text>
+                                    </HStack>
+                                    <Text fontSize="sm" color={textColor} mb={4}>
+                                        Manage the core spreadsheet templates. Updates here will reflect for all new student sheets.
+                                        First edit the Master Sheet in Google Drive, then click "Update Local Template" to apply changes.
+                                    </Text>
+
+                                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                                        {/* Sports Section */}
+                                        <Card variant="outline" borderColor={borderColor}>
+                                            <CardBody>
+                                                <VStack align="stretch" spacing={3}>
+                                                    <Text fontWeight="bold">Sports Master Sheet</Text>
+                                                    <Button
+                                                        as="a"
+                                                        href="https://docs.google.com/spreadsheets/d/1QtdNCK8ENMU_ybRvY9g8IXX4MdClQ3-nvsBwArelSRQ"
+                                                        target="_blank"
+                                                        size="sm"
+                                                        variant="link"
+                                                        colorScheme="blue"
+                                                        leftIcon={<Icon as={ArrowTopRightOnSquareIcon} />}
+                                                    >
+                                                        Edit Master Sheet (Drive)
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => handleUpdateTemplate('sports')}
+                                                        isLoading={updatingTemplate.sports}
+                                                        loadingText="Downloading..."
+                                                        colorScheme="green"
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        Update Local Template
+                                                    </Button>
+                                                </VStack>
+                                            </CardBody>
+                                        </Card>
+
+                                        {/* Cultural Section */}
+                                        <Card variant="outline" borderColor={borderColor}>
+                                            <CardBody>
+                                                <VStack align="stretch" spacing={3}>
+                                                    <Text fontWeight="bold">Cultural Master Sheet</Text>
+                                                    <Button
+                                                        as="a"
+                                                        href="https://docs.google.com/spreadsheets/d/1W5c-6KTh5KxZUZktriJdsHCeLwzGjmHu"
+                                                        target="_blank"
+                                                        size="sm"
+                                                        variant="link"
+                                                        colorScheme="blue"
+                                                        leftIcon={<Icon as={ArrowTopRightOnSquareIcon} />}
+                                                    >
+                                                        Edit Master Sheet (Drive)
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => handleUpdateTemplate('cultural')}
+                                                        isLoading={updatingTemplate.cultural}
+                                                        loadingText="Downloading..."
+                                                        colorScheme="pink"
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        Update Local Template
+                                                    </Button>
+                                                </VStack>
+                                            </CardBody>
+                                        </Card>
+                                    </SimpleGrid>
+                                </Box>
+
                                 <Button
                                     type="submit"
                                     size="xl"
