@@ -21,12 +21,13 @@ import {
 import { useState, useEffect } from 'react'
 import PageHeader from '../components/layout/PageHeader'
 import { timeSettingsService } from '../services/timeSettingsService'
-import { ClockIcon, CalendarIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { ClockIcon, CalendarIcon, PencilIcon, DocumentTextIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 
 function TimeManagement() {
     const toast = useToast()
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
+    const [updatingTemplate, setUpdatingTemplate] = useState({ cultural: false, sports: false })
     const [formData, setFormData] = useState({
         title: '',
         start_date: '',
@@ -100,6 +101,42 @@ function TimeManagement() {
             })
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleUpdateTemplate = async (type) => {
+        setUpdatingTemplate(prev => ({ ...prev, [type]: true }))
+        try {
+            const token = localStorage.getItem('token') // Assuming token is stored here
+            // Direct fetch call since timeSettingsService doesn't have this method yet
+            const response = await fetch(`https://flameawards.in:8082/api/sheets/update-template/${type}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                toast({
+                    title: 'Template Updated',
+                    description: `${type.charAt(0).toUpperCase() + type.slice(1)} template has been refreshed from Master Sheet.`,
+                    status: 'success',
+                    duration: 3000,
+                })
+            } else {
+                throw new Error(result.message)
+            }
+        } catch (error) {
+            toast({
+                title: 'Update Failed',
+                description: error.message || 'Failed to update template.',
+                status: 'error',
+                duration: 4000,
+            })
+        } finally {
+            setUpdatingTemplate(prev => ({ ...prev, [type]: false }))
         }
     }
 

@@ -79,6 +79,7 @@ app.use('/legal-documents', legalRoutes);
 app.use('/api/form-submissions', formSubmissionRoutes);
 app.use('/api/form-processing', formProcessingRoutes);
 app.use('/api/time-settings', require('./routes/timeSettingsRoutes.js'));
+app.use('/api/sheets', require('./routes/sheetRoutes.js'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

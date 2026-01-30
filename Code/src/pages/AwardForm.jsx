@@ -1,3 +1,4 @@
+// src/pages/AwardForm.jsx
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -65,6 +66,7 @@ function ApplicationFormDashboard() {
     const [sportFiles, setSportFiles] = useState([]);
     const [culturalFiles, setCulturalFiles] = useState([]);
     const [academicFiles, setAcademicFiles] = useState([]);
+    const [generatingSheet, setGeneratingSheet] = useState(false);
 
     const [photoExists, setPhotoExists] = useState(false);
 
@@ -224,6 +226,35 @@ function ApplicationFormDashboard() {
             toast({ title: 'Error', description: err.message, status: 'error' });
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleGenerateSheet = async (type) => {
+        setGeneratingSheet(true);
+        try {
+            // Ensure auth service handles the request headers properly
+            const token = authService.getToken();
+            const response = await fetch(`https://flameawards.in:8082/api/sheets/${type}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.url) {
+                window.open(result.url, '_blank');
+                toast({ title: 'Success', description: 'Spreadsheet opened in a new tab.', status: 'success' });
+            } else {
+                throw new Error(result.message || 'Failed to generate sheet');
+            }
+        } catch (error) {
+            console.error('Sheet generation error:', error);
+            toast({ title: 'Error', description: error.message, status: 'error' });
+        } finally {
+            setGeneratingSheet(false);
         }
     };
 
@@ -427,8 +458,22 @@ function ApplicationFormDashboard() {
                                         </FormControl>
                                         <FormControl isRequired>
                                             <FormLabel fontWeight="bold">Sports Evidence (Certificates/Photos)</FormLabel>
-                                            <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setSportFiles(Array.from(e.target.files))} />
-                                            <Text fontSize="xs" mt={1} color="gray.500">Upload all relevant proof of athletic achievements.</Text>
+                                            <VStack align="start" spacing={3}>
+                                                <Text fontSize="sm" color={mutedTextColor}>Please update your achievements in the standardized spreadsheet first.</Text>
+                                                <Button
+                                                    leftIcon={<Icon as={FaTrophy} />}
+                                                    colorScheme="green"
+                                                    variant="solid"
+                                                    size="sm"
+                                                    isLoading={generatingSheet}
+                                                    loadingText="Opening Sheet..."
+                                                    onClick={() => handleGenerateSheet('sports')}
+                                                >
+                                                    Open/Generate Sports Sheet
+                                                </Button>
+                                                <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setSportFiles(Array.from(e.target.files))} />
+                                            </VStack>
+                                            <FormHelperText>Upload the supporting documents referenced in your spreadsheet.</FormHelperText>
                                         </FormControl>
                                     </VStack>
                                 </Section>
@@ -449,9 +494,23 @@ function ApplicationFormDashboard() {
                                             </HStack>
                                         </FormControl>
                                         <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Cultural Evidence (Proof/Media)</FormLabel>
-                                            <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setCulturalFiles(Array.from(e.target.files))} />
-                                            <Text fontSize="xs" mt={1} color="gray.500">Upload certificates or media reflecting your artistic excellence.</Text>
+                                            <FormLabel fontWeight="bold">Cultural Evidence</FormLabel>
+                                            <VStack align="start" spacing={3}>
+                                                <Text fontSize="sm" color={mutedTextColor}>Please update your achievements in the standardized spreadsheet first.</Text>
+                                                <Button
+                                                    leftIcon={<Icon as={FaMusic} />}
+                                                    colorScheme="pink"
+                                                    variant="solid"
+                                                    size="sm"
+                                                    isLoading={generatingSheet}
+                                                    loadingText="Opening Sheet..."
+                                                    onClick={() => handleGenerateSheet('cultural')}
+                                                >
+                                                    Open/Generate Cultural Sheet
+                                                </Button>
+                                                <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setCulturalFiles(Array.from(e.target.files))} />
+                                            </VStack>
+                                            <FormHelperText>Upload photos or event brochures.</FormHelperText>
                                         </FormControl>
                                     </VStack>
                                 </Section>

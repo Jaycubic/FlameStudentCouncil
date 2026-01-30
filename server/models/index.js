@@ -23,6 +23,8 @@ const SportsPersonAward = require('./SportsPersonAward');
 const CulturalPersonAward = require('./CulturalPersonAward');
 const EmployeeStudentMaster = require('./EmployeeStudentMaster');
 const WellbeingDeclaration = require('./WellbeingDeclaration');
+const CulturalUserSheet = require('./CulturalUserSheet');
+const SportsUserSheet = require('./SportsUserSheet');
 
 const models = {
   Organization,
@@ -48,7 +50,9 @@ const models = {
   SportsPersonAward,
   CulturalPersonAward,
   EmployeeStudentMaster,
-  WellbeingDeclaration
+  WellbeingDeclaration,
+  CulturalUserSheet,
+  SportsUserSheet
 };
 
 Object.values(models).forEach(model => {
