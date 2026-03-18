@@ -22,7 +22,7 @@ function setupSocket(server) {
   // Initialize Socket.IO and store it in module scope
   const io = socketIo(server, {
     cors: {
-      origin: "https://flameawards.in:8081",
+      origin: "https://flameawards.in",
       methods: ["GET", "POST"],
     },
   });

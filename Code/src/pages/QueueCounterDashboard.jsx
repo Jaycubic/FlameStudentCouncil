@@ -97,7 +97,7 @@ function ReportDayDashboard() {
   }, [reportedCurrentPage, filters.department]);
 
   useEffect(() => {
-    const socket = io('https://flameawards.in:8082', {
+    const socket = io('https://flameawards.in', {
       withCredentials: true,
       query: { token: localStorage.getItem('token') },
     });

@@ -158,14 +158,14 @@ function StudentInfoTable() {
   // Handle PDF preview/download
   const handlePreviewPDF = () => {
     if (pdfPath) {
-      window.open(`https://flameawards.in:8082${pdfPath}`, '_blank');
+      window.open(`${pdfPath}`, '_blank');
     }
   };
 
   const handleDownloadPDF = () => {
     if (pdfPath) {
       const link = document.createElement('a');
-      link.href = `https://flameawards.in:8082${pdfPath}`;
+      link.href = `${pdfPath}`;
       link.download = 'student_ids.pdf';
       link.click();
     }

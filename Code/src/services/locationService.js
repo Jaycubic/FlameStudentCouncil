@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { load } from '@fingerprintjs/fingerprintjs';
 
-const API_URL = 'https://flameawards.in:8082/api/locations';
+const API_URL = '/api/locations';
 
 class LocationService {
   async getDeviceId() {

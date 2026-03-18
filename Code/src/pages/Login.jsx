@@ -271,7 +271,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flameawards.in:8082/api/auth/forgot-password', {
+      const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -295,7 +295,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flameawards.in:8082/api/auth/verify-reset-code', {
+      const response = await fetch('/api/auth/verify-reset-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -322,7 +322,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flameawards.in:8082/api/auth/verify-reset-2fa', {
+      const response = await fetch('/api/auth/verify-reset-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: resetUserId, code: twoFACode }),
@@ -345,7 +345,7 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const response = await fetch('https://flameawards.in:8082/api/auth/reset-password', {
+      const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resetToken, newPassword }),

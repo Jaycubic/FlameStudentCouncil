@@ -55,7 +55,7 @@ const io = setupSocket(server);
 
 // Middleware
 app.use(cors({
-  origin: 'https://flameawards.in:8081',
+  origin: 'https://flameawards.in',
   credentials: true
 }));
 app.use(express.json());

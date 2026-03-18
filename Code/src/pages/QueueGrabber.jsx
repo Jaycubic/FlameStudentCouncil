@@ -29,7 +29,7 @@ import { FaClock, FaUserPlus, FaCalendarCheck, FaCheckCircle, FaHandPaper, FaSto
 import { queueDashboardService } from '../services/QueueDashboardService';
 import { emitGrabGesture } from '../services/Gesture';
 
-const socket = io('https://flameawards.in:8082');
+const socket = io('https://flameawards.in');
 
 function QueueGrabber() {
   const [waitingQueues, setWaitingQueues] = useState([]);

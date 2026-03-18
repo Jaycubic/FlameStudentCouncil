@@ -85,7 +85,7 @@ function ApplicationFormDashboard() {
             setFormData(prev => ({
                 ...prev,
                 ...prefillData.prefill,
-                photoUrl: prefillData.prefill.photo ? `https://flameawards.in:8082/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
+                photoUrl: prefillData.prefill.photo ? `/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
             }));
             setPhotoExists(prefillData.photoExists);
             const roles = prefillData.filledRoles || [];
@@ -234,7 +234,7 @@ function ApplicationFormDashboard() {
         try {
             // Ensure auth service handles the request headers properly
             const token = authService.getToken();
-            const response = await fetch(`https://flameawards.in:8082/api/sheets/${type}`, {
+            const response = await fetch(`/api/sheets/${type}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

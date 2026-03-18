@@ -647,7 +647,7 @@ const authController = {
         sameSite: 'lax',
         maxAge: (exp * 1000 - Date.now())
       });
-      const frontendUrl = process.env.FRONTEND_URL || 'https://flameawards.in:8081';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://flameawards.in';
       const userData = encodeURIComponent(JSON.stringify({
         id: user.id,
         username: user.username,

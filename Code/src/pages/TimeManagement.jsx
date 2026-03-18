@@ -109,7 +109,7 @@ function TimeManagement() {
         try {
             const token = localStorage.getItem('token') // Assuming token is stored here
             // Direct fetch call since timeSettingsService doesn't have this method yet
-            const response = await fetch(`https://flameawards.in:8082/api/sheets/update-template/${type}`, {
+            const response = await fetch(`/api/sheets/update-template/${type}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

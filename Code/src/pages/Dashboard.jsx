@@ -99,7 +99,7 @@ function Dashboard() {
   }, [user, navigate]);
 
   useEffect(() => {
-    const socket = io("https://flameawards.in:8082");
+    const socket = io("https://flameawards.in");
     socket.on("connect", () => {
       console.log("Connected to Socket.IO server:", socket.id);
       socket.emit("requestData");

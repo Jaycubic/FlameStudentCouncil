@@ -16,7 +16,7 @@ class FormSubmissionService {
   async create(formData) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('https://flameawards.in:8082/api/form-submissions', {
+      const response = await fetch('/api/form-submissions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,7 +38,7 @@ class FormSubmissionService {
 
   async submit(formData) {
     try {
-      const response = await fetch('https://flameawards.in:8082/api/form-submissions/submit', {
+      const response = await fetch('/api/form-submissions/submit', {
         method: 'POST',
         body: formData, // No Content-Type header needed for FormData
         credentials: 'include'

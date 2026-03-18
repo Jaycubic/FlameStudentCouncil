@@ -7,7 +7,7 @@ const helmet = require('helmet');
 
 const app = express();
 
-const REMOTE_PHOTO_BASE = 'https://flameawards.in:8082/photos';
+const REMOTE_PHOTO_BASE = 'https://flameawards.in/api/photos';
 
 // ---- SECURITY / CSP ----
 app.use(

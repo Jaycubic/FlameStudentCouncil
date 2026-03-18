@@ -30,7 +30,7 @@ import {
 import { FaClock, FaUserPlus, FaCalendarCheck, FaTrash } from 'react-icons/fa';
 import { queueDashboardService } from '../services/QueueDashboardService';
 
-const socket = io('https://flameawards.in:8082');
+const socket = io('https://flameawards.in');
 
 function QueueDashboard() {
   const [waitingQueues, setWaitingQueues] = useState([]);
@@ -40,7 +40,7 @@ function QueueDashboard() {
   const [fontSize, setFontSize] = useState('md');
   const toast = useToast();
   const audio = useMemo(
-    () => new Audio('https://flameawards.in:8082/api/queue-dashboard/sounds/ding-dong.wav'),
+    () => new Audio('/api/queue-dashboard/sounds/ding-dong.wav'),
     []
   );
   const prevActiveQueuesRef = useRef([]);
