@@ -10,7 +10,7 @@ import {
     Container, ScaleFade, Fade, Divider, Badge, FormHelperText
 } from '@chakra-ui/react';
 import { ChevronDownIcon, ArrowForwardIcon, CheckIcon as ChakraCheckIcon } from '@chakra-ui/icons';
-import { FaMale, FaFemale, FaUser, FaCamera, FaTrophy, FaMusic, FaGraduationCap, FaChevronLeft } from 'react-icons/fa';
+import { FaMale, FaFemale, FaUser, FaCamera, FaTrophy, FaMusic, FaGraduationCap, FaChevronLeft, FaFilePdf, FaPlus, FaTimes } from 'react-icons/fa';
 import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
 import { formProcessingService } from '../services/formProcessingService';
@@ -67,6 +67,8 @@ function ApplicationFormDashboard() {
     const [culturalFiles, setCulturalFiles] = useState([]);
     const [academicFiles, setAcademicFiles] = useState([]);
     const [generatingSheet, setGeneratingSheet] = useState(false);
+    const sportFileRef = useRef(null);
+    const culturalFileRef = useRef(null);
 
     const [photoExists, setPhotoExists] = useState(false);
 
@@ -485,30 +487,69 @@ function ApplicationFormDashboard() {
                             {/* Sport Section */}
                             {(selectedRole === 'trailblazer' || selectedRole === 'sports_person') && (
                                 <Section title="Sports & Athletics Achievements">
-                                    <VStack spacing={6} align="stretch">
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Sports Raw Score</FormLabel>
-                                            <Input placeholder="Enter raw score" value={formData.sportsRawScore} onChange={(e) => setFormData({ ...formData, sportsRawScore: e.target.value, sportsScore: calculateScore(e.target.value) })} />
-                                        </FormControl>
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Sports Evidence (Certificates/Photos)</FormLabel>
-                                            <VStack align="start" spacing={3}>
-                                                <Text fontSize="sm" color={mutedTextColor}>Please update your achievements in the standardized spreadsheet first.</Text>
+                                    <VStack spacing={0} align="stretch">
+                                        {/* Step 1: Open Sheet */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="blue.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">1</Box>
+                                                <Box w="2px" h="40px" bg="blue.200" />
+                                            </VStack>
+                                            <VStack align="start" spacing={2} pb={4} flex="1">
+                                                <Text fontWeight="bold" fontSize="sm">Open your Score Sheet</Text>
+                                                <Text fontSize="xs" color={mutedTextColor}>Fill in your achievements in the standardized spreadsheet, then note your total raw score.</Text>
                                                 <Button
                                                     leftIcon={<Icon as={FaTrophy} />}
-                                                    colorScheme="green"
+                                                    colorScheme="blue"
                                                     variant="solid"
                                                     size="sm"
                                                     isLoading={generatingSheet}
-                                                    loadingText="Opening Sheet..."
+                                                    loadingText="Opening..."
                                                     onClick={() => handleGenerateSheet('sports')}
                                                 >
-                                                    Open/Generate Sports Sheet
+                                                    Open Sports Score Sheet
                                                 </Button>
-                                                <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setSportFiles(Array.from(e.target.files))} />
                                             </VStack>
-                                            <FormHelperText>Upload the supporting documents referenced in your spreadsheet.</FormHelperText>
-                                        </FormControl>
+                                        </HStack>
+                                        {/* Step 2: Enter Raw Score */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="blue.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">2</Box>
+                                                <Box w="2px" h="40px" bg="blue.200" />
+                                            </VStack>
+                                            <VStack align="start" spacing={2} pb={4} flex="1">
+                                                <FormControl isRequired>
+                                                    <FormLabel fontWeight="bold" fontSize="sm" mb={1}>Enter your total Raw Score</FormLabel>
+                                                    <Input placeholder="e.g. 85" value={formData.sportsRawScore} onChange={(e) => setFormData({ ...formData, sportsRawScore: e.target.value, sportsScore: calculateScore(e.target.value) })} size="sm" />
+                                                </FormControl>
+                                            </VStack>
+                                        </HStack>
+                                        {/* Step 3: Upload Evidence */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="blue.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">3</Box>
+                                            </VStack>
+                                            <VStack align="start" spacing={3} flex="1">
+                                                <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
+                                                <Input ref={sportFileRef} type="file" accept=".pdf" display="none" onChange={(e) => { if (e.target.files.length > 0) { setSportFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
+                                                <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="blue" onClick={() => sportFileRef.current?.click()}>Add PDF Files</Button>
+                                                {sportFiles.length > 0 && (
+                                                    <VStack align="stretch" spacing={2} w="full">
+                                                        {sportFiles.map((file, i) => (
+                                                            <HStack key={i} p={2} bg="blue.50" borderRadius="lg" border="1px solid" borderColor="blue.100" justify="space-between">
+                                                                <HStack spacing={2} overflow="hidden">
+                                                                    <Icon as={FaFilePdf} color="red.400" flexShrink={0} />
+                                                                    <Text fontSize="xs" fontWeight="medium" isTruncated>{file.name}</Text>
+                                                                    <Text fontSize="2xs" color={mutedTextColor} flexShrink={0}>({(file.size / 1024).toFixed(0)} KB)</Text>
+                                                                </HStack>
+                                                                <Box as="button" onClick={() => setSportFiles(prev => prev.filter((_, idx) => idx !== i))} p={1} borderRadius="md" _hover={{ bg: 'red.100' }}>
+                                                                    <Icon as={FaTimes} color="red.400" boxSize={3} />
+                                                                </Box>
+                                                            </HStack>
+                                                        ))}
+                                                    </VStack>
+                                                )}
+                                            </VStack>
+                                        </HStack>
                                     </VStack>
                                 </Section>
                             )}
@@ -516,30 +557,69 @@ function ApplicationFormDashboard() {
                             {/* Cultural Section */}
                             {(selectedRole === 'trailblazer' || selectedRole === 'cultural_person') && (
                                 <Section title="Cultural & Arts Excellence">
-                                    <VStack spacing={6} align="stretch">
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Cultural Raw Score</FormLabel>
-                                            <Input placeholder="Enter raw score" value={formData.culturalRawScore} onChange={(e) => setFormData({ ...formData, culturalRawScore: e.target.value, culturalScore: calculateScore(e.target.value) })} />
-                                        </FormControl>
-                                        <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Cultural Evidence</FormLabel>
-                                            <VStack align="start" spacing={3}>
-                                                <Text fontSize="sm" color={mutedTextColor}>Please update your achievements in the standardized spreadsheet first.</Text>
+                                    <VStack spacing={0} align="stretch">
+                                        {/* Step 1: Open Sheet */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="pink.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">1</Box>
+                                                <Box w="2px" h="40px" bg="pink.200" />
+                                            </VStack>
+                                            <VStack align="start" spacing={2} pb={4} flex="1">
+                                                <Text fontWeight="bold" fontSize="sm">Open your Score Sheet</Text>
+                                                <Text fontSize="xs" color={mutedTextColor}>Fill in your achievements in the standardized spreadsheet, then note your total raw score.</Text>
                                                 <Button
                                                     leftIcon={<Icon as={FaMusic} />}
                                                     colorScheme="pink"
                                                     variant="solid"
                                                     size="sm"
                                                     isLoading={generatingSheet}
-                                                    loadingText="Opening Sheet..."
+                                                    loadingText="Opening..."
                                                     onClick={() => handleGenerateSheet('cultural')}
                                                 >
-                                                    Open/Generate Cultural Sheet
+                                                    Open Cultural Score Sheet
                                                 </Button>
-                                                <Input type="file" multiple p={1} h="auto" borderStyle="dashed" onChange={(e) => setCulturalFiles(Array.from(e.target.files))} />
                                             </VStack>
-                                            <FormHelperText>Upload photos or event brochures.</FormHelperText>
-                                        </FormControl>
+                                        </HStack>
+                                        {/* Step 2: Enter Raw Score */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="pink.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">2</Box>
+                                                <Box w="2px" h="40px" bg="pink.200" />
+                                            </VStack>
+                                            <VStack align="start" spacing={2} pb={4} flex="1">
+                                                <FormControl isRequired>
+                                                    <FormLabel fontWeight="bold" fontSize="sm" mb={1}>Enter your total Raw Score</FormLabel>
+                                                    <Input placeholder="e.g. 72" value={formData.culturalRawScore} onChange={(e) => setFormData({ ...formData, culturalRawScore: e.target.value, culturalScore: calculateScore(e.target.value) })} size="sm" />
+                                                </FormControl>
+                                            </VStack>
+                                        </HStack>
+                                        {/* Step 3: Upload Evidence */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="pink.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">3</Box>
+                                            </VStack>
+                                            <VStack align="start" spacing={3} flex="1">
+                                                <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
+                                                <Input ref={culturalFileRef} type="file" accept=".pdf" display="none" onChange={(e) => { if (e.target.files.length > 0) { setCulturalFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
+                                                <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="pink" onClick={() => culturalFileRef.current?.click()}>Add PDF Files</Button>
+                                                {culturalFiles.length > 0 && (
+                                                    <VStack align="stretch" spacing={2} w="full">
+                                                        {culturalFiles.map((file, i) => (
+                                                            <HStack key={i} p={2} bg="pink.50" borderRadius="lg" border="1px solid" borderColor="pink.100" justify="space-between">
+                                                                <HStack spacing={2} overflow="hidden">
+                                                                    <Icon as={FaFilePdf} color="red.400" flexShrink={0} />
+                                                                    <Text fontSize="xs" fontWeight="medium" isTruncated>{file.name}</Text>
+                                                                    <Text fontSize="2xs" color={mutedTextColor} flexShrink={0}>({(file.size / 1024).toFixed(0)} KB)</Text>
+                                                                </HStack>
+                                                                <Box as="button" onClick={() => setCulturalFiles(prev => prev.filter((_, idx) => idx !== i))} p={1} borderRadius="md" _hover={{ bg: 'red.100' }}>
+                                                                    <Icon as={FaTimes} color="red.400" boxSize={3} />
+                                                                </Box>
+                                                            </HStack>
+                                                        ))}
+                                                    </VStack>
+                                                )}
+                                            </VStack>
+                                        </HStack>
                                     </VStack>
                                 </Section>
                             )}
