@@ -82,10 +82,13 @@ function ApplicationFormDashboard() {
 
             // 2. Load Prefill Data
             const prefillData = await formProcessingService.getPrefillData();
+            const sid = prefillData.prefill.student_id;
             setFormData(prev => ({
                 ...prev,
                 ...prefillData.prefill,
-                photoUrl: prefillData.prefill.photo ? `/photos/${prefillData.prefill.photo}` : defaultProfilePhoto
+                photoUrl: prefillData.photoExists && sid
+                    ? `/photos/${sid}?t=${Date.now()}`
+                    : defaultProfilePhoto
             }));
             setPhotoExists(prefillData.photoExists);
             const roles = prefillData.filledRoles || [];
@@ -94,7 +97,15 @@ function ApplicationFormDashboard() {
                 setAllCompleted(true);
             }
 
-            // 3. Determine Application Access based on Time Settings
+            // 3. Restore saved form state from localStorage
+            const savedAgreed = localStorage.getItem('awardForm_agreed');
+            const savedRole = localStorage.getItem('awardForm_role');
+            if (savedAgreed === 'true') setAgreedToInstructions(true);
+            if (savedRole && !roles.includes(savedRole.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()))) {
+                setSelectedRole(savedRole);
+            }
+
+            // 4. Determine Application Access based on Time Settings
             if (currentSettings && currentSettings.start_date) {
                 const now = new Date();
                 const startDate = new Date(`${currentSettings.start_date}T${currentSettings.start_time}`);
@@ -179,6 +190,7 @@ function ApplicationFormDashboard() {
             return;
         }
         setSelectedRole(role);
+        localStorage.setItem('awardForm_role', role);
     };
 
     const handlePhotoChange = async (e) => {
@@ -192,6 +204,9 @@ function ApplicationFormDashboard() {
         try {
             await formProcessingService.uploadPhoto(file, formData.studentId || formData.student_id);
             setPhotoExists(true);
+            // Refresh photo URL with cache buster so the image re-renders
+            const sid = formData.studentId || formData.student_id;
+            setFormData(prev => ({ ...prev, photoUrl: `/photos/${sid}?t=${Date.now()}` }));
             toast({ title: 'Photo Uploaded', description: 'Your profile photo has been saved.', status: 'success', duration: 3000 });
         } catch (err) {
             toast({ title: 'Upload Failed', description: err.message, status: 'error', duration: 5000 });
@@ -231,6 +246,7 @@ function ApplicationFormDashboard() {
         try {
             await formSubmissionService.submit(data);
             setSubmissionDone(true);
+            localStorage.removeItem('awardForm_role'); // Clear saved role after submission
             toast({ title: 'Success', description: 'Your application has been submitted successfully!', status: 'success' });
             // Refresh prefill to update filledRoles
             await fetchStatusAndPrefill();
@@ -384,11 +400,11 @@ function ApplicationFormDashboard() {
                                 </ListItem>
                             </List>
                             <Divider my={8} />
-                            <Checkbox isChecked={agreedToInstructions} onChange={(e) => setAgreedToInstructions(e.target.checked)} colorScheme="blue" size="lg">
+                            <Checkbox isChecked={agreedToInstructions} onChange={(e) => { setAgreedToInstructions(e.target.checked); localStorage.setItem('awardForm_agreed', e.target.checked); }} colorScheme="blue" size="lg">
                                 <Text fontSize="md" fontWeight="medium">I have read and understood the instructions and agree to provide accurate information.</Text>
                             </Checkbox>
                         </Box>
-                        <Button h="60px" fontSize="lg" colorScheme="blue" isDisabled={!agreedToInstructions} onClick={() => setAgreedToInstructions(true)} rightIcon={<ArrowForwardIcon />}>Proceed to Application</Button>
+                        <Button h="60px" fontSize="lg" colorScheme="blue" isDisabled={!agreedToInstructions} onClick={() => { setAgreedToInstructions(true); localStorage.setItem('awardForm_agreed', 'true'); }} rightIcon={<ArrowForwardIcon />}>Proceed to Application</Button>
                     </MotionVStack>
                 ) : !selectedRole ? (
                     <MotionVStack key="role-selection" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} spacing={12} mt={12}>
