@@ -20,11 +20,11 @@ const formProcessingController = {
                 return res.status(404).json({ message: 'Student data not found in registration records.' });
             }
 
-            // 2. Check for photo
+            // 2. Check for photo — try student.photo first, fallback to student_cvue_no
             let photoExists = false;
             const extensions = ['.jpg', '.jpeg', '.png'];
             let foundPhoto = null;
-            const photoBase = student.photo;
+            const photoBase = student.photo || (student.student_cvue_no ? student.student_cvue_no.toString() : null);
 
             if (photoBase) {
                 for (const ext of extensions) {
@@ -49,10 +49,12 @@ const formProcessingController = {
             if (sports) filledRoles.push('Sports Person');
             if (cultural) filledRoles.push('Cultural Person');
 
+            const studentId = student.student_cvue_no ? student.student_cvue_no.toString() : '';
+
             return res.json({
                 prefill: {
                     name: student.student_name,
-                    student_id: student.student_cvue_no ? student.student_cvue_no.toString() : '',
+                    student_id: studentId,
                     mobile_number: student.contact_no ? student.contact_no.toString() : '',
                     gender: student.gender,
                     batch: student.batch,

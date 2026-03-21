@@ -48,6 +48,26 @@ class FormProcessingService {
             throw error;
         }
     }
+    async uploadPhoto(file, studentId) {
+        try {
+            const deviceId = await this.getDeviceId();
+            const formData = new FormData();
+            formData.append('photo', file);
+            formData.append('studentId', studentId);
+            const response = await fetch('/photos/upload', {
+                method: 'POST',
+                headers: { 'x-device-id': deviceId },
+                credentials: 'include',
+                body: formData,
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Upload failed');
+            return data;
+        } catch (error) {
+            console.error('Photo upload error:', error);
+            throw error;
+        }
+    }
 }
 
 export const formProcessingService = new FormProcessingService();

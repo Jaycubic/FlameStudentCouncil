@@ -181,12 +181,20 @@ function ApplicationFormDashboard() {
         setSelectedRole(role);
     };
 
-    const handlePhotoChange = (e) => {
+    const handlePhotoChange = async (e) => {
         const file = e.target.files[0];
-        if (file) {
-            setPhotoFile(file);
-            setFormData(prev => ({ ...prev, photoUrl: URL.createObjectURL(file) }));
-            onPhotoModalClose();
+        if (!file) return;
+        // Show preview immediately
+        setPhotoFile(file);
+        setFormData(prev => ({ ...prev, photoUrl: URL.createObjectURL(file) }));
+        onPhotoModalClose();
+        // Upload immediately to server
+        try {
+            await formProcessingService.uploadPhoto(file, formData.studentId || formData.student_id);
+            setPhotoExists(true);
+            toast({ title: 'Photo Uploaded', description: 'Your profile photo has been saved.', status: 'success', duration: 3000 });
+        } catch (err) {
+            toast({ title: 'Upload Failed', description: err.message, status: 'error', duration: 5000 });
         }
     };
 
@@ -199,6 +207,10 @@ function ApplicationFormDashboard() {
 
     const handleSubmission = async () => {
         // Basic Validation
+        if (!photoExists && !photoFile) {
+            toast({ title: 'Photo Required', description: 'Please upload a profile photo before submitting.', status: 'warning' });
+            return;
+        }
         if (!formData.trueStatement) {
             toast({ title: 'Required', description: 'Please confirm that the information provided is accurate.', status: 'warning' });
             return;
@@ -422,9 +434,9 @@ function ApplicationFormDashboard() {
                         <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
                             <HStack spacing={8} align="center" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
                                 <Box position="relative">
-                                    <Image src={formData.photoUrl} boxSize="150px" borderRadius="2xl" objectFit="cover" border="4px solid" borderColor="white" boxShadow="md" fallbackSrc={defaultProfilePhoto} />
+                                    <Image src={formData.photoUrl} boxSize="150px" borderRadius="2xl" objectFit="cover" border="4px solid" borderColor={photoExists ? 'green.300' : 'red.300'} boxShadow="md" fallbackSrc={defaultProfilePhoto} />
                                     {!photoExists && (
-                                        <Box position="absolute" bottom="-2" right="-2" bg="blue.500" p={3} borderRadius="xl" cursor="pointer" onClick={onPhotoModalOpen} boxShadow="lg" _hover={{ bg: 'blue.600', transform: 'scale(1.1)' }} transition="0.2s">
+                                        <Box position="absolute" bottom="-2" right="-2" bg="red.500" p={3} borderRadius="xl" cursor="pointer" onClick={onPhotoModalOpen} boxShadow="lg" _hover={{ bg: 'red.600', transform: 'scale(1.1)' }} transition="0.2s">
                                             <Icon as={FaCamera} color="white" />
                                         </Box>
                                     )}
@@ -436,6 +448,12 @@ function ApplicationFormDashboard() {
                                         <Text>{formData.gender || 'Gender'} | {formData.student_id || 'ID'} | {formData.batch || 'Batch'}</Text>
                                     </HStack>
                                     <Text color={mutedTextColor}>{formData.email} • {formData.mobile_number}</Text>
+                                    {!photoExists && (
+                                        <Alert status="error" borderRadius="lg" mt={2} py={2} px={3}>
+                                            <AlertIcon />
+                                            <Text fontSize="sm" fontWeight="bold">Profile photo is mandatory. Please click the camera icon to upload.</Text>
+                                        </Alert>
+                                    )}
                                 </VStack>
                                 <Image src={flameLogo} alt="FLAME Logo" h="60px" opacity={0.6} display={{ base: 'none', sm: 'block' }} />
                             </HStack>
