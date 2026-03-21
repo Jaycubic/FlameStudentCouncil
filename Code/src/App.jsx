@@ -39,6 +39,18 @@ const theme = extendTheme({
     initialColorMode: 'light',
     useSystemColorMode: false,
   },
+  fontSizes: {
+    '2xs': 'clamp(0.625rem, 0.55rem + 0.25vw, 0.75rem)',   // 10px → 12px
+    xs:    'clamp(0.7rem, 0.625rem + 0.3vw, 0.8rem)',       // 11.2px → 12.8px
+    sm:    'clamp(0.8rem, 0.725rem + 0.35vw, 0.9rem)',      // 12.8px → 14.4px
+    md:    'clamp(0.875rem, 0.8rem + 0.4vw, 1rem)',         // 14px → 16px
+    lg:    'clamp(1rem, 0.9rem + 0.5vw, 1.25rem)',          // 16px → 20px
+    xl:    'clamp(1.15rem, 1rem + 0.65vw, 1.5rem)',         // 18.4px → 24px
+    '2xl': 'clamp(1.35rem, 1.15rem + 0.85vw, 1.875rem)',   // 21.6px → 30px
+    '3xl': 'clamp(1.6rem, 1.3rem + 1.1vw, 2.25rem)',       // 25.6px → 36px
+    '4xl': 'clamp(1.875rem, 1.5rem + 1.3vw, 2.75rem)',     // 30px → 44px
+    '5xl': 'clamp(2.25rem, 1.75rem + 1.6vw, 3.5rem)',      // 36px → 56px
+  },
   colors: {
     vrv: {
       50: '#e9efee',

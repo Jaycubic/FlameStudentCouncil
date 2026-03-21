@@ -28,8 +28,8 @@ function PageHeader({
       mb={6}
     >
       <Box>
-        <Heading size="lg" mb={1}>{title}</Heading>
-        <Text color={textColor}>{description}</Text>
+        <Heading size={{ base: 'md', md: 'lg' }} mb={1}>{title}</Heading>
+        <Text color={textColor} fontSize={{ base: 'sm', md: 'md' }}>{description}</Text>
       </Box>
       
       {buttonLabel && (

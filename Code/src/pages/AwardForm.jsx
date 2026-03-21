@@ -351,18 +351,21 @@ function ApplicationFormDashboard() {
     );
 
     return (
-        <Box p={{ base: 4, md: 8 }} bg={bgColor} minH="100vh" position="relative">
-            {/* Real-time Countdown UI */}
+        <Box p={{ base: 3, md: 8 }} bg={bgColor} minH="100vh" position="relative">
+            {/* Real-time Countdown UI — static on mobile, absolute on desktop */}
             <Box
-                position="absolute"
-                top={{ base: 2, md: 6 }}
-                right={{ base: 4, md: 8 }}
+                position={{ base: 'static', md: 'absolute' }}
+                top={{ md: 6 }}
+                right={{ md: 8 }}
                 zIndex={10}
+                mb={{ base: 2, md: 0 }}
+                display="flex"
+                justifyContent={{ base: 'center', md: 'flex-end' }}
             >
-                <HStack spacing={3} bg={useColorModeValue('white', 'gray.700')} p={3} borderRadius="2xl" boxShadow="md" border="1px solid" borderColor={boxBorderColor}>
+                <HStack spacing={2} bg={useColorModeValue('white', 'gray.700')} p={{ base: 2, md: 3 }} borderRadius="xl" boxShadow="md" border="1px solid" borderColor={boxBorderColor}>
                     <VStack spacing={0} align="end">
-                        <Text fontSize="xs" fontWeight="bold" color="blue.500" textTransform="uppercase">{timerStatus}</Text>
-                        <HStack spacing={1} fontWeight="black" fontSize="lg" color={textColor}>
+                        <Text fontSize={{ base: '2xs', md: 'xs' }} fontWeight="bold" color="blue.500" textTransform="uppercase">{timerStatus}</Text>
+                        <HStack spacing={1} fontWeight="black" fontSize={{ base: 'sm', md: 'lg' }} color={textColor}>
                             <Text>{String(timeLeft.days).padStart(2, '0')}d</Text>
                             <Text>:</Text>
                             <Text>{String(timeLeft.hours).padStart(2, '0')}h</Text>
@@ -381,7 +384,7 @@ function ApplicationFormDashboard() {
                 {!agreedToInstructions ? (
                     <MotionVStack key="instructions" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} spacing={8} align="stretch" mt={6}>
                         <Box p={{ base: 6, md: 10 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
-                            <Text fontSize="2xl" fontWeight="bold" mb={6} color="blue.600">Important Instructions</Text>
+                            <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="bold" mb={{ base: 4, md: 6 }} color="blue.600">Important Instructions</Text>
                             <List spacing={5}>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
@@ -405,13 +408,13 @@ function ApplicationFormDashboard() {
                                 <Text fontSize="md" fontWeight="medium">I have read and understood the instructions and agree to provide accurate information.</Text>
                             </Checkbox>
                         </Box>
-                        <Button h="60px" fontSize="lg" colorScheme="blue" isDisabled={!agreedToInstructions} onClick={() => { setAgreedToInstructions(true); localStorage.setItem('awardForm_agreed', 'true'); }} rightIcon={<ArrowForwardIcon />}>Proceed to Application</Button>
+                        <Button h={{ base: '50px', md: '60px' }} fontSize={{ base: 'md', md: 'lg' }} colorScheme="blue" isDisabled={!agreedToInstructions} onClick={() => { setAgreedToInstructions(true); localStorage.setItem('awardForm_agreed', 'true'); }} rightIcon={<ArrowForwardIcon />}>Proceed to Application</Button>
                     </MotionVStack>
                 ) : !selectedRole ? (
-                    <MotionVStack key="role-selection" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} spacing={12} mt={12}>
+                    <MotionVStack key="role-selection" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} spacing={{ base: 6, md: 12 }} mt={{ base: 6, md: 12 }}>
                         <VStack spacing={2}>
-                            <Text fontSize="3xl" fontWeight="black" textAlign="center">Identify Your Application Path</Text>
-                            <Text fontSize="lg" color={mutedTextColor} textAlign="center">Select the primary award category you are applying for</Text>
+                            <Text fontSize={{ base: 'xl', md: '3xl' }} fontWeight="black" textAlign="center">Identify Your Application Path</Text>
+                            <Text fontSize={{ base: 'sm', md: 'lg' }} color={mutedTextColor} textAlign="center">Select the primary award category you are applying for</Text>
                         </VStack>
                         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} w="full" maxW="1000px">
                             <RoleCard
@@ -441,30 +444,32 @@ function ApplicationFormDashboard() {
                         </SimpleGrid>
                     </MotionVStack>
                 ) : (
-                    <MotionVStack key="form-content" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} spacing={10} mt={8} align="stretch">
-                        <HStack justify="space-between" align="center">
-                            <Button leftIcon={<FaChevronLeft />} variant="ghost" onClick={() => setSelectedRole('')}>Change Role Path</Button>
-                            <Badge colorScheme="blue" p={2} borderRadius="md" fontSize="md">Applying as: {selectedRole.replace('_', ' ').toUpperCase()}</Badge>
-                        </HStack>
+                    <MotionVStack key="form-content" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} spacing={{ base: 5, md: 10 }} mt={{ base: 4, md: 8 }} align="stretch">
+                        <VStack spacing={2} align="stretch">
+                            <HStack justify="space-between" align="center" flexWrap="wrap" gap={2}>
+                                <Button leftIcon={<FaChevronLeft />} variant="ghost" size={{ base: 'sm', md: 'md' }} onClick={() => setSelectedRole('')}>Change Role</Button>
+                                <Badge colorScheme="blue" p={{ base: 1.5, md: 2 }} borderRadius="md" fontSize={{ base: 'xs', md: 'md' }}>Applying as: {selectedRole.replace('_', ' ').toUpperCase()}</Badge>
+                            </HStack>
+                        </VStack>
 
                         {/* User Profile Card */}
-                        <Box p={{ base: 6, md: 8 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
-                            <HStack spacing={8} align="center" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
-                                <Box position="relative">
-                                    <Image src={formData.photoUrl} boxSize="150px" borderRadius="2xl" objectFit="cover" border="4px solid" borderColor={photoExists ? 'green.300' : 'red.300'} boxShadow="md" fallbackSrc={defaultProfilePhoto} />
+                        <Box p={{ base: 4, md: 8 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
+                            <HStack spacing={{ base: 4, md: 8 }} align="center" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
+                                <Box position="relative" mx={{ base: 'auto', md: 0 }}>
+                                    <Image src={formData.photoUrl} boxSize={{ base: '100px', md: '150px' }} borderRadius="2xl" objectFit="cover" border="4px solid" borderColor={photoExists ? 'green.300' : 'red.300'} boxShadow="md" fallbackSrc={defaultProfilePhoto} />
                                     {!photoExists && (
                                         <Box position="absolute" bottom="-2" right="-2" bg="red.500" p={3} borderRadius="xl" cursor="pointer" onClick={onPhotoModalOpen} boxShadow="lg" _hover={{ bg: 'red.600', transform: 'scale(1.1)' }} transition="0.2s">
                                             <Icon as={FaCamera} color="white" />
                                         </Box>
                                     )}
                                 </Box>
-                                <VStack align="start" spacing={1} flex="1">
-                                    <Text fontSize="3xl" fontWeight="black" color={textColor}>{formData.name || 'Student Name'}</Text>
-                                    <HStack spacing={3} color={secondaryTextColor} fontSize="lg">
+                                <VStack align={{ base: 'center', md: 'start' }} spacing={1} flex="1" w={{ base: 'full', md: 'auto' }}>
+                                    <Text fontSize={{ base: 'xl', md: '3xl' }} fontWeight="black" color={textColor}>{formData.name || 'Student Name'}</Text>
+                                    <HStack spacing={{ base: 2, md: 3 }} color={secondaryTextColor} fontSize={{ base: 'sm', md: 'lg' }}>
                                         <Icon as={FaUser} />
                                         <Text>{formData.gender || 'Gender'} | {formData.student_id || 'ID'} | {formData.batch || 'Batch'}</Text>
                                     </HStack>
-                                    <Text color={mutedTextColor}>{formData.email} • {formData.mobile_number}</Text>
+                                    <Text color={mutedTextColor} fontSize={{ base: 'xs', md: 'md' }}>{formData.email} • {formData.mobile_number}</Text>
                                     {!photoExists && (
                                         <Alert status="error" borderRadius="lg" mt={2} py={2} px={3}>
                                             <AlertIcon />
@@ -563,7 +568,7 @@ function ApplicationFormDashboard() {
                                         I confirm all documents provided are true and accurate.
                                     </Checkbox>
                                 </VStack>
-                                <Button mt={10} size="lg" colorScheme="yellow" color="gray.900" fontWeight="black" w="full" h="70px" fontSize="xl" isLoading={submitting} loadingText="Submitting..." onClick={handleSubmission}>
+                                <Button mt={{ base: 6, md: 10 }} size="lg" colorScheme="yellow" color="gray.900" fontWeight="black" w="full" h={{ base: '56px', md: '70px' }} fontSize={{ base: 'md', md: 'xl' }} isLoading={submitting} loadingText="Submitting..." onClick={handleSubmission}>
                                     SUBMIT {selectedRole.replace('_', ' ').toUpperCase()} APPLICATION
                                 </Button>
                             </Box>
@@ -639,7 +644,7 @@ const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
             as="button"
             onClick={onClick}
             disabled={disabled}
-            p={8}
+            p={{ base: 5, md: 8 }}
             bg={disabled ? 'gray.50' : c.bg}
             borderWidth="2px"
             borderColor={disabled ? 'gray.200' : c.border}
