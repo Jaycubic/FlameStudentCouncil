@@ -8,6 +8,7 @@ const speakeasy = require('speakeasy');
 const crypto = require('crypto');
 const CryptoJS = require('crypto-js');
 const redis = require('redis');
+const { Op } = require('sequelize');
 require('dotenv').config();
 
 // Redis client setup
@@ -571,11 +572,12 @@ const authController = {
 
   async googleCallback(req, res) {
     const { code, state } = req.query;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://flameawards.in';
     if (!code) {
-      return res.status(400).json({ message: 'Missing code in callback' });
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Authentication failed. Please try again.')}`);
     }
     try {
-      const stateObj = JSON.parse(state);
+      const stateObj = JSON.parse(state || '{}');
       const deviceId = stateObj.deviceId || 'unknown';
       const client = createOAuth2Client();
       const { tokens } = await client.getToken(code);
@@ -593,7 +595,7 @@ const authController = {
           const studentRole = await Role.findOne({ where: { name: 'Student' } });
           if (!studentRole) {
             const errorMessage = 'Student role not configured in the system. Please contact admin.';
-            return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+            return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
           }
 
           // Create new user record
@@ -612,20 +614,20 @@ const authController = {
           console.log(`✅ Automatically onboarded student: ${googleEmail}`);
         } else {
           const errorMessage = 'Email not found. Please contact administrators for registration';
-          return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+          return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
         }
       }
 
       const role = await Role.findByPk(user.role_id);
       if (!role) {
         const errorMessage = 'Role not found for user';
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+        return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
       }
 
       // Restrict GSO to 'Student' role as per requirement
       if (role.name !== 'Student') {
         const errorMessage = 'This account can not use Google Sign-In. Please use your respective login method.';
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+        return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
       }
       await user.update({
         access_token: tokens.access_token,
@@ -652,7 +654,6 @@ const authController = {
         sameSite: 'lax',
         maxAge: (exp * 1000 - Date.now())
       });
-      const frontendUrl = process.env.FRONTEND_URL || 'https://flameawards.in';
       const userData = encodeURIComponent(JSON.stringify({
         id: user.id,
         username: user.username,
@@ -665,7 +666,8 @@ const authController = {
       );
     } catch (error) {
       console.error('Google callback error:', error);
-      res.status(500).json({ message: 'Error in Google callback', error: error.message });
+      const errorMessage = 'Something went wrong during sign-in. Please try again.';
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
     }
   },
 
@@ -1045,7 +1047,7 @@ const authController = {
         return res.status(400).json({ message: 'Email is required' });
       }
 
-      const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
+      const user = await User.findOne({ where: { email: { [Op.iLike]: email.trim() } } });
       if (!user) {
         console.log('⚡ Fast-login: user not found for', email);
         return res.json({ message: 'needs_full_auth' });

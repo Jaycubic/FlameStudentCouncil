@@ -69,15 +69,19 @@ function Login() {
     const errorMsg = query.get('error');
 
     if (userParam && expiresAtParam) {
+      // Clear URL params immediately so they don't persist on reload
+      window.history.replaceState({}, document.title, '/login');
       localStorage.setItem('user', userParam);
       localStorage.setItem('expiresAt', expiresAtParam);
       authService.init(); // Init AFTER setting storage to avoid clearing the new session
       const parsedUser = JSON.parse(decodeURIComponent(userParam));
-      const redirectPath = '/'; // Temporarily redirecting everyone to dashboard for testing
+      const redirectPath = parsedUser?.role === 'Student' ? '/award-form' : '/';
       toast({ title: 'Login Successful', status: 'success', duration: 3000 });
       setIsNavigating(true);
-      setTimeout(() => navigate(redirectPath), 1500);
+      setTimeout(() => navigate(redirectPath, { replace: true }), 1500);
     } else if (errorMsg) {
+      // Clear URL params so error disappears on reload
+      window.history.replaceState({}, document.title, '/login');
       authService.init();
       setError(decodeURIComponent(errorMsg));
       setIsProcessing(false);
