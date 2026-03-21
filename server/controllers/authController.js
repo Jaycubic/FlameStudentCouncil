@@ -1040,27 +1040,34 @@ const authController = {
   async googleFastLogin(req, res) {
     try {
       const { email, deviceId } = req.body;
+      console.log('⚡ Fast-login attempt for:', email);
       if (!email) {
         return res.status(400).json({ message: 'Email is required' });
       }
 
-      const user = await User.findOne({ where: { email } });
+      const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
       if (!user) {
+        console.log('⚡ Fast-login: user not found for', email);
         return res.json({ message: 'needs_full_auth' });
       }
 
       const role = await Role.findByPk(user.role_id);
       if (!role || role.name !== 'Student') {
+        console.log('⚡ Fast-login: role mismatch, role=', role?.name);
         return res.json({ message: 'needs_full_auth' });
       }
 
       // No stored refresh token → must do full OAuth
       if (!user.refresh_token) {
+        console.log('⚡ Fast-login: no refresh_token stored for', email);
         return res.json({ message: 'needs_full_auth' });
       }
 
+      console.log('⚡ Fast-login: has refresh_token, access_token=', !!user.access_token, 'expiry_date=', user.expiry_date, 'now=', new Date());
+
       // If access token is still valid, skip the Google API call entirely
-      if (user.access_token && user.expiry_date && new Date() < user.expiry_date) {
+      if (user.access_token && user.expiry_date && new Date() < new Date(user.expiry_date)) {
+        console.log('⚡ Fast-login: access token still valid, issuing JWT directly');
         // Token still valid — issue JWT directly
         const { encryptedToken, exp, fingerprintHash } = generateEncryptedAccessToken(user, role.name, req, deviceId || 'unknown');
         const refreshToken = generateRefreshToken();
@@ -1090,14 +1097,16 @@ const authController = {
       }
 
       // Access token expired but refresh token exists — try to refresh silently
+      console.log('⚡ Fast-login: access token expired, attempting silent refresh...');
       const client = createOAuth2Client();
       client.setCredentials({ refresh_token: user.refresh_token });
       try {
-        const { credentials } = await client.refreshAccessToken();
+        const { tokens } = await client.refreshAccessToken();
+        console.log('⚡ Fast-login: silent refresh succeeded');
         await user.update({
-          access_token: credentials.access_token,
-          refresh_token: credentials.refresh_token || user.refresh_token,
-          expiry_date: credentials.expiry_date ? new Date(credentials.expiry_date) : null,
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token || user.refresh_token,
+          expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
           updated_at: new Date()
         });
 
@@ -1127,7 +1136,7 @@ const authController = {
           },
         });
       } catch (refreshError) {
-        console.error('Google refresh token expired or revoked:', refreshError.message);
+        console.error('⚡ Fast-login: refresh failed —', refreshError.message);
         // Clear stale tokens so we don't keep trying
         await user.update({
           access_token: null,
