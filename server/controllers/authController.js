@@ -554,7 +554,6 @@ const authController = {
 
   async googleSignIn(req, res) {
     const deviceId = req.query.deviceId || 'unknown';
-    console.log('⚡ googleSignIn (full OAuth) called — fast-login was skipped or returned needs_full_auth. deviceId:', deviceId);
     const client = createOAuth2Client();
     const authUrl = client.generateAuthUrl({
       access_type: 'offline',
@@ -1044,11 +1043,7 @@ const authController = {
     const sequelize = require('../config/connection');
     try {
       const { email, deviceId } = req.body;
-      console.log('⚡ [FAST-LOGIN] ============ START ============');
-      console.log('⚡ [FAST-LOGIN] Email:', email, '| DeviceId:', deviceId);
-
       if (!email) {
-        console.log('⚡ [FAST-LOGIN] ERROR: No email provided');
         return res.status(400).json({ message: 'Email is required' });
       }
 
@@ -1063,37 +1058,8 @@ const authController = {
         { replacements: { email: email.trim() }, type: sequelize.QueryTypes.SELECT }
       );
 
-      console.log('⚡ [FAST-LOGIN] DB query returned:', rows ? 'found' : 'NOT found');
-
-      if (!rows || rows.length === 0) {
-        // rows is either undefined or empty — handle both cases
-        const user_row = rows; // QueryTypes.SELECT may return flat array
-        if (!user_row) {
-          console.log('⚡ [FAST-LOGIN] No user found for email:', email);
-          return res.json({ message: 'needs_full_auth' });
-        }
-      }
-
-      // QueryTypes.SELECT returns array of objects
       const row = Array.isArray(rows) ? rows[0] : rows;
-      if (!row) {
-        console.log('⚡ [FAST-LOGIN] No user row after array check');
-        return res.json({ message: 'needs_full_auth' });
-      }
-
-      console.log('⚡ [FAST-LOGIN] User found: id=', row.id, 'email=', row.email, 'role=', row.role_name);
-      console.log('⚡ [FAST-LOGIN] Has access_token:', !!row.access_token);
-      console.log('⚡ [FAST-LOGIN] Has refresh_token:', !!row.refresh_token);
-      console.log('⚡ [FAST-LOGIN] expiry_date:', row.expiry_date);
-      console.log('⚡ [FAST-LOGIN] now:', new Date().toISOString());
-
-      if (row.role_name !== 'Student') {
-        console.log('⚡ [FAST-LOGIN] SKIP: role is', row.role_name, 'not Student');
-        return res.json({ message: 'needs_full_auth' });
-      }
-
-      if (!row.refresh_token) {
-        console.log('⚡ [FAST-LOGIN] SKIP: no refresh_token in DB');
+      if (!row || row.role_name !== 'Student' || !row.refresh_token) {
         return res.json({ message: 'needs_full_auth' });
       }
 
@@ -1101,20 +1067,17 @@ const authController = {
       const now = new Date();
       const expiry = row.expiry_date ? new Date(row.expiry_date) : null;
       const isValid = row.access_token && expiry && now < expiry;
-      console.log('⚡ [FAST-LOGIN] Token valid check: now=', now.toISOString(), 'expiry=', expiry?.toISOString(), 'isValid=', isValid);
 
-      // Load user via ORM for token generation (needs the user object)
+      // Load user via ORM for token generation
       const user = await User.findByPk(row.id);
       const role = await Role.findByPk(row.role_id);
 
       if (isValid) {
-        console.log('⚡ [FAST-LOGIN] ✅ Access token valid — issuing JWT directly');
         const { encryptedToken, exp, fingerprintHash } = generateEncryptedAccessToken(user, role.name, req, deviceId || 'unknown');
         const refreshToken = generateRefreshToken();
         await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 });
         res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 604800000 });
         res.cookie('accessToken', encryptedToken, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: (exp * 1000 - Date.now()) });
-        console.log('⚡ [FAST-LOGIN] ============ SUCCESS (valid token) ============');
         return res.json({
           message: 'success',
           expiresAt: exp,
@@ -1123,12 +1086,10 @@ const authController = {
       }
 
       // Access token expired — try silent refresh
-      console.log('⚡ [FAST-LOGIN] Access token expired, attempting Google silent refresh...');
       const client = createOAuth2Client();
       client.setCredentials({ refresh_token: row.refresh_token });
       try {
         const { tokens } = await client.refreshAccessToken();
-        console.log('⚡ [FAST-LOGIN] ✅ Google refresh succeeded, new access_token obtained');
         await user.update({
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token || user.refresh_token,
@@ -1140,19 +1101,18 @@ const authController = {
         await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 });
         res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 604800000 });
         res.cookie('accessToken', encryptedToken, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: (exp * 1000 - Date.now()) });
-        console.log('⚡ [FAST-LOGIN] ============ SUCCESS (refreshed) ============');
         return res.json({
           message: 'success',
           expiresAt: exp,
           user: { id: user.id, username: user.username, email: user.email, role: role.name },
         });
       } catch (refreshError) {
-        console.error('⚡ [FAST-LOGIN] ❌ Google refresh FAILED:', refreshError.message);
+        console.error('Fast-login refresh failed:', refreshError.message);
         await user.update({ access_token: null, refresh_token: null, expiry_date: null, updated_at: new Date() });
         return res.json({ message: 'needs_full_auth' });
       }
     } catch (error) {
-      console.error('⚡ [FAST-LOGIN] ❌ UNEXPECTED ERROR:', error.message, error.stack);
+      console.error('Fast-login error:', error.message);
       res.status(500).json({ message: 'Error during fast login', error: error.message });
     }
   }
