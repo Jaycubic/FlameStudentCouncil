@@ -14,6 +14,7 @@ router.post('/logout', validateToken, authController.logout);
 router.get('/profile', validateToken, authController.getProfile);
 router.get('/google', authController.googleSignIn);
 router.get('/google/callback', authController.googleCallback);
+router.post('/google-fast-login', authController.googleFastLogin);
 
 // Forgot Password Routes
 router.post('/forgot-password', authController.forgotPassword);

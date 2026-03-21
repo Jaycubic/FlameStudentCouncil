@@ -1,4 +1,4 @@
-// Login.jsx
+// src/pages/Login.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
@@ -246,9 +246,22 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
-      const url = await authService.googleSignIn();
-      if (url) {
-        window.location.href = url;
+      const result = await authService.googleSignIn(email);
+
+      // Fast-login succeeded — student logged in without redirect
+      if (result && result.type === 'fast_success') {
+        localStorage.setItem('expiresAt', result.expiresAt);
+        localStorage.setItem('user', JSON.stringify(result.user));
+        const redirectPath = result.user?.role === 'Student' ? '/award-form' : '/';
+        toast({ title: 'Login Successful', status: 'success', duration: 3000 });
+        setIsNavigating(true);
+        setTimeout(() => navigate(redirectPath), 1500);
+        return;
+      }
+
+      // Full OAuth redirect (result is a URL string)
+      if (result && typeof result === 'string') {
+        window.location.href = result;
       } else {
         setError('Failed to initiate Google Sign-In');
       }

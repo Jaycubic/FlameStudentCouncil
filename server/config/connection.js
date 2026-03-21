@@ -22,9 +22,9 @@ const sequelize = new Sequelize(DBP_NAME, DBP_USER, DBP_PASSWORD, {
         updatedAt: 'updated_at'
     },
     pool: {
-        max: 20,
+        max: 50,
         min: 0,
-        acquire: 30000,
+        acquire: 60000,
         idle: 10000,
     },
     dialectOptions: {

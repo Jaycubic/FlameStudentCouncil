@@ -117,8 +117,40 @@ class AuthService {
     }
   }
 
-  async googleSignIn() {
+  // Fast-login for returning students — skips Google OAuth redirect if refresh token is valid
+  async googleFastLogin(email) {
     try {
+      const deviceId = await this.getDeviceId();
+      const response = await fetch('/api/auth/google-fast-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, deviceId }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok && data.message === 'success') {
+        localStorage.setItem('expiresAt', data.expiresAt);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        this.setAutoLogout();
+      }
+      return data;
+    } catch (error) {
+      // Network error — fall back to full auth
+      return { message: 'needs_full_auth' };
+    }
+  }
+
+  async googleSignIn(email) {
+    try {
+      // If we have an email, try the fast-login path first
+      if (email) {
+        const fastResult = await this.googleFastLogin(email);
+        if (fastResult.message === 'success') {
+          return { type: 'fast_success', ...fastResult };
+        }
+        // needs_full_auth → proceed to full OAuth below
+      }
+
       const deviceId = await this.getDeviceId();
       const response = await fetch(`/api/auth/google?deviceId=${encodeURIComponent(deviceId)}`, {
         method: 'GET',

@@ -17,8 +17,9 @@ const redisClient = redis.createClient({
 });
 redisClient.connect().catch(console.error);
 
-// Google OAuth2 setup
-const oAuth2Client = new google.auth.OAuth2(
+// Google OAuth2 factory — each request gets its own client to prevent
+// token contamination under concurrent load (50-100 simultaneous logins)
+const createOAuth2Client = () => new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI
@@ -502,9 +503,10 @@ const authController = {
           if (!user.refresh_token) {
             return res.status(401).json({ message: 'No Google authorization. Please log in again.' });
           }
-          oAuth2Client.setCredentials({ refresh_token: user.refresh_token });
+          const client = createOAuth2Client();
+          client.setCredentials({ refresh_token: user.refresh_token });
           try {
-            const { tokens } = await oAuth2Client.refreshAccessToken();
+            const { tokens } = await client.refreshAccessToken();
             await user.update({
               access_token: tokens.access_token,
               refresh_token: tokens.refresh_token || user.refresh_token,
@@ -551,8 +553,10 @@ const authController = {
 
   async googleSignIn(req, res) {
     const deviceId = req.query.deviceId || 'unknown';
-    const authUrl = oAuth2Client.generateAuthUrl({
+    const client = createOAuth2Client();
+    const authUrl = client.generateAuthUrl({
       access_type: 'offline',
+      prompt: 'consent',
       scope: [
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
@@ -573,9 +577,10 @@ const authController = {
     try {
       const stateObj = JSON.parse(state);
       const deviceId = stateObj.deviceId || 'unknown';
-      const { tokens } = await oAuth2Client.getToken(code);
-      oAuth2Client.setCredentials(tokens);
-      const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
+      const client = createOAuth2Client();
+      const { tokens } = await client.getToken(code);
+      client.setCredentials(tokens);
+      const oauth2 = google.oauth2({ version: 'v2', auth: client });
       const userInfo = await oauth2.userinfo.get();
       const googleEmail = userInfo.data.email;
       let user = await User.findOne({ where: { email: googleEmail } });
@@ -961,9 +966,10 @@ const authController = {
       let needsRedirect = false;
       if (!user.access_token || new Date() > user.expiry_date) {
         if (user.refresh_token) {
-          oAuth2Client.setCredentials({ refresh_token: user.refresh_token });
+          const client = createOAuth2Client();
+          client.setCredentials({ refresh_token: user.refresh_token });
           try {
-            const { tokens } = await oAuth2Client.refreshAccessToken();
+            const { tokens } = await client.refreshAccessToken();
             await user.update({
               access_token: tokens.access_token,
               refresh_token: tokens.refresh_token || user.refresh_token,
@@ -979,7 +985,8 @@ const authController = {
         }
       }
       if (needsRedirect) {
-        const authUrl = oAuth2Client.generateAuthUrl({
+        const redirectClient = createOAuth2Client();
+        const authUrl = redirectClient.generateAuthUrl({
           access_type: 'offline',
           prompt: 'consent',
           scope: [
@@ -1025,6 +1032,114 @@ const authController = {
     } catch (error) {
       console.error('Verify Google Sign-In code error:', error);
       res.status(500).json({ message: 'Error verifying code', error: error.message });
+    }
+  },
+
+  // Fast-login for returning Google SSO students — skips the full OAuth redirect
+  // if the student's stored refresh token is still valid
+  async googleFastLogin(req, res) {
+    try {
+      const { email, deviceId } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        return res.json({ message: 'needs_full_auth' });
+      }
+
+      const role = await Role.findByPk(user.role_id);
+      if (!role || role.name !== 'Student') {
+        return res.json({ message: 'needs_full_auth' });
+      }
+
+      // No stored refresh token → must do full OAuth
+      if (!user.refresh_token) {
+        return res.json({ message: 'needs_full_auth' });
+      }
+
+      // If access token is still valid, skip the Google API call entirely
+      if (user.access_token && user.expiry_date && new Date() < user.expiry_date) {
+        // Token still valid — issue JWT directly
+        const { encryptedToken, exp, fingerprintHash } = generateEncryptedAccessToken(user, role.name, req, deviceId || 'unknown');
+        const refreshToken = generateRefreshToken();
+        await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 });
+        res.cookie('refreshToken', refreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: 604800000
+        });
+        res.cookie('accessToken', encryptedToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: (exp * 1000 - Date.now())
+        });
+        return res.json({
+          message: 'success',
+          expiresAt: exp,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: role.name,
+          },
+        });
+      }
+
+      // Access token expired but refresh token exists — try to refresh silently
+      const client = createOAuth2Client();
+      client.setCredentials({ refresh_token: user.refresh_token });
+      try {
+        const { credentials } = await client.refreshAccessToken();
+        await user.update({
+          access_token: credentials.access_token,
+          refresh_token: credentials.refresh_token || user.refresh_token,
+          expiry_date: credentials.expiry_date ? new Date(credentials.expiry_date) : null,
+          updated_at: new Date()
+        });
+
+        const { encryptedToken, exp, fingerprintHash } = generateEncryptedAccessToken(user, role.name, req, deviceId || 'unknown');
+        const refreshToken = generateRefreshToken();
+        await redisClient.set(`refresh:${refreshToken}`, JSON.stringify({ userId: user.id, fpHash: fingerprintHash }), { EX: 604800 });
+        res.cookie('refreshToken', refreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: 604800000
+        });
+        res.cookie('accessToken', encryptedToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: (exp * 1000 - Date.now())
+        });
+        return res.json({
+          message: 'success',
+          expiresAt: exp,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: role.name,
+          },
+        });
+      } catch (refreshError) {
+        console.error('Google refresh token expired or revoked:', refreshError.message);
+        // Clear stale tokens so we don't keep trying
+        await user.update({
+          access_token: null,
+          refresh_token: null,
+          expiry_date: null,
+          updated_at: new Date()
+        });
+        return res.json({ message: 'needs_full_auth' });
+      }
+    } catch (error) {
+      console.error('Google fast login error:', error);
+      res.status(500).json({ message: 'Error during fast login', error: error.message });
     }
   }
 };
