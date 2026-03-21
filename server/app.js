@@ -62,6 +62,12 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Debug: log all auth requests
+app.use('/api/auth', (req, res, next) => {
+  console.log(`⚡ [AUTH-REQUEST] ${req.method} ${req.originalUrl} body:`, JSON.stringify(req.body || {}));
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/roles', roleRoutes);
