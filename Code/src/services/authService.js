@@ -121,7 +121,7 @@ class AuthService {
   async googleFastLogin(email) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/google-fast-login', {
+      const response = await fetch('/api/auth/fastlogin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, deviceId }),
