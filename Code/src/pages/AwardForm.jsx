@@ -83,11 +83,12 @@ function ApplicationFormDashboard() {
             // 2. Load Prefill Data
             const prefillData = await formProcessingService.getPrefillData();
             const sid = prefillData.prefill.student_id;
+            const photoName = prefillData.prefill.photo || sid;
             setFormData(prev => ({
                 ...prev,
                 ...prefillData.prefill,
-                photoUrl: prefillData.photoExists && sid
-                    ? `/photos/${sid}?t=${Date.now()}`
+                photoUrl: prefillData.photoExists && photoName
+                    ? `/photos/${photoName}?t=${Date.now()}`
                     : defaultProfilePhoto
             }));
             setPhotoExists(prefillData.photoExists);
