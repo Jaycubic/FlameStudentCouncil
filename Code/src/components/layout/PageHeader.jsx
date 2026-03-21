@@ -27,7 +27,7 @@ function PageHeader({
       spacing={{ base: 4, md: 0 }}
       mb={6}
     >
-      <Box>
+      <Box textAlign={{ base: 'center', md: 'left' }}>
         <Heading size={{ base: 'md', md: 'lg' }} mb={1}>{title}</Heading>
         <Text color={textColor} fontSize={{ base: 'sm', md: 'md' }}>{description}</Text>
       </Box>

@@ -463,7 +463,7 @@ function ApplicationFormDashboard() {
                                         </Box>
                                     )}
                                 </Box>
-                                <VStack align={{ base: 'center', md: 'start' }} spacing={1} flex="1" w={{ base: 'full', md: 'auto' }}>
+                                <VStack align="start" spacing={1} flex="1" w={{ base: 'full', md: 'auto' }}>
                                     <Text fontSize={{ base: 'xl', md: '3xl' }} fontWeight="black" color={textColor}>{formData.name || 'Student Name'}</Text>
                                     <HStack spacing={{ base: 2, md: 3 }} color={secondaryTextColor} fontSize={{ base: 'sm', md: 'lg' }}>
                                         <Icon as={FaUser} />
@@ -487,14 +487,8 @@ function ApplicationFormDashboard() {
                                 <Section title="Sports & Athletics Achievements">
                                     <VStack spacing={6} align="stretch">
                                         <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Sports Score Calculation</FormLabel>
-                                            <HStack spacing={4}>
-                                                <Button leftIcon={<FaTrophy />} colorScheme="blue" variant="outline" onClick={onSportModalOpen}>Calculate Score</Button>
-                                                <Input maxW="200px" placeholder="Enter raw score" value={formData.sportsRawScore} onChange={(e) => setFormData({ ...formData, sportsRawScore: e.target.value, sportsScore: calculateScore(e.target.value) })} />
-                                                <Box px={4} py={2} bg="blue.50" borderRadius="md" border="1px solid" borderColor="blue.200">
-                                                    <Text fontWeight="black" color="blue.700">Final: {formData.sportsScore || '0.0'}/10</Text>
-                                                </Box>
-                                            </HStack>
+                                            <FormLabel fontWeight="bold">Sports Raw Score</FormLabel>
+                                            <Input placeholder="Enter raw score" value={formData.sportsRawScore} onChange={(e) => setFormData({ ...formData, sportsRawScore: e.target.value, sportsScore: calculateScore(e.target.value) })} />
                                         </FormControl>
                                         <FormControl isRequired>
                                             <FormLabel fontWeight="bold">Sports Evidence (Certificates/Photos)</FormLabel>
@@ -524,14 +518,8 @@ function ApplicationFormDashboard() {
                                 <Section title="Cultural & Arts Excellence">
                                     <VStack spacing={6} align="stretch">
                                         <FormControl isRequired>
-                                            <FormLabel fontWeight="bold">Cultural Score Calculation</FormLabel>
-                                            <HStack spacing={4}>
-                                                <Button leftIcon={<FaMusic />} colorScheme="pink" variant="outline" onClick={onCulturalModalOpen}>Calculate Score</Button>
-                                                <Input maxW="200px" placeholder="Enter raw score" value={formData.culturalRawScore} onChange={(e) => setFormData({ ...formData, culturalRawScore: e.target.value, culturalScore: calculateScore(e.target.value) })} />
-                                                <Box px={4} py={2} bg="pink.50" borderRadius="md" border="1px solid" borderColor="pink.200">
-                                                    <Text fontWeight="black" color="pink.700">Final: {formData.culturalScore || '0.0'}/10</Text>
-                                                </Box>
-                                            </HStack>
+                                            <FormLabel fontWeight="bold">Cultural Raw Score</FormLabel>
+                                            <Input placeholder="Enter raw score" value={formData.culturalRawScore} onChange={(e) => setFormData({ ...formData, culturalRawScore: e.target.value, culturalScore: calculateScore(e.target.value) })} />
                                         </FormControl>
                                         <FormControl isRequired>
                                             <FormLabel fontWeight="bold">Cultural Evidence</FormLabel>
@@ -557,18 +545,18 @@ function ApplicationFormDashboard() {
                             )}
 
                             {/* Verification Section */}
-                            <Box p={8} borderRadius="2xl" bg="gray.800" color="white" boxShadow="lg">
-                                <Text fontSize="xl" fontWeight="bold" mb={6}>Final Declaration</Text>
-                                <Divider mb={6} opacity={0.2} />
+                            <Box p={{ base: 5, md: 8 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
+                                <Text fontSize="xl" fontWeight="bold" mb={6} color={textColor}>Final Declaration</Text>
+                                <Divider mb={6} />
                                 <VStack align="start" spacing={4}>
-                                    <Checkbox isChecked={formData.notOnProbation} onChange={(e) => setFormData({ ...formData, notOnProbation: e.target.checked })} colorScheme="yellow">
+                                    <Checkbox isChecked={formData.notOnProbation} onChange={(e) => setFormData({ ...formData, notOnProbation: e.target.checked })} colorScheme="blue">
                                         I am not currently on academic or disciplinary probation.
                                     </Checkbox>
-                                    <Checkbox isChecked={formData.trueStatement} onChange={(e) => setFormData({ ...formData, trueStatement: e.target.checked })} colorScheme="yellow">
+                                    <Checkbox isChecked={formData.trueStatement} onChange={(e) => setFormData({ ...formData, trueStatement: e.target.checked })} colorScheme="blue">
                                         I confirm all documents provided are true and accurate.
                                     </Checkbox>
                                 </VStack>
-                                <Button mt={{ base: 6, md: 10 }} size="lg" colorScheme="yellow" color="gray.900" fontWeight="black" w="full" h={{ base: '56px', md: '70px' }} fontSize={{ base: 'md', md: 'xl' }} isLoading={submitting} loadingText="Submitting..." onClick={handleSubmission}>
+                                <Button mt={{ base: 6, md: 10 }} size="lg" colorScheme="green" fontWeight="black" w="full" h={{ base: '56px', md: '70px' }} fontSize={{ base: 'md', md: 'xl' }} isLoading={submitting} loadingText="Submitting..." onClick={handleSubmission}>
                                     SUBMIT {selectedRole.replace('_', ' ').toUpperCase()} APPLICATION
                                 </Button>
                             </Box>
