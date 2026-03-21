@@ -121,20 +121,27 @@ class AuthService {
   async googleFastLogin(email) {
     try {
       const deviceId = await this.getDeviceId();
+      console.log('🔵 [FAST-LOGIN] Calling /api/auth/google-fast-login with email:', email, 'deviceId:', deviceId);
       const response = await fetch('/api/auth/google-fast-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, deviceId }),
         credentials: 'include',
       });
+      console.log('🔵 [FAST-LOGIN] Response status:', response.status);
       const data = await response.json();
+      console.log('🔵 [FAST-LOGIN] Response data:', JSON.stringify(data));
       if (response.ok && data.message === 'success') {
+        console.log('🔵 [FAST-LOGIN] ✅ Fast-login SUCCESS — skipping OAuth redirect');
         localStorage.setItem('expiresAt', data.expiresAt);
         localStorage.setItem('user', JSON.stringify(data.user));
         this.setAutoLogout();
+      } else {
+        console.log('🔵 [FAST-LOGIN] ❌ Fast-login returned:', data.message, '— will fall back to full OAuth');
       }
       return data;
     } catch (error) {
+      console.error('🔵 [FAST-LOGIN] ❌ Network error:', error.message);
       // Network error — fall back to full auth
       return { message: 'needs_full_auth' };
     }
@@ -142,13 +149,19 @@ class AuthService {
 
   async googleSignIn(email) {
     try {
+      console.log('🔵 [GOOGLE-SIGNIN] Called with email:', JSON.stringify(email), 'email truthy:', !!email, 'email length:', email?.length);
       // If we have an email, try the fast-login path first
       if (email) {
+        console.log('🔵 [GOOGLE-SIGNIN] Email present — trying fast-login first...');
         const fastResult = await this.googleFastLogin(email);
+        console.log('🔵 [GOOGLE-SIGNIN] Fast-login result:', JSON.stringify(fastResult));
         if (fastResult.message === 'success') {
+          console.log('🔵 [GOOGLE-SIGNIN] ✅ Returning fast_success to Login.jsx');
           return { type: 'fast_success', ...fastResult };
         }
-        // needs_full_auth → proceed to full OAuth below
+        console.log('🔵 [GOOGLE-SIGNIN] Fast-login did not succeed, proceeding to full OAuth...');
+      } else {
+        console.log('🔵 [GOOGLE-SIGNIN] No email provided — skipping fast-login, going straight to OAuth');
       }
 
       const deviceId = await this.getDeviceId();
@@ -161,6 +174,7 @@ class AuthService {
         throw new Error(errorData.message || 'Failed to initiate Google Sign-In');
       }
       const data = await response.json();
+      console.log('🔵 [GOOGLE-SIGNIN] Full OAuth URL obtained, redirecting...');
       return data.url;
     } catch (error) {
       throw error;

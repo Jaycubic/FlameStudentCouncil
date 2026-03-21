@@ -250,10 +250,13 @@ function Login() {
     setError('');
     setIsLoading(true);
     try {
+      console.log('🟢 [LOGIN] handleGoogleSignIn called, email state value:', JSON.stringify(email), 'length:', email?.length);
       const result = await authService.googleSignIn(email);
+      console.log('🟢 [LOGIN] googleSignIn returned:', JSON.stringify(result), 'type:', typeof result);
 
       // Fast-login succeeded — student logged in without redirect
       if (result && result.type === 'fast_success') {
+        console.log('🟢 [LOGIN] ✅ Fast-login success path — redirecting to app');
         localStorage.setItem('expiresAt', result.expiresAt);
         localStorage.setItem('user', JSON.stringify(result.user));
         const redirectPath = result.user?.role === 'Student' ? '/award-form' : '/';
@@ -265,12 +268,14 @@ function Login() {
 
       // Full OAuth redirect (result is a URL string)
       if (result && typeof result === 'string') {
+        console.log('🟢 [LOGIN] Full OAuth redirect to:', result.substring(0, 80) + '...');
         window.location.href = result;
       } else {
+        console.log('🟢 [LOGIN] ❌ Unexpected result, not a string or fast_success:', result);
         setError('Failed to initiate Google Sign-In');
       }
     } catch (err) {
-      console.error('Google Sign-In error:', err);
+      console.error('🟢 [LOGIN] ❌ Google Sign-In error:', err);
       setError('Error initiating Google Sign-In');
     } finally {
       setIsLoading(false);
