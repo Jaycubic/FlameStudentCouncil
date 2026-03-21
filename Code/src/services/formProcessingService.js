@@ -54,7 +54,7 @@ class FormProcessingService {
             const formData = new FormData();
             formData.append('photo', file);
             formData.append('studentId', studentId);
-            const response = await fetch('/photos/upload', {
+            const response = await fetch('/api/photos/upload', {
                 method: 'POST',
                 headers: { 'x-device-id': deviceId },
                 credentials: 'include',

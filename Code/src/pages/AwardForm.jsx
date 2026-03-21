@@ -88,7 +88,7 @@ function ApplicationFormDashboard() {
                 ...prev,
                 ...prefillData.prefill,
                 photoUrl: prefillData.photoExists && photoName
-                    ? `/photos/${photoName}?t=${Date.now()}`
+                    ? `/api/photos/${photoName}?t=${Date.now()}`
                     : defaultProfilePhoto
             }));
             setPhotoExists(prefillData.photoExists);
@@ -207,7 +207,7 @@ function ApplicationFormDashboard() {
             setPhotoExists(true);
             // Refresh photo URL with cache buster so the image re-renders
             const sid = formData.studentId || formData.student_id;
-            setFormData(prev => ({ ...prev, photoUrl: `/photos/${sid}?t=${Date.now()}` }));
+            setFormData(prev => ({ ...prev, photoUrl: `/api/photos/${sid}?t=${Date.now()}` }));
             toast({ title: 'Photo Uploaded', description: 'Your profile photo has been saved.', status: 'success', duration: 3000 });
         } catch (err) {
             toast({ title: 'Upload Failed', description: err.message, status: 'error', duration: 5000 });

@@ -69,7 +69,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/organizations', organizationRoutes);
-app.use('/photos', require('./routes/photoRoutes'));
+app.use('/api/photos', require('./routes/photoRoutes'));
 app.use("/api/footer", footerRoutes);
 app.use(EmployeeRoute);
 app.use('/api/student-status', require('./routes/studentStatusRoutes.js'));
