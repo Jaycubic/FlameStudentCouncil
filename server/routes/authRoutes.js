@@ -10,6 +10,7 @@ router.post('/login', authController.login);
 router.post('/verify-code', authController.verifyCode);
 router.post('/resend-verification-code', authController.resendVerificationCode);
 router.post('/verify-2fa', authController.verify2FA);
+router.post('/refresh', authController.refresh);
 router.post('/logout', validateToken, authController.logout);
 router.get('/profile', validateToken, authController.getProfile);
 router.get('/google', authController.googleSignIn);
