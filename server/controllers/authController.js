@@ -554,6 +554,7 @@ const authController = {
 
   async googleSignIn(req, res) {
     const deviceId = req.query.deviceId || 'unknown';
+    console.log('⚡ googleSignIn (full OAuth) called — fast-login was skipped or returned needs_full_auth. deviceId:', deviceId);
     const client = createOAuth2Client();
     const authUrl = client.generateAuthUrl({
       access_type: 'offline',
