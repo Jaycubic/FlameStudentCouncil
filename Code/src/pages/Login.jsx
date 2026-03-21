@@ -75,6 +75,10 @@ function Login() {
       localStorage.setItem('expiresAt', expiresAtParam);
       authService.init(); // Init AFTER setting storage to avoid clearing the new session
       const parsedUser = JSON.parse(decodeURIComponent(userParam));
+      // Save email for future fast-logins (so students don't need to type it)
+      if (parsedUser?.email) {
+        localStorage.setItem('lastGoogleEmail', parsedUser.email);
+      }
       const redirectPath = parsedUser?.role === 'Student' ? '/award-form' : '/';
       toast({ title: 'Login Successful', status: 'success', duration: 3000 });
       setIsNavigating(true);

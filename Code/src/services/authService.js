@@ -129,6 +129,8 @@ class AuthService {
       });
       const data = await response.json();
       if (response.ok && data.message === 'success') {
+        // Save email for future fast-logins
+        localStorage.setItem('lastGoogleEmail', email);
         localStorage.setItem('expiresAt', data.expiresAt);
         localStorage.setItem('user', JSON.stringify(data.user));
         this.setAutoLogout();
@@ -141,8 +143,11 @@ class AuthService {
 
   async googleSignIn(email) {
     try {
-      if (email) {
-        const fastResult = await this.googleFastLogin(email);
+      // Use typed email, OR the stored email from a previous OAuth login
+      const effectiveEmail = email || localStorage.getItem('lastGoogleEmail');
+
+      if (effectiveEmail) {
+        const fastResult = await this.googleFastLogin(effectiveEmail);
         if (fastResult.message === 'success') {
           return { type: 'fast_success', ...fastResult };
         }
