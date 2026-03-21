@@ -70,6 +70,7 @@ exports.uploadPhoto = (req, res) => {
 exports.getPhoto = (req, res) => {
   try {
     const param = req.params.studentId; // can be id or filename
+    console.log('[PHOTO] getPhoto called, param:', param);
     if (!param) return res.status(400).send('Bad request');
 
     let filePath = null;
@@ -77,6 +78,7 @@ exports.getPhoto = (req, res) => {
     // If client passed extension already (like 123.jpg), serve that exact file if present
     if (path.extname(param)) {
       const potential = path.join(uploadPath, param);
+      console.log('[PHOTO] Has extension, trying exact:', potential, 'exists:', fs.existsSync(potential));
       if (fs.existsSync(potential)) {
         filePath = potential;
       }
@@ -85,6 +87,7 @@ exports.getPhoto = (req, res) => {
       const extensions = ['.jpg', '.jpeg', '.png'];
       for (const ext of extensions) {
         const potential = path.join(uploadPath, `${param}${ext}`);
+        console.log('[PHOTO] Trying:', potential, 'exists:', fs.existsSync(potential));
         if (fs.existsSync(potential)) {
           filePath = potential;
           break;
@@ -93,9 +96,11 @@ exports.getPhoto = (req, res) => {
     }
 
     if (!filePath) {
+      console.log('[PHOTO] NOT FOUND for param:', param);
       return res.status(404).json({ message: 'Photo not found' });
     }
 
+    console.log('[PHOTO] Serving:', path.resolve(filePath));
     // Use absolute path to be safe
     return res.sendFile(path.resolve(filePath));
   } catch (err) {
