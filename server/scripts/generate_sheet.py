@@ -1,3 +1,4 @@
+# scripts/generate_sheet.py
 import sys
 import json
 import os

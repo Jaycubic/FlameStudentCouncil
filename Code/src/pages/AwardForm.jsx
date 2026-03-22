@@ -263,14 +263,10 @@ function ApplicationFormDashboard() {
     const handleGenerateSheet = async (type) => {
         setGeneratingSheet(true);
         try {
-            // Ensure auth service handles the request headers properly
-            const token = authService.getToken();
             const response = await fetch(`/api/sheets/${type}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
             });
 
             const result = await response.json();
