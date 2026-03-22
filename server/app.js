@@ -71,7 +71,7 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/photos', require('./routes/photoRoutes'));
 app.use("/api/footer", footerRoutes);
-app.use(EmployeeRoute);
+app.use('/api', EmployeeRoute);
 app.use('/api/student-status', require('./routes/studentStatusRoutes.js'));
 app.use('/api/activity-tracker', require('./routes/activityTrackerRoutes.js'));
 app.use('/api/settings', require('./routes/settingsRoutes.js'));

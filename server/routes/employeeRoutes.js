@@ -1,3 +1,4 @@
+// server/routes/employeeRoutes.js
 const express = require("express");
 const router = express.Router();
 const employeeController = require("../controllers/employeeStudentMasterController");
