@@ -263,10 +263,14 @@ function ApplicationFormDashboard() {
     const handleGenerateSheet = async (type) => {
         setGeneratingSheet(true);
         try {
+            const deviceId = localStorage.getItem('deviceId') || '';
             const response = await fetch(`/api/sheets/${type}`, {
                 method: 'GET',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-device-id': deviceId
+                }
             });
 
             const result = await response.json();
