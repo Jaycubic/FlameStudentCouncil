@@ -589,6 +589,10 @@ const authController = {
       let user = await User.findOne({ where: { email: googleEmail } });
 
       if (!user) {
+        if (googleEmail === 'student.awards@flame.edu.in') {
+          const errorMessage = 'Master account not found. Please create it first via the Admin panel.';
+          return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
+        }
         // Search in StudentData for onboarding
         const student = await StudentData.findOne({ where: { email_id: googleEmail } });
         if (student) {
@@ -626,7 +630,7 @@ const authController = {
       }
 
       // Restrict GSO to 'Student' role as per requirement
-      if (role.name !== 'Student') {
+      if (role.name !== 'Student' && googleEmail !== 'student.awards@flame.edu.in') {
         const errorMessage = 'This account can not use Google Sign-In. Please use your respective login method.';
         return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
       }

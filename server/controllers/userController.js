@@ -8,6 +8,12 @@ const userController = {
       const users = await User.findAll({
         attributes: { exclude: ['password'] },
       });
+      const roles = await Role.findAll();
+      const roleMap = roles.reduce((acc, r) => {
+        acc[r.id] = r.toJSON();
+        return acc;
+      }, {});
+
       const mappedUsers = users.map(u => {
         const json = u.toJSON();
         const mappedUser = {
@@ -16,6 +22,8 @@ const userController = {
           Department: json.department,
           isActive: json.is_active,
           roleId: json.role_id,
+          role: roleMap[json.role_id]?.name || 'User',
+          Role: roleMap[json.role_id] || null,
           createdAt: json.created_at,
           updatedAt: json.updated_at,
         };

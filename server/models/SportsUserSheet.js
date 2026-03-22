@@ -17,6 +17,14 @@ const SportsUserSheet = sequelize.define('SportsUserSheet', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    // Stores the student's Drive permissionId on their sheet.
+    // Used by revoke_access.py to remove student access after form submission.
+    // Nulled out once revocation is fired to prevent duplicate revocations.
+    student_permission_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
@@ -27,6 +35,7 @@ const SportsUserSheet = sequelize.define('SportsUserSheet', {
     }
 }, {
     tableName: 'sports_user_sheets',
+    schema: 'app',
     timestamps: true,
     underscored: true
 });
