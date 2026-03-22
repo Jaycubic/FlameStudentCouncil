@@ -18,8 +18,8 @@ def main():
     access_token = sys.argv[2]
     refresh_token = sys.argv[3]
 
-    MASTER_SHEET_ID_CULTURAL = '1IgRqzflN3Bu36yvY273byKXLEfSxwXxS'
-    MASTER_SHEET_ID_SPORTS = '1xjOG7lsXD1YKTsztB0owmzsY1E0Hxf9Q7K9VTX0m_pk'
+    MASTER_SHEET_ID_CULTURAL = '13OmGXgfm8FVSIypODe1vx7dbgWj_OVvK'
+    MASTER_SHEET_ID_SPORTS = '1Oojribe-DaZ2hLrYnUxl0WMfhOXGoyBK-evUHKqfRxY'
 
     creds = Credentials(
         token=access_token,
