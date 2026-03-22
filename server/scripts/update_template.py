@@ -35,8 +35,16 @@ def main():
         
         file_id = MASTER_SHEET_ID_CULTURAL if sheet_type == 'cultural' else MASTER_SHEET_ID_SPORTS
         
-        # Export as XLSX
-        request = service.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        # Check if native Google Sheet or uploaded Excel file
+        file_info = service.files().get(fileId=file_id, fields='mimeType').execute()
+        mime_type = file_info.get('mimeType')
+        
+        if mime_type == 'application/vnd.google-apps.spreadsheet':
+            # Export native Google Sheet as XLSX
+            request = service.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        else:
+            # Download file as is (e.g., already an XLSX file)
+            request = service.files().get_media(fileId=file_id)
         
         # Ensure templates directory exists
         templates_dir = os.path.join(os.path.dirname(__file__), '..', 'templates')
