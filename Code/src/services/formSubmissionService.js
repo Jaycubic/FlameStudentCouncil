@@ -38,8 +38,10 @@ class FormSubmissionService {
 
   async submit(formData) {
     try {
+      const deviceId = await this.getDeviceId();
       const response = await fetch('/api/form-submissions/submit', {
         method: 'POST',
+        headers: { 'x-device-id': deviceId },
         body: formData, // No Content-Type header needed for FormData
         credentials: 'include'
       });
