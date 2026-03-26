@@ -108,6 +108,38 @@ const sheetController = {
             // ── 1. Check DB (fast path) ──────────────────────────────────────
             const existingSheet = await Model.findOne({ where: { email: userEmail } });
             if (existingSheet) {
+                // If permission was revoked (prior submission), re-grant access
+                if (!existingSheet.student_permission_id) {
+                    const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+                    if (!masterUser?.access_token) {
+                        return res.status(500).json({ success: false, message: 'Master account configuration missing.' });
+                    }
+
+                    const restoreScript = path.join(__dirname, '../scripts/restore_access.py');
+                    let restoreResult;
+
+                    await driveSemaphore.acquire();
+                    try {
+                        restoreResult = await runPythonScript(restoreScript, [
+                            existingSheet.user_sheet_id,
+                            userEmail,
+                            masterUser.access_token,
+                            masterUser.refresh_token
+                        ]);
+                    } finally {
+                        driveSemaphore.release();
+                    }
+
+                    if (!restoreResult.success) {
+                        console.error('[SheetController] Restore access error:', restoreResult.error);
+                        return res.status(500).json({ success: false, message: 'Failed to restore sheet access: ' + restoreResult.error });
+                    }
+
+                    // Store the new permission ID
+                    await existingSheet.update({ student_permission_id: restoreResult.student_permission_id });
+                    console.log(`[SheetController] Restored access for ${userEmail} on ${type} sheet. New permId: ${restoreResult.student_permission_id}`);
+                }
+
                 return res.status(200).json({
                     success: true,
                     sheet_id: existingSheet.user_sheet_id,
