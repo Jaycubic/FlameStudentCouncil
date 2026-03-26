@@ -17,6 +17,7 @@ const SportAttachments = sequelize.define('SportAttachments', {
     },
 }, {
     tableName: 'sport_attachments',
+    schema: 'app',
     timestamps: false,
 });
 

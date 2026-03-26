@@ -17,6 +17,7 @@ const CulturalAttachments = sequelize.define('CulturalAttachments', {
     },
 }, {
     tableName: 'cultural_attachments',
+    schema: 'app',
     timestamps: false,
 });
 

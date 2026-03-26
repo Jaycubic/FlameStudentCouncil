@@ -17,6 +17,7 @@ const AcademicAttachments = sequelize.define('AcademicAttachments', {
   },
 }, {
   tableName: 'academic_attachments',
+  schema: 'app',
   timestamps: false,
 });
 
