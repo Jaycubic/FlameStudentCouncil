@@ -82,6 +82,64 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
         console.error(`[RevokeAccess] Failed to spawn revoke script for file ${fileId}:`, err.message);
     });
 }
+// ─── Permission Restore Helper ────────────────────────────────────────────────
+// Standalone function (not on controller) to avoid Express `this` binding issues.
+
+async function handleRestore(res, existingSheet, userEmail, type) {
+    const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+    if (!masterUser?.access_token) {
+        return res.status(500).json({ success: false, message: 'Master account configuration missing.' });
+    }
+
+    const restoreArgs = [
+        existingSheet.user_sheet_id,
+        userEmail,
+        masterUser.access_token,
+        masterUser.refresh_token
+    ];
+
+    if (driveSemaphore.tryAcquire()) {
+        console.log(`[SheetController] Fast restore for ${userEmail}`);
+        try {
+            const restoreScript = path.join(__dirname, '../scripts/restore_access.py');
+            const result = await runPythonScript(restoreScript, restoreArgs);
+
+            if (!result.success) {
+                console.error('[SheetController] Restore error:', result.error);
+                return res.status(500).json({ success: false, message: 'Failed to restore access: ' + result.error });
+            }
+
+            await existingSheet.update({ student_permission_id: result.student_permission_id });
+            console.log(`[SheetController] Restored ${userEmail} on ${type}. permId: ${result.student_permission_id}`);
+
+            return res.status(200).json({
+                success: true,
+                sheet_id: existingSheet.user_sheet_id,
+                url: `https://docs.google.com/spreadsheets/d/${existingSheet.user_sheet_id}`,
+                isNew: false
+            });
+        } finally {
+            driveSemaphore.release();
+        }
+    } else {
+        console.log(`[SheetController] Queue restore for ${userEmail} (semaphore full)`);
+        const job = await sheetQueue.add(`restore:${userEmail}`, {
+            action: 'restore',
+            type,
+            userEmail,
+            args: restoreArgs
+        }, {
+            jobId: `restore-${type}-${userEmail}-${Date.now()}`
+        });
+
+        return res.status(202).json({
+            success: true,
+            status: 'queued',
+            jobId: job.id,
+            message: 'Restoring your sheet access. Please wait...'
+        });
+    }
+}
 
 // ─── Controller ───────────────────────────────────────────────────────────────
 
@@ -110,7 +168,7 @@ const sheetController = {
             if (existingSheet) {
                 // If permission was revoked (prior submission), re-grant access
                 if (!existingSheet.student_permission_id) {
-                    return await this._handleRestore(res, existingSheet, userEmail, type);
+                    return await handleRestore(res, existingSheet, userEmail, type);
                 }
 
                 return res.status(200).json({
@@ -196,68 +254,6 @@ const sheetController = {
         } catch (error) {
             console.error('[SheetController] getSheet error:', error);
             return res.status(500).json({ success: false, message: 'Internal server error.' });
-        }
-    },
-
-    /**
-     * Handle permission restore — hybrid fast/queue path.
-     * Called when a sheet exists in DB but permission was revoked.
-     */
-    async _handleRestore(res, existingSheet, userEmail, type) {
-        const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
-        if (!masterUser?.access_token) {
-            return res.status(500).json({ success: false, message: 'Master account configuration missing.' });
-        }
-
-        const restoreArgs = [
-            existingSheet.user_sheet_id,
-            userEmail,
-            masterUser.access_token,
-            masterUser.refresh_token
-        ];
-
-        if (driveSemaphore.tryAcquire()) {
-            // FAST PATH
-            console.log(`[SheetController] Fast restore for ${userEmail}`);
-            try {
-                const restoreScript = path.join(__dirname, '../scripts/restore_access.py');
-                const result = await runPythonScript(restoreScript, restoreArgs);
-
-                if (!result.success) {
-                    console.error('[SheetController] Restore error:', result.error);
-                    return res.status(500).json({ success: false, message: 'Failed to restore access: ' + result.error });
-                }
-
-                await existingSheet.update({ student_permission_id: result.student_permission_id });
-                console.log(`[SheetController] Restored ${userEmail} on ${type}. permId: ${result.student_permission_id}`);
-
-                return res.status(200).json({
-                    success: true,
-                    sheet_id: existingSheet.user_sheet_id,
-                    url: `https://docs.google.com/spreadsheets/d/${existingSheet.user_sheet_id}`,
-                    isNew: false
-                });
-            } finally {
-                driveSemaphore.release();
-            }
-        } else {
-            // QUEUE PATH
-            console.log(`[SheetController] Queue restore for ${userEmail} (semaphore full)`);
-            const job = await sheetQueue.add(`restore:${userEmail}`, {
-                action: 'restore',
-                type,
-                userEmail,
-                args: restoreArgs
-            }, {
-                jobId: `restore-${type}-${userEmail}-${Date.now()}`
-            });
-
-            return res.status(202).json({
-                success: true,
-                status: 'queued',
-                jobId: job.id,
-                message: 'Restoring your sheet access. Please wait...'
-            });
         }
     },
 
