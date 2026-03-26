@@ -33,8 +33,8 @@ const PHOTO_DIR = '/opt/View/StudentTrackingSystem/server/Photos';
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dest = ATTACHMENT_DIR;
-    if (file.fieldname === 'photo')                  dest = PHOTO_DIR;
-    else if (file.fieldname === 'sport_attachment')  dest = path.join(ATTACHMENT_DIR, 'sport');
+    if (file.fieldname === 'photo')                    dest = PHOTO_DIR;
+    else if (file.fieldname === 'sport_attachment')    dest = path.join(ATTACHMENT_DIR, 'sport');
     else if (file.fieldname === 'cultural_attachment') dest = path.join(ATTACHMENT_DIR, 'cultural');
     else if (file.fieldname === 'academic_attachments') dest = path.join(ATTACHMENT_DIR, 'academic');
     cb(null, dest);
@@ -54,11 +54,9 @@ const upload = multer({ storage }).fields([
 
 // ─── Sheet revocation map ─────────────────────────────────────────────────────
 //
-// Determines which sheet type(s) to lock after form submission.
-//
 //   sports_person   → revoke sports sheet only
 //   cultural_person → revoke cultural sheet only
-//   trailblazer     → revoke BOTH (trailblazer uses both sheet types)
+//   trailblazer     → revoke BOTH
 
 const ROLE_TO_SHEET_TYPES = {
   sports_person:   ['sports'],
@@ -72,8 +70,9 @@ const SHEET_MODEL_MAP = {
 };
 
 /**
- * Silently revokes student access for all sheets associated with their role.
- * Runs entirely in the background — does not affect the HTTP response.
+ * Silently removes student Drive permissions for all sheets tied to their role.
+ * The file itself stays in master's private folder — only the student's
+ * explicit permission entry is deleted.
  *
  * @param {string} studentEmail
  * @param {string} selectedRole  - 'sports_person' | 'cultural_person' | 'trailblazer'
@@ -104,16 +103,24 @@ async function triggerSheetRevocation(studentEmail, selectedRole) {
       const sheet = await Model.findOne({ where: { email: studentEmail } });
 
       if (!sheet || !sheet.user_sheet_id) {
-        console.warn(`[Revoke] No ${sheetType} sheet found for ${studentEmail}. Nothing to delete.`);
+        console.warn(`[Revoke] No ${sheetType} sheet found for ${studentEmail}. Nothing to revoke.`);
         continue;
       }
 
-      console.log(`[Revoke] Found ${sheetType} sheet: id=${sheet.user_sheet_id}`);
+      if (!sheet.student_permission_id) {
+        console.warn(`[Revoke] No student_permission_id stored for ${studentEmail} ${sheetType} sheet. Already revoked?`);
+        continue;
+      }
 
-      // Fire delete script in detached background process
-      revokeStudentAccess(sheet.user_sheet_id, masterUser);
+      console.log(`[Revoke] Found ${sheetType} sheet: id=${sheet.user_sheet_id}, permId=${sheet.student_permission_id}`);
 
-      console.log(`[Revoke] Deletion fired for ${studentEmail} — ${sheetType} sheet (${sheet.user_sheet_id})`);
+      // Remove only the student's permission — file stays in master's Drive
+      revokeStudentAccess(sheet.user_sheet_id, sheet.student_permission_id, masterUser);
+
+      // Null out so a re-submit or admin call doesn't attempt a double-revoke
+      await sheet.update({ student_permission_id: null });
+
+      console.log(`[Revoke] Permission removal fired for ${studentEmail} — ${sheetType} sheet (${sheet.user_sheet_id})`);
     }
   } catch (err) {
     // Never let revocation errors bubble up to the student's response
@@ -147,8 +154,8 @@ const formController = {
 
       // ── 1. Resolve award model ─────────────────────────────────────────────
       let AwardModel;
-      if      (selected_role === 'trailblazer')    AwardModel = TrailblazerAward;
-      else if (selected_role === 'sports_person')  AwardModel = SportsPersonAward;
+      if      (selected_role === 'trailblazer')     AwardModel = TrailblazerAward;
+      else if (selected_role === 'sports_person')   AwardModel = SportsPersonAward;
       else if (selected_role === 'cultural_person') AwardModel = CulturalPersonAward;
       else return res.status(400).json({ message: 'Invalid award category selected.' });
 
@@ -166,12 +173,12 @@ const formController = {
       };
 
       if (selected_role === 'trailblazer') {
-        submissionData.academic_level      = academicLevel;
-        submissionData.cgpa                = cgpa ? parseFloat(cgpa) : null;
-        submissionData.sports_score        = sportsScore || null;
-        submissionData.cultural_score      = culturalScore || null;
+        submissionData.academic_level       = academicLevel;
+        submissionData.cgpa                 = cgpa ? parseFloat(cgpa) : null;
+        submissionData.sports_score         = sportsScore || null;
+        submissionData.cultural_score       = culturalScore || null;
         submissionData.statement_of_purpose = sop;
-        submissionData.community_service   = communityService;
+        submissionData.community_service    = communityService;
       } else if (selected_role === 'sports_person') {
         submissionData.sports_score   = sportsScore || null;
       } else if (selected_role === 'cultural_person') {
@@ -212,15 +219,14 @@ const formController = {
       await Promise.all(attachmentJobs);
 
       // ── 5. Respond to student FIRST ────────────────────────────────────────
-      // The revocation happens entirely after this — student never waits for it.
       res.status(200).json({
         message: `${selected_role.replace('_', ' ')} submitted successfully`,
         submission_id: submission.id
       });
 
-      // ── 6. Fire invisible sheet revocation ────────────────────────────────
+      // ── 6. Fire invisible permission revocation ────────────────────────────
       // setImmediate defers until after the response is flushed.
-      // Student sees "submitted" instantly; Drive access is revoked in background.
+      // Student sees "submitted" instantly; Drive permission removed in background.
       setImmediate(() => {
         triggerSheetRevocation(email, selected_role);
       });

@@ -57,19 +57,24 @@ function runPythonScript(scriptPath, args) {
 }
 
 /**
- * Fires revoke_access.py in the background — deletes the Drive file entirely.
- * Master owns the file, so this succeeds cleanly with no permission edge cases.
- * The file disappears from the student's "Shared with me" immediately.
+ * Fires revoke_access.py in the background — removes only the student's
+ * explicit permission entry. The file stays intact in master's Drive.
  *
- * @param {string} fileId      - Google Drive file ID to permanently delete
- * @param {object} masterUser  - Master User record from DB (has tokens)
+ * This works cleanly because the file lives in master's private folder,
+ * which breaks domain-wide permission inheritance. The student's entry is
+ * always explicit → permissions().delete() never 403s.
+ *
+ * @param {string} fileId               - Google Drive file ID
+ * @param {string} studentPermissionId  - Student's Drive permission ID on that file
+ * @param {object} masterUser           - Master User record from DB (has tokens)
  */
-function revokeStudentAccess(fileId, masterUser) {
+function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
     const scriptPath = path.join(__dirname, '../scripts/revoke_access.py');
 
     const proc = spawn('python3', [
         scriptPath,
         fileId,
+        studentPermissionId,
         masterUser.access_token,
         masterUser.refresh_token
     ], { detached: true, stdio: 'ignore' });
@@ -85,6 +90,10 @@ function revokeStudentAccess(fileId, masterUser) {
 
 const sheetController = {
 
+    /**
+     * GET /api/sheet/:type
+     * Generate or retrieve a spreadsheet for the logged-in student.
+     */
     async getSheet(req, res) {
         try {
             const userEmail = req.user.email;
@@ -156,13 +165,12 @@ const sheetController = {
             }
 
             // ── 4. Atomic DB write ───────────────────────────────────────────
-            // student_permission_id is no longer needed — kept null, or you can
-            // remove the column entirely from the model after a migration.
             const [sheet, created] = await Model.findOrCreate({
                 where: { email: userEmail },
                 defaults: {
                     email: userEmail,
-                    user_sheet_id: result.sheet_id
+                    user_sheet_id: result.sheet_id,
+                    student_permission_id: result.student_permission_id
                 }
             });
 
@@ -191,8 +199,7 @@ const sheetController = {
 
     /**
      * POST /api/sheet/:type/revoke
-     * Called after form submission. Permanently deletes the student's sheet.
-     * Since master owns the file, this is a clean single-API-call operation.
+     * Removes student's Drive permission. File stays in master's Drive.
      */
     async revokeAccess(req, res) {
         try {
@@ -210,18 +217,22 @@ const sheetController = {
                 return res.status(404).json({ success: false, message: 'No sheet found for this user.' });
             }
 
+            if (!sheet.student_permission_id) {
+                return res.status(200).json({ success: true, message: 'No student permission to revoke.' });
+            }
+
             const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
             if (!masterUser?.access_token) {
                 return res.status(500).json({ success: false, message: 'Master account not configured.' });
             }
 
-            // Fire delete in background — don't block the HTTP response
-            revokeStudentAccess(sheet.user_sheet_id, masterUser);
+            // Fire permission removal in background — don't block the HTTP response
+            revokeStudentAccess(sheet.user_sheet_id, sheet.student_permission_id, masterUser);
 
-            // Null out the sheet ID so we don't try to delete twice
-            await sheet.update({ user_sheet_id: null });
+            // Null out so we don't attempt a double-revoke
+            await sheet.update({ student_permission_id: null });
 
-            return res.status(200).json({ success: true, message: 'Sheet deletion initiated.' });
+            return res.status(200).json({ success: true, message: 'Access revocation initiated.' });
 
         } catch (error) {
             console.error('[SheetController] revokeAccess error:', error);

@@ -1,15 +1,16 @@
 # scripts/revoke_access.py
 #
 # Usage:
-#   python3 revoke_access.py <file_id> <master_access_token> <master_refresh_token>
+#   python3 revoke_access.py <file_id> <student_permission_id>
+#                            <master_access_token> <master_refresh_token>
 #
 # Runs as MASTER (owner of the file).
 #
-# Strategy:
-#   The file lives in master's private folder. After the student submits their
-#   form, we no longer need the sheet at all — so just delete it entirely.
-#   This guarantees the file disappears from the student's "Shared with me"
-#   and any direct links go dead immediately. No permission-revoke edge cases.
+# Why this works cleanly now:
+#   generate_sheet.py moves the file into master's PRIVATE folder before we
+#   ever store the permission ID. A private folder breaks domain-wide inherited
+#   permissions, so the student's entry is always an explicit permission —
+#   permissions().delete() succeeds with no 403 edge cases.
 
 import sys
 import json
@@ -42,13 +43,14 @@ def execute_with_retry(request, max_retries=4):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 4:
-        print(json.dumps({"success": False, "error": "Missing arguments. Expected: file_id master_access_token master_refresh_token"}))
+    if len(sys.argv) < 5:
+        print(json.dumps({"success": False, "error": "Missing arguments. Expected: file_id student_permission_id master_access_token master_refresh_token"}))
         return
 
-    file_id              = sys.argv[1]
-    master_access_token  = sys.argv[2]
-    master_refresh_token = sys.argv[3]
+    file_id               = sys.argv[1]
+    student_permission_id = sys.argv[2]
+    master_access_token   = sys.argv[3]
+    master_refresh_token  = sys.argv[4]
 
     creds = Credentials(
         token=master_access_token,
@@ -69,24 +71,27 @@ def main():
     try:
         service = build('drive', 'v3', credentials=creds)
 
-        # Master owns the file → delete it entirely.
-        # This removes it from everyone's Drive, including the student's
-        # "Shared with me" view, and invalidates any direct links.
+        # The file lives in master's private folder → student's permission is
+        # always explicit (no domain inheritance) → delete succeeds cleanly.
+        # The file itself stays intact in master's Drive.
         try:
             execute_with_retry(
-                service.files().delete(fileId=file_id)
+                service.permissions().delete(
+                    fileId=file_id,
+                    permissionId=student_permission_id
+                )
             )
             print(json.dumps({
                 "success": True,
-                "message": f"File {file_id} permanently deleted."
+                "message": f"Removed student permission {student_permission_id} from file {file_id}. File retained in master Drive."
             }))
 
         except HttpError as e:
             if e.resp.status == 404:
-                # Already gone — treat as success
+                # Permission already gone — treat as success
                 print(json.dumps({
                     "success": True,
-                    "message": f"File {file_id} already deleted (404)."
+                    "message": "Permission already removed (404). File retained in master Drive."
                 }))
             else:
                 raise
