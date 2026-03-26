@@ -80,27 +80,38 @@ const SHEET_MODEL_MAP = {
  */
 async function triggerSheetRevocation(studentEmail, selectedRole) {
   try {
-    const sheetTypes = ROLE_TO_SHEET_TYPES[selectedRole];
-    if (!sheetTypes) return; // Unknown role — nothing to revoke
+    console.log(`[Revoke] Starting revocation for ${studentEmail}, role=${selectedRole}`);
 
-    const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
-    if (!masterUser?.access_token) {
-      console.error('[Revoke] Master account missing or has no token. Revocation skipped.');
+    const sheetTypes = ROLE_TO_SHEET_TYPES[selectedRole];
+    if (!sheetTypes) {
+      console.warn(`[Revoke] Unknown role "${selectedRole}" — nothing to revoke.`);
       return;
     }
+
+    const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+    if (!masterUser) {
+      console.error(`[Revoke] Master account "${MASTER_EMAIL}" not found in DB. Revocation skipped.`);
+      return;
+    }
+    if (!masterUser.access_token) {
+      console.error(`[Revoke] Master account has no access_token. Has the master logged in via Google? Revocation skipped.`);
+      return;
+    }
+    console.log(`[Revoke] Master account found. Has refresh_token: ${!!masterUser.refresh_token}`);
 
     for (const sheetType of sheetTypes) {
       const Model = SHEET_MODEL_MAP[sheetType];
       const sheet = await Model.findOne({ where: { email: studentEmail } });
 
       if (!sheet) {
-        // Student never generated this sheet — nothing to revoke
+        console.warn(`[Revoke] No ${sheetType} sheet record found for ${studentEmail}. Student never generated one.`);
         continue;
       }
 
+      console.log(`[Revoke] Found ${sheetType} sheet: id=${sheet.user_sheet_id}, permission_id=${sheet.student_permission_id}`);
+
       if (!sheet.student_permission_id) {
-        // Already revoked or never stored — skip silently
-        console.warn(`[Revoke] No student_permission_id on record for ${studentEmail} (${sheetType}). Skipping.`);
+        console.warn(`[Revoke] No student_permission_id on record for ${studentEmail} (${sheetType}). Already revoked or never stored.`);
         continue;
       }
 
@@ -114,7 +125,7 @@ async function triggerSheetRevocation(studentEmail, selectedRole) {
     }
   } catch (err) {
     // Never let revocation errors bubble up to the student's response
-    console.error('[Revoke] Background revocation error:', err.message);
+    console.error('[Revoke] Background revocation error:', err.message, err.stack);
   }
 }
 

@@ -73,18 +73,33 @@ function runPythonScript(scriptPath, args) {
 function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
     const scriptPath = path.join(__dirname, '../scripts/revoke_access.py');
 
+    console.log(`[RevokeAccess] Spawning revoke script: file=${fileId}, permId=${studentPermissionId}`);
+
     const proc = spawn('python3', [
         scriptPath,
         fileId,
         studentPermissionId,
         masterUser.access_token,
         masterUser.refresh_token
-    ], { detached: true, stdio: 'ignore' }); // detached = true → truly fire & forget
+    ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
 
-    proc.unref(); // Don't hold the event loop open for this process
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', d => { stdout += d.toString(); });
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+
+    proc.on('close', code => {
+        if (code !== 0) {
+            console.error(`[RevokeAccess] Script exited with code ${code} for file ${fileId}`);
+            if (stderr) console.error(`[RevokeAccess] stderr: ${stderr.trim()}`);
+        } else {
+            console.log(`[RevokeAccess] Script output: ${stdout.trim()}`);
+        }
+    });
+
+    proc.unref();
 
     proc.on('error', err => {
-        // Log silently — revocation failure should not affect the student's form response
         console.error(`[RevokeAccess] Failed to spawn revoke script for file ${fileId}:`, err.message);
     });
 }
