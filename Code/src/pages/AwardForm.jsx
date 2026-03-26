@@ -536,7 +536,7 @@ function ApplicationFormDashboard() {
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
-                                                <Input ref={sportFileRef} type="file" accept=".pdf" display="none" onChange={(e) => { if (e.target.files.length > 0) { setSportFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
+                                                <input ref={sportFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => { if (e.target.files.length > 0) { setSportFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
                                                 <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="blue" onClick={() => sportFileRef.current?.click()}>Add PDF Files</Button>
                                                 {sportFiles.length > 0 && (
                                                     <VStack align="stretch" spacing={2} w="full">
@@ -611,7 +611,7 @@ function ApplicationFormDashboard() {
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
-                                                <Input ref={culturalFileRef} type="file" accept=".pdf" display="none" onChange={(e) => { if (e.target.files.length > 0) { setCulturalFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
+                                                <input ref={culturalFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => { if (e.target.files.length > 0) { setCulturalFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
                                                 <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="pink" onClick={() => culturalFileRef.current?.click()}>Add PDF Files</Button>
                                                 {culturalFiles.length > 0 && (
                                                     <VStack align="stretch" spacing={2} w="full">
