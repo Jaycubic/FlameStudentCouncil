@@ -113,9 +113,6 @@ async function triggerSheetRevocation(studentEmail, selectedRole) {
       // Fire delete script in detached background process
       revokeStudentAccess(sheet.user_sheet_id, masterUser);
 
-      // Null out the sheet ID so duplicate submits don't re-trigger
-      await sheet.update({ user_sheet_id: null });
-
       console.log(`[Revoke] Deletion fired for ${studentEmail} — ${sheetType} sheet (${sheet.user_sheet_id})`);
     }
   } catch (err) {
