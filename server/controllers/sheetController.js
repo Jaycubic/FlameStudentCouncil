@@ -146,7 +146,7 @@ const sheetController = {
                 });
             }
 
-            const folderId = '1XrnG4E5puhu-W_WHYoUQwflS8D3JSQfC';
+            const folderId = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
 
             // ── 3. Run Python under semaphore ────────────────────────────────
             const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
