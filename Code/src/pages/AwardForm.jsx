@@ -72,6 +72,9 @@ function ApplicationFormDashboard() {
     const [sheetReady, setSheetReady] = useState({ sports: null, cultural: null });
     const sportFileRef = useRef(null);
     const culturalFileRef = useRef(null);
+    const pollingRef = useRef(null);
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
     const [photoExists, setPhotoExists] = useState(false);
 
@@ -182,7 +185,19 @@ function ApplicationFormDashboard() {
             setLoading(false);
         };
         initForm();
+
+        return () => {
+            if (pollingRef.current) clearInterval(pollingRef.current);
+        };
     }, [toast]);
+
+    useEffect(() => {
+        return () => {
+            if (formData.photoUrl?.startsWith('blob:')) {
+                URL.revokeObjectURL(formData.photoUrl);
+            }
+        };
+    }, [formData.photoUrl]);
 
     const handleRoleSelect = (role, title) => {
         if (filledRoles.includes(title)) {
@@ -310,7 +325,7 @@ function ApplicationFormDashboard() {
             let attempts = 0;
             const maxAttempts = 40; // 40 × 3s = 2 minutes max
 
-            const interval = setInterval(async () => {
+            pollingRef.current = setInterval(async () => {
                 attempts++;
                 try {
                     const res = await fetch(`/api/sheets/job/${jobId}`, {
@@ -320,18 +335,18 @@ function ApplicationFormDashboard() {
                     const data = await res.json();
 
                     if (data.status === 'completed' && data.url) {
-                        clearInterval(interval);
+                        clearInterval(pollingRef.current);
                         resolve(data.url);
                     } else if (data.status === 'failed') {
-                        clearInterval(interval);
+                        clearInterval(pollingRef.current);
                         reject(new Error(data.error || 'Sheet generation failed'));
                     } else if (attempts >= maxAttempts) {
-                        clearInterval(interval);
+                        clearInterval(pollingRef.current);
                         reject(new Error('Sheet generation timed out. Please try again.'));
                     }
                     // else: still 'waiting' or 'active' — keep polling
                 } catch (err) {
-                    clearInterval(interval);
+                    clearInterval(pollingRef.current);
                     reject(err);
                 }
             }, 3000);
@@ -621,11 +636,28 @@ function ApplicationFormDashboard() {
                                                         console.warn('No sport files selected'); // DEBUG
                                                         return;
                                                     }
-                                                    console.log('Sport file input triggered', files);
-                                                    setSportFiles(prev => {
-                                                        const updated = [...prev, ...files];
-                                                        return updated;
+
+                                                    const validFiles = files.filter(file => {
+                                                        if (file.size > MAX_SIZE) {
+                                                            toast({
+                                                                title: 'File too large',
+                                                                description: `${file.name} exceeds 5MB limit`,
+                                                                status: 'error'
+                                                            });
+                                                            return false;
+                                                        }
+                                                        return true;
                                                     });
+
+                                                    if (validFiles.length > 0) {
+                                                        console.log('Sport file input triggered', validFiles);
+                                                        setSportFiles(prev => {
+                                                            const newFiles = validFiles.filter(
+                                                                f => !prev.some(p => p.name === f.name && p.size === f.size)
+                                                            );
+                                                            return [...prev, ...newFiles];
+                                                        });
+                                                    }
                                                     // reset AFTER processing
                                                     e.target.value = '';
                                                 }} multiple />
@@ -709,11 +741,28 @@ function ApplicationFormDashboard() {
                                                         console.warn('No cultural files selected'); // DEBUG
                                                         return;
                                                     }
-                                                    console.log('Cultural file input triggered', files);
-                                                    setCulturalFiles(prev => {
-                                                        const updated = [...prev, ...files];
-                                                        return updated;
+
+                                                    const validFiles = files.filter(file => {
+                                                        if (file.size > MAX_SIZE) {
+                                                            toast({
+                                                                title: 'File too large',
+                                                                description: `${file.name} exceeds 5MB limit`,
+                                                                status: 'error'
+                                                            });
+                                                            return false;
+                                                        }
+                                                        return true;
                                                     });
+
+                                                    if (validFiles.length > 0) {
+                                                        console.log('Cultural file input triggered', validFiles);
+                                                        setCulturalFiles(prev => {
+                                                            const newFiles = validFiles.filter(
+                                                                f => !prev.some(p => p.name === f.name && p.size === f.size)
+                                                            );
+                                                            return [...prev, ...newFiles];
+                                                        });
+                                                    }
                                                     // reset AFTER processing
                                                     e.target.value = '';
                                                 }} multiple />
