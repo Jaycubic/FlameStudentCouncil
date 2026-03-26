@@ -17,6 +17,7 @@ const fs = require('fs');
 
 // Import the fire-and-forget revoke helper from sheetController
 const { revokeStudentAccess } = require('./sheetController');
+const log = require('../utils/logger').child({ module: 'FormSubmissionController' });
 
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
 
@@ -83,36 +84,34 @@ async function triggerSheetRevocation(studentEmail, selectedRole) {
 
     const sheetTypes = ROLE_TO_SHEET_TYPES[selectedRole];
     if (!sheetTypes) {
-      console.warn(`[Revoke] Unknown role "${selectedRole}" — nothing to revoke.`);
+      log.warn({ role: selectedRole }, 'Unknown role — nothing to revoke.');
       return;
     }
 
     const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
-    if (!masterUser) {
-      console.error(`[Revoke] Master account "${MASTER_EMAIL}" not found in DB. Revocation skipped.`);
+
+    if (!masterUser || !masterUser.access_token) {
+      log.error({ studentEmail }, 'Revocation failed: Master account not found or has no access_token');
       return;
     }
-    if (!masterUser.access_token) {
-      console.error(`[Revoke] Master account has no access_token. Has the master logged in via Google? Revocation skipped.`);
-      return;
-    }
-    console.log(`[Revoke] Master account found. Has refresh_token: ${!!masterUser.refresh_token}`);
+
+    log.info({ studentEmail, hasRefreshToken: !!masterUser.refresh_token }, 'Master account found');
 
     for (const sheetType of sheetTypes) {
       const Model = SHEET_MODEL_MAP[sheetType];
       const sheet = await Model.findOne({ where: { email: studentEmail } });
 
       if (!sheet || !sheet.user_sheet_id) {
-        console.warn(`[Revoke] No ${sheetType} sheet found for ${studentEmail}. Nothing to revoke.`);
+        log.warn({ sheetType, studentEmail }, 'No sheet found. Nothing to revoke.');
         continue;
       }
 
       if (!sheet.student_permission_id) {
-        console.warn(`[Revoke] No student_permission_id stored for ${studentEmail} ${sheetType} sheet. Already revoked?`);
+        log.warn({ sheetType, studentEmail }, 'No student_permission_id stored. Already revoked?');
         continue;
       }
 
-      console.log(`[Revoke] Found ${sheetType} sheet: id=${sheet.user_sheet_id}, permId=${sheet.student_permission_id}`);
+      log.info({ sheetType, userSheetId: sheet.user_sheet_id, permId: sheet.student_permission_id }, 'Found sheet for revocation');
 
       // Remove only the student's permission — file stays in master's Drive
       revokeStudentAccess(sheet.user_sheet_id, sheet.student_permission_id, masterUser);
@@ -120,11 +119,11 @@ async function triggerSheetRevocation(studentEmail, selectedRole) {
       // Null out so a re-submit or admin call doesn't attempt a double-revoke
       await sheet.update({ student_permission_id: null });
 
-      console.log(`[Revoke] Permission removal fired for ${studentEmail} — ${sheetType} sheet (${sheet.user_sheet_id})`);
+      log.info({ studentEmail, sheetType, sheetId: sheet.user_sheet_id }, 'Permission removal fired');
     }
   } catch (err) {
     // Never let revocation errors bubble up to the student's response
-    console.error('[Revoke] Background revocation error:', err.message, err.stack);
+    log.error({ err: err.message, stack: err.stack }, 'Background revocation error');
   }
 }
 

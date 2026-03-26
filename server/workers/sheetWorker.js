@@ -7,6 +7,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const redisConnection = require('../config/redis');
 const { CulturalUserSheet, SportsUserSheet } = require('../models');
+const log = require('../utils/logger').child({ module: 'SheetWorker' });
 
 // ─── Python script runner (same as sheetController's) ─────────────────────────
 function runPythonScript(scriptPath, args) {
@@ -42,7 +43,7 @@ async function processSheetJob(job) {
     const { action, type, userEmail, args } = job.data;
     const Model = type === 'cultural' ? CulturalUserSheet : SportsUserSheet;
 
-    console.log(`[SheetWorker] Processing ${action} job for ${userEmail} (${type})`);
+    log.info({ action, type, userEmail }, 'Processing sheet job');
 
     if (action === 'generate') {
         const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
@@ -63,7 +64,7 @@ async function processSheetJob(job) {
         });
 
         if (!created) {
-            console.warn(`[SheetWorker] Race: duplicate sheet for ${userEmail}. Orphan: ${result.sheet_id}`);
+            log.warn({ userEmail, orphan: result.sheet_id }, 'Race: duplicate sheet');
         }
 
         const sheetId = created ? result.sheet_id : sheet.user_sheet_id;
@@ -111,17 +112,17 @@ const sheetWorker = new Worker('sheet-operations', processSheetJob, {
 });
 
 sheetWorker.on('completed', (job) => {
-    console.log(`[SheetWorker] Job ${job.id} completed for ${job.data.userEmail}`);
+    log.info({ jobId: job.id, userEmail: job.data.userEmail }, 'Job completed');
 });
 
 sheetWorker.on('failed', (job, err) => {
-    console.error(`[SheetWorker] Job ${job?.id} failed for ${job?.data?.userEmail}:`, err.message);
+    log.error({ jobId: job?.id, userEmail: job?.data?.userEmail, err: err.message }, 'Job failed');
 });
 
 sheetWorker.on('error', err => {
-    console.error('[SheetWorker] Worker error:', err.message);
+    log.error({ err: err.message }, 'Worker error');
 });
 
-console.log('[SheetWorker] Worker started (concurrency=2, rate=10/min)');
+log.info('Worker started (concurrency=2, rate=10/min)');
 
 module.exports = sheetWorker;

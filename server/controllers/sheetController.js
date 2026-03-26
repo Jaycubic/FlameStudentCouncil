@@ -3,6 +3,7 @@ const { CulturalUserSheet, SportsUserSheet, User } = require('../models');
 const { spawn } = require('child_process');
 const path = require('path');
 const { sheetQueue, getJobStatus } = require('../queues/sheetQueue');
+const log = require('../utils/logger').child({ module: 'SheetController' });
 
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
 const FOLDER_ID = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
@@ -79,7 +80,7 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
     proc.unref();
 
     proc.on('error', err => {
-        console.error(`[RevokeAccess] Failed to spawn revoke script for file ${fileId}:`, err.message);
+        log.error({ fileId, err: err.message }, 'Failed to spawn revoke script');
     });
 }
 // ─── Permission Restore Helper ────────────────────────────────────────────────
@@ -99,18 +100,18 @@ async function handleRestore(res, existingSheet, userEmail, type) {
     ];
 
     if (driveSemaphore.tryAcquire()) {
-        console.log(`[SheetController] Fast restore for ${userEmail}`);
+        log.info({ userEmail }, `Fast restore for ${userEmail}`);
         try {
             const restoreScript = path.join(__dirname, '../scripts/restore_access.py');
             const result = await runPythonScript(restoreScript, restoreArgs);
 
             if (!result.success) {
-                console.error('[SheetController] Restore error:', result.error);
+                log.error({ userEmail, error: result.error }, 'Restore access failed');
                 return res.status(500).json({ success: false, message: 'Failed to restore access: ' + result.error });
             }
 
             await existingSheet.update({ student_permission_id: result.student_permission_id });
-            console.log(`[SheetController] Restored ${userEmail} on ${type}. permId: ${result.student_permission_id}`);
+            log.info({ userEmail, type, permId: result.student_permission_id }, 'Access restored');
 
             return res.status(200).json({
                 success: true,
@@ -122,7 +123,7 @@ async function handleRestore(res, existingSheet, userEmail, type) {
             driveSemaphore.release();
         }
     } else {
-        console.log(`[SheetController] Queue restore for ${userEmail} (semaphore full)`);
+        log.info({ userEmail }, 'Queue restore (semaphore full)');
         const job = await sheetQueue.add(`restore:${userEmail}`, {
             action: 'restore',
             type,
@@ -201,13 +202,13 @@ const sheetController = {
             // ── 3. Hybrid: try semaphore, fallback to queue ──────────────────
             if (driveSemaphore.tryAcquire()) {
                 // FAST PATH — run synchronously
-                console.log(`[SheetController] Fast path for ${userEmail} (${driveSemaphore.active}/3 active)`);
+                log.info({ userEmail, active: driveSemaphore.active }, 'Fast path generate');
                 try {
                     const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
                     const result = await runPythonScript(scriptPath, scriptArgs);
 
                     if (!result.success) {
-                        console.error('[SheetController] Python error:', result.error);
+                        log.error({ userEmail, error: result.error }, 'Python sheet generation error');
                         return res.status(500).json({ success: false, message: 'Sheet generation failed: ' + result.error });
                     }
 
@@ -233,7 +234,7 @@ const sheetController = {
                 }
             } else {
                 // QUEUE PATH — semaphore full, offload to BullMQ
-                console.log(`[SheetController] Queue path for ${userEmail} (semaphore full: ${driveSemaphore.active}/3)`);
+                log.info({ userEmail, active: driveSemaphore.active }, 'Queue path generate (semaphore full)');
                 const job = await sheetQueue.add(`generate:${userEmail}`, {
                     action: 'generate',
                     type,
@@ -252,7 +253,7 @@ const sheetController = {
             }
 
         } catch (error) {
-            console.error('[SheetController] getSheet error:', error);
+            log.error({ err: error }, 'getSheet error');
             return res.status(500).json({ success: false, message: 'Internal server error.' });
         }
     },
@@ -294,7 +295,7 @@ const sheetController = {
             });
 
         } catch (error) {
-            console.error('[SheetController] checkJobStatus error:', error);
+            log.error({ err: error }, 'checkJobStatus error');
             return res.status(500).json({ success: false, message: 'Internal server error.' });
         }
     },
@@ -334,7 +335,7 @@ const sheetController = {
             return res.status(200).json({ success: true, message: 'Access revocation initiated.' });
 
         } catch (error) {
-            console.error('[SheetController] revokeAccess error:', error);
+            log.error({ err: error }, 'revokeAccess error');
             return res.status(500).json({ success: false, message: 'Internal server error.' });
         }
     },
@@ -366,7 +367,7 @@ const sheetController = {
                     masterUser.refresh_token
                 ]);
             } catch (err) {
-                console.error('[SheetController] updateTemplate script error:', err.message);
+                log.error({ err: err.message }, 'updateTemplate script error');
                 return res.status(500).json({ success: false, message: 'Template update failed internally.' });
             }
 
@@ -377,7 +378,7 @@ const sheetController = {
             }
 
         } catch (error) {
-            console.error('[SheetController] updateTemplate error:', error);
+            log.error({ err: error }, 'updateTemplate error');
             return res.status(500).json({ success: false, message: 'Internal server error.' });
         }
     },

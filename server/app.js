@@ -8,6 +8,9 @@ const https = require('https');
 const fs = require('fs');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const log = require('./utils/logger').child({ module: 'App' });
 
 // Import database connection
 const sequelize = require("./config/database.js");
@@ -86,7 +89,7 @@ require('./workers/sheetWorker');
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  log.error({ err: err.message, stack: err.stack }, 'Unhandled Route Error');
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
@@ -104,7 +107,7 @@ const startServer = async () => {
   await postgresSequelize.sync();
   const PORT = 8082; // Forced to 8082 as requested
   _server = server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+    log.info({ port: PORT }, 'Server running');
     formSubmissionController.startQueueWorker();
   });
   return _server;
@@ -112,7 +115,7 @@ const startServer = async () => {
 
 // Start server if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  startServer().catch(err => console.error('Server start error:', err));
+  startServer().catch(err => log.error({ err }, 'Server start error'));
 }
 
 // Export for testing
