@@ -145,7 +145,7 @@ def main():
             )
         )
         file_id = file.get('id')
-        original_parent = file.get('parents', [None])[0]  # student's My Drive root id
+        original_parent = file.get('parents', [None])[0]  # student's My Drive root
 
         # Step 2 — Add master as writer, capture permissionId for ownership transfer
         master_perm = execute_with_retry(
@@ -171,20 +171,27 @@ def main():
             )
         )
 
-        # ── PHASE 2: Master token (2 lightweight calls) ────────────────────────
+        # ── PHASE 2: Both tokens — each touches only what it can see ───────────
 
-        # Step 4 — Move file from student's Drive root into master's private folder.
-        # This is the key step: once inside the private folder (no domain sharing),
-        # the student's only remaining access is their explicit writer permission
-        # which can now be cleanly deleted by revoke_access.py on form submit.
+        # Step 4a — Master adds file to private folder (master can see this folder)
         execute_with_retry(
             master_service.files().update(
                 fileId=file_id,
                 addParents=folder_id,
-                removeParents=original_parent,
                 fields='id,parents'
             )
         )
+
+        # Step 4b — Student removes file from own Drive root (student can see this)
+        # Student is still a writer on the file, and owns their My Drive root.
+        if original_parent:
+            execute_with_retry(
+                student_service.files().update(
+                    fileId=file_id,
+                    removeParents=original_parent,
+                    fields='id,parents'
+                )
+            )
 
         # Step 5 — List permissions to capture student's exact permissionId.
         # Stored in DB so revoke_access.py can target it precisely.
