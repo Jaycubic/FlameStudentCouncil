@@ -338,6 +338,20 @@ function ApplicationFormDashboard() {
         });
     };
 
+    const openSportFilePicker = () => {
+        if (sportFileRef.current) {
+            sportFileRef.current.value = ''; // reset BEFORE click
+            sportFileRef.current.click();
+        }
+    };
+
+    const openCulturalFilePicker = () => {
+        if (culturalFileRef.current) {
+            culturalFileRef.current.value = ''; // reset BEFORE click
+            culturalFileRef.current.click();
+        }
+    };
+
     const handleApplyAnother = async () => {
         setSubmissionDone(false);
         setSelectedRole('');
@@ -601,8 +615,21 @@ function ApplicationFormDashboard() {
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
-                                                <input ref={sportFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onClick={(e) => { e.target.value = null; }} onChange={(e) => { if (e.target.files.length > 0) { setSportFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
-                                                <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="blue" onClick={() => sportFileRef.current?.click()}>Add PDF Files</Button>
+                                                <input ref={sportFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => {
+                                                    const files = Array.from(e.target.files || []);
+                                                    if (files.length === 0) {
+                                                        console.warn('No sport files selected'); // DEBUG
+                                                        return;
+                                                    }
+                                                    console.log('Sport file input triggered', files);
+                                                    setSportFiles(prev => {
+                                                        const updated = [...prev, ...files];
+                                                        return updated;
+                                                    });
+                                                    // reset AFTER processing
+                                                    e.target.value = '';
+                                                }} multiple />
+                                                <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="blue" onClick={openSportFilePicker}>Add PDF Files</Button>
                                                 {sportFiles.length > 0 && (
                                                     <VStack align="stretch" spacing={2} w="full">
                                                         {sportFiles.map((file, i) => (
@@ -676,8 +703,21 @@ function ApplicationFormDashboard() {
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
-                                                <input ref={culturalFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onClick={(e) => { e.target.value = null; }} onChange={(e) => { if (e.target.files.length > 0) { setCulturalFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
-                                                <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="pink" onClick={() => culturalFileRef.current?.click()}>Add PDF Files</Button>
+                                                <input ref={culturalFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => {
+                                                    const files = Array.from(e.target.files || []);
+                                                    if (files.length === 0) {
+                                                        console.warn('No cultural files selected'); // DEBUG
+                                                        return;
+                                                    }
+                                                    console.log('Cultural file input triggered', files);
+                                                    setCulturalFiles(prev => {
+                                                        const updated = [...prev, ...files];
+                                                        return updated;
+                                                    });
+                                                    // reset AFTER processing
+                                                    e.target.value = '';
+                                                }} multiple />
+                                                <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="pink" onClick={openCulturalFilePicker}>Add PDF Files</Button>
                                                 {culturalFiles.length > 0 && (
                                                     <VStack align="stretch" spacing={2} w="full">
                                                         {culturalFiles.map((file, i) => (
