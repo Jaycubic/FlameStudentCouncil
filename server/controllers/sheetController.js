@@ -3,7 +3,7 @@ const { CulturalUserSheet, SportsUserSheet, User } = require('../models');
 const { spawn } = require('child_process');
 const path = require('path');
 
-const MASTER_EMAIL = 'jofrey.joseph@flame.edu.in';
+const MASTER_EMAIL = 'student.awards@flame.edu.in';
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────
 // Limits simultaneous Drive API operations to 3 to stay under quota.
@@ -146,13 +146,7 @@ const sheetController = {
                 });
             }
 
-            const folderId = process.env.DRIVE_SHEETS_FOLDER_ID;
-            if (!folderId) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Drive folder not configured. Please contact admin.'
-                });
-            }
+            const folderId = '1XrnG4E5puhu-W_WHYoUQwflS8D3JSQfC';
 
             // ── 3. Run Python under semaphore ────────────────────────────────
             const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
