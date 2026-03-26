@@ -508,6 +508,9 @@ const authController = {
           client.setCredentials({ refresh_token: user.refresh_token });
           try {
             const { tokens } = await client.refreshAccessToken();
+            if (!tokens?.access_token) {
+              return res.status(401).json({ message: 'Google authorization expired. Please log in again.' });
+            }
             await user.update({
               access_token: tokens.access_token,
               refresh_token: tokens.refresh_token || user.refresh_token,
@@ -515,7 +518,7 @@ const authController = {
               updated_at: new Date()
             });
           } catch (refreshError) {
-            console.error('Failed to refresh Google token:', refreshError);
+            console.error('Failed to refresh Google token:', refreshError.message);
             return res.status(401).json({ message: 'Google authorization expired. Please log in again.' });
           }
         }
