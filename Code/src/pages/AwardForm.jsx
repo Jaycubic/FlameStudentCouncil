@@ -66,7 +66,8 @@ function ApplicationFormDashboard() {
     const [sportFiles, setSportFiles] = useState([]);
     const [culturalFiles, setCulturalFiles] = useState([]);
     const [academicFiles, setAcademicFiles] = useState([]);
-    const [generatingSheet, setGeneratingSheet] = useState(false);
+    const [generatingSheet, setGeneratingSheet] = useState({ sports: false, cultural: false });
+    const [sheetReady, setSheetReady] = useState({ sports: null, cultural: null });
     const sportFileRef = useRef(null);
     const culturalFileRef = useRef(null);
 
@@ -261,7 +262,7 @@ function ApplicationFormDashboard() {
     };
 
     const handleGenerateSheet = async (type) => {
-        setGeneratingSheet(true);
+        setGeneratingSheet(prev => ({ ...prev, [type]: true }));
         try {
             const deviceId = localStorage.getItem('deviceId') || '';
             const response = await fetch(`/api/sheets/${type}`, {
@@ -276,8 +277,8 @@ function ApplicationFormDashboard() {
             const result = await response.json();
 
             if (result.success && result.url) {
-                window.open(result.url, '_blank');
-                toast({ title: 'Success', description: 'Spreadsheet opened in a new tab.', status: 'success' });
+                setSheetReady(prev => ({ ...prev, [type]: result.url }));
+                toast({ title: 'Ready!', description: 'Your Matrix Sheet is ready. Click the button to open it.', status: 'success' });
             } else {
                 throw new Error(result.message || 'Failed to generate sheet');
             }
@@ -285,7 +286,7 @@ function ApplicationFormDashboard() {
             console.error('Sheet generation error:', error);
             toast({ title: 'Error', description: error.message, status: 'error' });
         } finally {
-            setGeneratingSheet(false);
+            setGeneratingSheet(prev => ({ ...prev, [type]: false }));
         }
     };
 
@@ -488,45 +489,50 @@ function ApplicationFormDashboard() {
                             {(selectedRole === 'trailblazer' || selectedRole === 'sports_person') && (
                                 <Section title="Sports & Athletics Achievements">
                                     <VStack spacing={0} align="stretch">
-                                        {/* Step 1: Open Sheet */}
+                                        {/* Step 1: Generate / Open Matrix Sheet */}
                                         <HStack spacing={4} align="start">
                                             <VStack spacing={0} align="center" minW="32px">
                                                 <Box w="32px" h="32px" borderRadius="full" bg="blue.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">1</Box>
                                                 <Box w="2px" h="40px" bg="blue.200" />
                                             </VStack>
                                             <VStack align="start" spacing={2} pb={4} flex="1">
-                                                <Text fontWeight="bold" fontSize="sm">Open your Score Sheet</Text>
-                                                <Text fontSize="xs" color={mutedTextColor}>Fill in your achievements in the standardized spreadsheet, then note your total raw score.</Text>
-                                                <Button
-                                                    leftIcon={<Icon as={FaTrophy} />}
-                                                    colorScheme="blue"
-                                                    variant="solid"
-                                                    size="sm"
-                                                    isLoading={generatingSheet}
-                                                    loadingText="Opening..."
-                                                    onClick={() => handleGenerateSheet('sports')}
-                                                >
-                                                    Open Sports Score Sheet
-                                                </Button>
+                                                <Text fontWeight="bold" fontSize="sm">Open your Sports Matrix Sheet</Text>
+                                                <Text fontSize="xs" color={mutedTextColor}>Fill in your achievements in the standardized spreadsheet.</Text>
+                                                {generatingSheet.sports ? (
+                                                    <HStack spacing={3} p={3} bg="blue.50" borderRadius="lg" w="full">
+                                                        <CircularProgress isIndeterminate size="24px" color="blue.500" />
+                                                        <VStack align="start" spacing={0}>
+                                                            <Text fontSize="xs" fontWeight="bold" color="blue.700">Preparing your Matrix Sheet...</Text>
+                                                            <Text fontSize="2xs" color="blue.500">This may take a few seconds</Text>
+                                                        </VStack>
+                                                    </HStack>
+                                                ) : sheetReady.sports ? (
+                                                    <Button
+                                                        leftIcon={<Icon as={FaTrophy} />}
+                                                        colorScheme="green"
+                                                        variant="solid"
+                                                        size="sm"
+                                                        onClick={() => window.open(sheetReady.sports, '_blank')}
+                                                    >
+                                                        Open Sports Matrix Sheet
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        leftIcon={<Icon as={FaTrophy} />}
+                                                        colorScheme="blue"
+                                                        variant="solid"
+                                                        size="sm"
+                                                        onClick={() => handleGenerateSheet('sports')}
+                                                    >
+                                                        Generate Sports Matrix Sheet
+                                                    </Button>
+                                                )}
                                             </VStack>
                                         </HStack>
-                                        {/* Step 2: Enter Raw Score */}
+                                        {/* Step 2: Upload Evidence */}
                                         <HStack spacing={4} align="start">
                                             <VStack spacing={0} align="center" minW="32px">
                                                 <Box w="32px" h="32px" borderRadius="full" bg="blue.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">2</Box>
-                                                <Box w="2px" h="40px" bg="blue.200" />
-                                            </VStack>
-                                            <VStack align="start" spacing={2} pb={4} flex="1">
-                                                <FormControl isRequired>
-                                                    <FormLabel fontWeight="bold" fontSize="sm" mb={1}>Enter your total Raw Score</FormLabel>
-                                                    <Input placeholder="e.g. 85" value={formData.sportsRawScore} onChange={(e) => setFormData({ ...formData, sportsRawScore: e.target.value, sportsScore: calculateScore(e.target.value) })} size="sm" />
-                                                </FormControl>
-                                            </VStack>
-                                        </HStack>
-                                        {/* Step 3: Upload Evidence */}
-                                        <HStack spacing={4} align="start">
-                                            <VStack spacing={0} align="center" minW="32px">
-                                                <Box w="32px" h="32px" borderRadius="full" bg="blue.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">3</Box>
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
@@ -558,45 +564,50 @@ function ApplicationFormDashboard() {
                             {(selectedRole === 'trailblazer' || selectedRole === 'cultural_person') && (
                                 <Section title="Cultural & Arts Excellence">
                                     <VStack spacing={0} align="stretch">
-                                        {/* Step 1: Open Sheet */}
+                                        {/* Step 1: Generate / Open Matrix Sheet */}
                                         <HStack spacing={4} align="start">
                                             <VStack spacing={0} align="center" minW="32px">
                                                 <Box w="32px" h="32px" borderRadius="full" bg="pink.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">1</Box>
                                                 <Box w="2px" h="40px" bg="pink.200" />
                                             </VStack>
                                             <VStack align="start" spacing={2} pb={4} flex="1">
-                                                <Text fontWeight="bold" fontSize="sm">Open your Score Sheet</Text>
-                                                <Text fontSize="xs" color={mutedTextColor}>Fill in your achievements in the standardized spreadsheet, then note your total raw score.</Text>
-                                                <Button
-                                                    leftIcon={<Icon as={FaMusic} />}
-                                                    colorScheme="pink"
-                                                    variant="solid"
-                                                    size="sm"
-                                                    isLoading={generatingSheet}
-                                                    loadingText="Opening..."
-                                                    onClick={() => handleGenerateSheet('cultural')}
-                                                >
-                                                    Open Cultural Score Sheet
-                                                </Button>
+                                                <Text fontWeight="bold" fontSize="sm">Open your Cultural Matrix Sheet</Text>
+                                                <Text fontSize="xs" color={mutedTextColor}>Fill in your achievements in the standardized spreadsheet.</Text>
+                                                {generatingSheet.cultural ? (
+                                                    <HStack spacing={3} p={3} bg="pink.50" borderRadius="lg" w="full">
+                                                        <CircularProgress isIndeterminate size="24px" color="pink.500" />
+                                                        <VStack align="start" spacing={0}>
+                                                            <Text fontSize="xs" fontWeight="bold" color="pink.700">Preparing your Matrix Sheet...</Text>
+                                                            <Text fontSize="2xs" color="pink.500">This may take a few seconds</Text>
+                                                        </VStack>
+                                                    </HStack>
+                                                ) : sheetReady.cultural ? (
+                                                    <Button
+                                                        leftIcon={<Icon as={FaMusic} />}
+                                                        colorScheme="green"
+                                                        variant="solid"
+                                                        size="sm"
+                                                        onClick={() => window.open(sheetReady.cultural, '_blank')}
+                                                    >
+                                                        Open Cultural Matrix Sheet
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        leftIcon={<Icon as={FaMusic} />}
+                                                        colorScheme="pink"
+                                                        variant="solid"
+                                                        size="sm"
+                                                        onClick={() => handleGenerateSheet('cultural')}
+                                                    >
+                                                        Generate Cultural Matrix Sheet
+                                                    </Button>
+                                                )}
                                             </VStack>
                                         </HStack>
-                                        {/* Step 2: Enter Raw Score */}
+                                        {/* Step 2: Upload Evidence */}
                                         <HStack spacing={4} align="start">
                                             <VStack spacing={0} align="center" minW="32px">
                                                 <Box w="32px" h="32px" borderRadius="full" bg="pink.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">2</Box>
-                                                <Box w="2px" h="40px" bg="pink.200" />
-                                            </VStack>
-                                            <VStack align="start" spacing={2} pb={4} flex="1">
-                                                <FormControl isRequired>
-                                                    <FormLabel fontWeight="bold" fontSize="sm" mb={1}>Enter your total Raw Score</FormLabel>
-                                                    <Input placeholder="e.g. 72" value={formData.culturalRawScore} onChange={(e) => setFormData({ ...formData, culturalRawScore: e.target.value, culturalScore: calculateScore(e.target.value) })} size="sm" />
-                                                </FormControl>
-                                            </VStack>
-                                        </HStack>
-                                        {/* Step 3: Upload Evidence */}
-                                        <HStack spacing={4} align="start">
-                                            <VStack spacing={0} align="center" minW="32px">
-                                                <Box w="32px" h="32px" borderRadius="full" bg="pink.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">3</Box>
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>

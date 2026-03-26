@@ -165,14 +165,14 @@ const formController = {
       if (selected_role === 'trailblazer') {
         submissionData.academic_level      = academicLevel;
         submissionData.cgpa                = cgpa ? parseFloat(cgpa) : null;
-        submissionData.sports_score        = sportsScore;
-        submissionData.cultural_score      = culturalScore;
+        submissionData.sports_score        = sportsScore || null;
+        submissionData.cultural_score      = culturalScore || null;
         submissionData.statement_of_purpose = sop;
         submissionData.community_service   = communityService;
       } else if (selected_role === 'sports_person') {
-        submissionData.sports_score   = sportsScore;
+        submissionData.sports_score   = sportsScore || null;
       } else if (selected_role === 'cultural_person') {
-        submissionData.cultural_score = culturalScore;
+        submissionData.cultural_score = culturalScore || null;
       }
 
       if (req.files['photo']) {
