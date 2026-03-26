@@ -3,8 +3,7 @@ const { CulturalUserSheet, SportsUserSheet, User } = require('../models');
 const { spawn } = require('child_process');
 const path = require('path');
 
-const MASTER_EMAIL = 'student.awards@flame.edu.in';
-const DRIVE_SHEETS_FOLDER_ID = process.env.DRIVE_SHEETS_FOLDER_ID || '';
+const MASTER_EMAIL = 'jofrey.joseph@flame.edu.in';
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────
 // Limits simultaneous Drive API operations to 3 to stay under quota.
@@ -74,33 +73,18 @@ function runPythonScript(scriptPath, args) {
 function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
     const scriptPath = path.join(__dirname, '../scripts/revoke_access.py');
 
-    console.log(`[RevokeAccess] Spawning revoke script: file=${fileId}, permId=${studentPermissionId}`);
-
     const proc = spawn('python3', [
         scriptPath,
         fileId,
         studentPermissionId,
         masterUser.access_token,
         masterUser.refresh_token
-    ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    ], { detached: true, stdio: 'ignore' }); // detached = true → truly fire & forget
 
-    let stdout = '';
-    let stderr = '';
-    proc.stdout.on('data', d => { stdout += d.toString(); });
-    proc.stderr.on('data', d => { stderr += d.toString(); });
-
-    proc.on('close', code => {
-        if (code !== 0) {
-            console.error(`[RevokeAccess] Script exited with code ${code} for file ${fileId}`);
-            if (stderr) console.error(`[RevokeAccess] stderr: ${stderr.trim()}`);
-        } else {
-            console.log(`[RevokeAccess] Script output: ${stdout.trim()}`);
-        }
-    });
-
-    proc.unref();
+    proc.unref(); // Don't hold the event loop open for this process
 
     proc.on('error', err => {
+        // Log silently — revocation failure should not affect the student's form response
         console.error(`[RevokeAccess] Failed to spawn revoke script for file ${fileId}:`, err.message);
     });
 }
@@ -153,6 +137,23 @@ const sheetController = {
                 });
             }
 
+            // ── 2b. Fetch master tokens ──────────────────────────────────────
+            const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+            if (!masterUser?.access_token) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Master account configuration missing. Please contact admin.'
+                });
+            }
+
+            const folderId = process.env.DRIVE_SHEETS_FOLDER_ID;
+            if (!folderId) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Drive folder not configured. Please contact admin.'
+                });
+            }
+
             // ── 3. Run Python under semaphore ────────────────────────────────
             const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
             let result;
@@ -162,10 +163,12 @@ const sheetController = {
                 result = await runPythonScript(scriptPath, [
                     type,
                     userEmail,
-                    studentUser.access_token,
+                    studentUser.access_token,   // student token — heavy upload (student's quota)
                     studentUser.refresh_token,
                     MASTER_EMAIL,
-                    DRIVE_SHEETS_FOLDER_ID
+                    masterUser.access_token,    // master token — lightweight move + permission list
+                    masterUser.refresh_token,
+                    folderId
                 ]);
             } finally {
                 driveSemaphore.release();

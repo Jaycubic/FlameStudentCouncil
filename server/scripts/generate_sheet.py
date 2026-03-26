@@ -1,19 +1,28 @@
 # scripts/generate_sheet.py
 #
 # Usage:
-#   python3 generate_sheet.py <type> <student_email> <student_access_token>
-#                             <student_refresh_token> <master_email> <folder_id>
+#   python3 generate_sheet.py <type> <student_email>
+#                             <student_access_token> <student_refresh_token>
+#                             <master_email> <master_access_token> <master_refresh_token>
+#                             <folder_id>
 #
-# What this script does (all via STUDENT credentials):
-#   1. Snapshot the local template to a temp file (avoids admin-update race)
-#   2. Upload template → student becomes owner
-#   3. Add master as writer → get master's permission ID
-#   4. Transfer ownership from student to master (student token does the push)
-#   5. List permissions to retrieve student's new writer permissionId
-#   6. Print JSON: { success, sheet_id, link, student_permission_id }
+# Two-token hybrid flow:
 #
-# The student_permission_id is stored in the DB so revoke_access.py can
-# delete it precisely when the student submits their form.
+#   STUDENT TOKEN (heavy work — quota on student):
+#     1. Snapshot local template to temp file (race-free)
+#     2. Upload file → student becomes owner
+#     3. Add master as writer
+#     4. Transfer ownership to master (must be pushed by current owner)
+#
+#   MASTER TOKEN (lightweight — 2 API calls):
+#     5. Move file into private master-only folder
+#        → breaks domain-wide inheritance → explicit permissions only
+#     6. List permissions → capture student's permissionId
+#
+#   Returns: { success, sheet_id, link, student_permission_id }
+#
+#   student_permission_id stored in DB.
+#   revoke_access.py deletes it cleanly after form submission.
 
 import sys
 import json
@@ -29,44 +38,26 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
-# Hard cap on every HTTP operation — prevents zombie processes on stalled uploads
 socket.setdefaulttimeout(90)
 
 
 # ─── Retry helper ─────────────────────────────────────────────────────────────
 
 def execute_with_retry(request, max_retries=4):
-    """
-    Executes a Google API request with exponential backoff.
-    Retries on 429 (rate limit), 500, and 503 errors.
-    """
     for attempt in range(max_retries):
         try:
             return request.execute()
         except HttpError as e:
             status = e.resp.status
             if status in (429, 500, 503) and attempt < max_retries - 1:
-                wait_seconds = 2 ** attempt  # 1s, 2s, 4s, 8s
-                time.sleep(wait_seconds)
+                time.sleep(2 ** attempt)  # 1s, 2s, 4s, 8s
             else:
                 raise
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+# ─── Credentials builder ──────────────────────────────────────────────────────
 
-def main():
-    if len(sys.argv) < 7:
-        print(json.dumps({"success": False, "error": "Missing arguments. Expected: type email access_token refresh_token master_email folder_id"}))
-        return
-
-    sheet_type         = sys.argv[1]   # 'cultural' or 'sports'
-    student_email      = sys.argv[2]
-    access_token       = sys.argv[3]
-    refresh_token      = sys.argv[4]
-    master_email       = sys.argv[5]
-    folder_id          = sys.argv[6]   # Private master-only folder ID
-
-    # ── Build student credentials ─────────────────────────────────────────────
+def build_credentials(access_token, refresh_token, label):
     creds = Credentials(
         token=access_token,
         refresh_token=refresh_token,
@@ -75,13 +66,40 @@ def main():
         client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
         scopes=['https://www.googleapis.com/auth/drive']
     )
-
-    # Proactively refresh if expired (avoids a failed first call)
     try:
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
     except Exception as e:
-        print(json.dumps({"success": False, "error": f"Token refresh failed: {str(e)}"}))
+        raise RuntimeError(f"{label} token refresh failed: {str(e)}")
+    return creds
+
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    if len(sys.argv) < 9:
+        print(json.dumps({
+            "success": False,
+            "error": "Missing arguments. Expected: type student_email student_access_token "
+                     "student_refresh_token master_email master_access_token master_refresh_token folder_id"
+        }))
+        return
+
+    sheet_type            = sys.argv[1]
+    student_email         = sys.argv[2]
+    student_access_token  = sys.argv[3]
+    student_refresh_token = sys.argv[4]
+    master_email          = sys.argv[5]
+    master_access_token   = sys.argv[6]
+    master_refresh_token  = sys.argv[7]
+    folder_id             = sys.argv[8]  # Private master-only folder
+
+    # ── Build both credential objects ─────────────────────────────────────────
+    try:
+        student_creds = build_credentials(student_access_token, student_refresh_token, 'Student')
+        master_creds  = build_credentials(master_access_token,  master_refresh_token,  'Master')
+    except RuntimeError as e:
+        print(json.dumps({"success": False, "error": str(e)}))
         return
 
     # ── Locate & snapshot template ────────────────────────────────────────────
@@ -89,24 +107,30 @@ def main():
     template_path = os.path.join(templates_dir, f'master_{sheet_type}.xlsx')
 
     if not os.path.exists(template_path):
-        print(json.dumps({"success": False, "error": "Template not found. Please update template via Admin Panel."}))
+        print(json.dumps({"success": False, "error": "Template not found. Please update via Admin Panel."}))
         return
 
-    # Copy to a temp file so admin can safely overwrite the master template
-    # while this upload is in progress (eliminates the read/write race)
+    # Snapshot so admin can safely overwrite master template mid-upload
     tmp_file = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
     tmp_path = tmp_file.name
     tmp_file.close()
     shutil.copy2(template_path, tmp_path)
 
-    try:
-        service = build('drive', 'v3', credentials=creds)
+    file_id = None
 
-        # ── Step 1: Upload — student creates the file, student = owner ────────
+    try:
+        student_service = build('drive', 'v3', credentials=student_creds)
+        master_service  = build('drive', 'v3', credentials=master_creds)
+
+        # ── PHASE 1: Student token ─────────────────────────────────────────────
+        # File created in student's own Drive root (no parent specified).
+        # No parent = no inherited domain folder permissions at creation time.
+
+        # Step 1 — Upload (student = owner, lands in student's My Drive root)
         file_metadata = {
             'name': f"{sheet_type.capitalize()} Sheet - {student_email}",
-            'mimeType': 'application/vnd.google-apps.spreadsheet',
-            'parents': [folder_id]  # Create inside private master-only folder
+            'mimeType': 'application/vnd.google-apps.spreadsheet'
+            # Intentionally NO parents key here
         }
         media = MediaFileUpload(
             tmp_path,
@@ -114,37 +138,31 @@ def main():
             resumable=True
         )
         file = execute_with_retry(
-            service.files().create(
+            student_service.files().create(
                 body=file_metadata,
                 media_body=media,
-                fields='id,webViewLink'
+                fields='id,webViewLink,parents'
             )
         )
         file_id = file.get('id')
+        original_parent = file.get('parents', [None])[0]  # student's My Drive root id
 
-        # ── Step 2: Add master as writer ──────────────────────────────────────
-        # We need master's permissionId to perform the ownership transfer next.
+        # Step 2 — Add master as writer, capture permissionId for ownership transfer
         master_perm = execute_with_retry(
-            service.permissions().create(
+            student_service.permissions().create(
                 fileId=file_id,
-                body={
-                    'type': 'user',
-                    'role': 'writer',
-                    'emailAddress': master_email
-                },
+                body={'type': 'user', 'role': 'writer', 'emailAddress': master_email},
                 fields='id',
                 sendNotificationEmail=False
             )
         )
         master_perm_id = master_perm.get('id')
 
-        # ── Step 3: Transfer ownership to master ──────────────────────────────
-        # This MUST be called using the student's token (the current owner).
-        # After this call:
-        #   master  → owner
-        #   student → writer  (automatically demoted)
+        # Step 3 — Transfer ownership to master
+        # Must be called by current owner (student token).
+        # After this: master = owner, student = writer (auto-demoted)
         execute_with_retry(
-            service.permissions().update(
+            student_service.permissions().update(
                 fileId=file_id,
                 permissionId=master_perm_id,
                 body={'role': 'owner'},
@@ -153,15 +171,30 @@ def main():
             )
         )
 
-        # ── Step 4: Get student's permissionId (now as writer) ────────────────
-        # We store this ID so revoke_access.py can delete it precisely
-        # without listing all permissions again later.
+        # ── PHASE 2: Master token (2 lightweight calls) ────────────────────────
+
+        # Step 4 — Move file from student's Drive root into master's private folder.
+        # This is the key step: once inside the private folder (no domain sharing),
+        # the student's only remaining access is their explicit writer permission
+        # which can now be cleanly deleted by revoke_access.py on form submit.
+        execute_with_retry(
+            master_service.files().update(
+                fileId=file_id,
+                addParents=folder_id,
+                removeParents=original_parent,
+                fields='id,parents'
+            )
+        )
+
+        # Step 5 — List permissions to capture student's exact permissionId.
+        # Stored in DB so revoke_access.py can target it precisely.
         perms_response = execute_with_retry(
-            service.permissions().list(
+            master_service.permissions().list(
                 fileId=file_id,
                 fields='permissions(id,emailAddress,role)'
             )
         )
+
         student_perm_id = None
         for perm in perms_response.get('permissions', []):
             if perm.get('emailAddress', '').lower() == student_email.lower():
@@ -169,10 +202,8 @@ def main():
                 break
 
         if not student_perm_id:
-            # Non-fatal: revocation just won't be possible later.
-            # Log it but still return success.
-            import sys as _sys
-            print(f"[WARN] Could not find student permission for {student_email} on file {file_id}", file=_sys.stderr)
+            print(f"[WARN] Could not find student permissionId for {student_email} on {file_id}",
+                  file=sys.stderr)
 
         print(json.dumps({
             "success": True,
@@ -186,7 +217,6 @@ def main():
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
     finally:
-        # Always clean up the temp file
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
