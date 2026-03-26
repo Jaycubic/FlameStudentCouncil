@@ -1,5 +1,6 @@
 // src/pages/AwardForm.jsx
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Box, VStack, HStack, Text, Checkbox, Button, Input, Textarea,
@@ -25,6 +26,7 @@ const MotionVStack = motion(VStack);
 const MotionHStack = motion(HStack);
 
 function ApplicationFormDashboard() {
+    const navigate = useNavigate();
     const toast = useToast();
     const { isOpen: isSportModalOpen, onOpen: onSportModalOpen, onClose: onSportModalClose } = useDisclosure();
     const { isOpen: isCulturalModalOpen, onOpen: onCulturalModalOpen, onClose: onCulturalModalClose } = useDisclosure();
@@ -336,6 +338,23 @@ function ApplicationFormDashboard() {
         });
     };
 
+    const handleApplyAnother = async () => {
+        setSubmissionDone(false);
+        setSelectedRole('');
+        setSportFiles([]);
+        setCulturalFiles([]);
+        setAcademicFiles([]);
+        setGeneratingSheet({ sports: false, cultural: false });
+        setSheetReady({ sports: null, cultural: null });
+        setFormData(prev => ({
+            ...prev,
+            trueStatement: false,
+            notOnProbation: false
+        }));
+        // Re-fetch to ensure filledRoles is perfectly up to date
+        await fetchStatusAndPrefill();
+    };
+
     if (loading && !formData.name) return (
         <Container centerContent py={20} bg={bgColor} minH="100vh">
             <VStack spacing={4}>
@@ -359,7 +378,7 @@ function ApplicationFormDashboard() {
                     <Divider borderColor="whiteAlpha.300" />
                     <VStack w="full" spacing={6}>
                         <Text fontSize="md" fontStyle="italic">"Excellence is not an act, but a habit." - Aristotle</Text>
-                        <Button size="lg" variant="solid" colorScheme="whiteAlpha" bg="white" color="green.700" _hover={{ bg: 'gray.100' }} w="full" h="70px" fontSize="xl" fontWeight="bold" onClick={() => authService.logout()}>LOGOUT SECURELY</Button>
+                        <Button size="lg" variant="solid" colorScheme="whiteAlpha" bg="white" color="green.700" _hover={{ bg: 'gray.100' }} w="full" h="70px" fontSize="xl" fontWeight="bold" onClick={() => { authService.logout(); navigate('/login'); }}>LOGOUT SECURELY</Button>
                     </VStack>
                 </VStack>
             </MotionBox>
@@ -373,7 +392,7 @@ function ApplicationFormDashboard() {
                     <AlertIcon boxSize="50px" mr={0} />
                     <Text mt={6} mb={2} fontSize="3xl" fontWeight="bold">{appStatusMessage || 'APPLICATION PERIOD HAS ENDED'}</Text>
                     <Text fontSize="lg" color={secondaryTextColor}>The application window is currently closed. Please check back later.</Text>
-                    <Button mt={8} size="lg" colorScheme="blue" variant="outline" onClick={() => authService.logout()}>Logout</Button>
+                    <Button mt={8} size="lg" colorScheme="blue" variant="outline" onClick={() => { authService.logout(); navigate('/login'); }}>Logout</Button>
                 </Alert>
             </MotionBox>
         </Container>
@@ -390,8 +409,8 @@ function ApplicationFormDashboard() {
                     </VStack>
                     <Divider borderColor="whiteAlpha.300" />
                     <VStack w="full" spacing={3}>
-                        <Button size="lg" colorScheme="yellow" color="blue.800" fontWeight="bold" w="full" onClick={() => { setSubmissionDone(false); setSelectedRole(''); }}>Apply for Another Category</Button>
-                        <Button size="lg" variant="outline" color="white" _hover={{ bg: 'whiteAlpha.200' }} w="full" onClick={() => authService.logout()}>Logout</Button>
+                        <Button size="lg" colorScheme="yellow" color="blue.800" fontWeight="bold" w="full" onClick={handleApplyAnother}>Apply for Another Category</Button>
+                        <Button size="lg" variant="outline" color="white" _hover={{ bg: 'whiteAlpha.200' }} w="full" onClick={() => { authService.logout(); navigate('/login'); }}>Logout</Button>
                     </VStack>
                     <Text fontSize="sm" opacity={0.8}>You can securely logout or apply for more awards if eligible.</Text>
                 </VStack>
@@ -582,7 +601,7 @@ function ApplicationFormDashboard() {
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
-                                                <input ref={sportFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => { if (e.target.files.length > 0) { setSportFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
+                                                <input ref={sportFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onClick={(e) => { e.target.value = null; }} onChange={(e) => { if (e.target.files.length > 0) { setSportFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
                                                 <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="blue" onClick={() => sportFileRef.current?.click()}>Add PDF Files</Button>
                                                 {sportFiles.length > 0 && (
                                                     <VStack align="stretch" spacing={2} w="full">
@@ -657,7 +676,7 @@ function ApplicationFormDashboard() {
                                             </VStack>
                                             <VStack align="start" spacing={3} flex="1">
                                                 <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
-                                                <input ref={culturalFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => { if (e.target.files.length > 0) { setCulturalFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
+                                                <input ref={culturalFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onClick={(e) => { e.target.value = null; }} onChange={(e) => { if (e.target.files.length > 0) { setCulturalFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; } }} multiple />
                                                 <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="pink" onClick={() => culturalFileRef.current?.click()}>Add PDF Files</Button>
                                                 {culturalFiles.length > 0 && (
                                                     <VStack align="stretch" spacing={2} w="full">
