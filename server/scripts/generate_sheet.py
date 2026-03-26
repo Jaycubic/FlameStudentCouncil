@@ -2,7 +2,7 @@
 #
 # Usage:
 #   python3 generate_sheet.py <type> <student_email> <student_access_token>
-#                             <student_refresh_token> <master_email>
+#                             <student_refresh_token> <master_email> <folder_id>
 #
 # What this script does (all via STUDENT credentials):
 #   1. Snapshot the local template to a temp file (avoids admin-update race)
@@ -55,8 +55,8 @@ def execute_with_retry(request, max_retries=4):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 6:
-        print(json.dumps({"success": False, "error": "Missing arguments. Expected: type email access_token refresh_token master_email"}))
+    if len(sys.argv) < 7:
+        print(json.dumps({"success": False, "error": "Missing arguments. Expected: type email access_token refresh_token master_email folder_id"}))
         return
 
     sheet_type         = sys.argv[1]   # 'cultural' or 'sports'
@@ -64,6 +64,7 @@ def main():
     access_token       = sys.argv[3]
     refresh_token      = sys.argv[4]
     master_email       = sys.argv[5]
+    folder_id          = sys.argv[6]   # Private master-only folder ID
 
     # ── Build student credentials ─────────────────────────────────────────────
     creds = Credentials(
@@ -104,7 +105,8 @@ def main():
         # ── Step 1: Upload — student creates the file, student = owner ────────
         file_metadata = {
             'name': f"{sheet_type.capitalize()} Sheet - {student_email}",
-            'mimeType': 'application/vnd.google-apps.spreadsheet'
+            'mimeType': 'application/vnd.google-apps.spreadsheet',
+            'parents': [folder_id]  # Create inside private master-only folder
         }
         media = MediaFileUpload(
             tmp_path,

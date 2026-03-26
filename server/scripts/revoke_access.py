@@ -5,12 +5,11 @@
 #                            <master_access_token> <master_refresh_token>
 #
 # Runs as MASTER (who is now the owner of the file).
-# Downgrades the student's permission from "writer" to "reader".
-# Google Drive does NOT allow deleting the original creator's permission,
-# so we update it to read-only instead.
+# Deletes the student's writer permission — student loses all access.
 #
-# This script is spawned in detached mode by sheetController.js
-# after a student submits their award form.
+# This works because sheets are now created inside a private master-only folder
+# with no inherited domain permissions. The student's only access is the explicit
+# permission we granted, which is fully controllable.
 
 import sys
 import json
@@ -72,20 +71,20 @@ def main():
     try:
         service = build('drive', 'v3', credentials=creds)
 
-        # Downgrade the student from "writer" to "reader"
-        # Google Drive does not allow deleting the original creator's permission,
-        # but we CAN change their role to read-only.
+        # Delete the student's permission — they lose all access immediately.
+        # This works because sheets now live in a private folder with no
+        # inherited domain permissions.
         execute_with_retry(
-            service.permissions().update(
+            service.permissions().delete(
                 fileId=file_id,
-                permissionId=student_permission_id,
-                body={'role': 'reader'}
+                permissionId=student_permission_id
             )
         )
 
-        print(json.dumps({"success": True, "message": f"Downgraded permission {student_permission_id} to reader on file {file_id}"}))
+        print(json.dumps({"success": True, "message": f"Revoked permission {student_permission_id} on file {file_id}"}))
 
     except HttpError as e:
+        # 404 = permission already removed (idempotent — treat as success)
         if e.resp.status == 404:
             print(json.dumps({"success": True, "message": "Permission already removed (404 — idempotent)."}))
         else:

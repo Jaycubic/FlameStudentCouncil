@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
+const DRIVE_SHEETS_FOLDER_ID = process.env.DRIVE_SHEETS_FOLDER_ID || '';
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────
 // Limits simultaneous Drive API operations to 3 to stay under quota.
@@ -163,7 +164,8 @@ const sheetController = {
                     userEmail,
                     studentUser.access_token,
                     studentUser.refresh_token,
-                    MASTER_EMAIL
+                    MASTER_EMAIL,
+                    DRIVE_SHEETS_FOLDER_ID
                 ]);
             } finally {
                 driveSemaphore.release();
