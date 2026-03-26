@@ -22,7 +22,7 @@ const MASTER_EMAIL = 'student.awards@flame.edu.in';
 
 // ─── Storage config ───────────────────────────────────────────────────────────
 
-const ATTACHMENT_DIR = '/opt/View/StudentTrackingSystem/server/Attachments';
+const ATTACHMENT_DIR = '/opt/View/FlameAwards/server/Attachments';
 const PHOTO_DIR = '/opt/View/StudentTrackingSystem/server/Photos';
 
 ['photos', 'sport', 'cultural', 'academic'].forEach(sub => {
