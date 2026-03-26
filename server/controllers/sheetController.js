@@ -6,8 +6,6 @@ const path = require('path');
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────
-// Limits simultaneous Drive API operations to 3 to stay under quota.
-// No external dependency — pure Node.js.
 class Semaphore {
     constructor(limit) {
         this.limit = limit;
@@ -30,10 +28,6 @@ const driveSemaphore = new Semaphore(3);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Spawns a Python script and returns parsed JSON output.
- * Kills the process after 120 seconds to prevent zombie processes.
- */
 function runPythonScript(scriptPath, args) {
     return new Promise((resolve, reject) => {
         const proc = spawn('python3', [scriptPath, ...args]);
@@ -63,28 +57,26 @@ function runPythonScript(scriptPath, args) {
 }
 
 /**
- * Fires revoke_access.py in the background — does NOT block the HTTP response.
- * Called after a form submission to lock the student out of their sheet.
+ * Fires revoke_access.py in the background — deletes the Drive file entirely.
+ * Master owns the file, so this succeeds cleanly with no permission edge cases.
+ * The file disappears from the student's "Shared with me" immediately.
  *
- * @param {string} fileId               - Google Drive file ID
- * @param {string} studentPermissionId  - Student's Drive permission ID on that file
- * @param {object} masterUser           - Master User record from DB (has tokens)
+ * @param {string} fileId      - Google Drive file ID to permanently delete
+ * @param {object} masterUser  - Master User record from DB (has tokens)
  */
-function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
+function revokeStudentAccess(fileId, masterUser) {
     const scriptPath = path.join(__dirname, '../scripts/revoke_access.py');
 
     const proc = spawn('python3', [
         scriptPath,
         fileId,
-        studentPermissionId,
         masterUser.access_token,
         masterUser.refresh_token
-    ], { detached: true, stdio: 'ignore' }); // detached = true → truly fire & forget
+    ], { detached: true, stdio: 'ignore' });
 
-    proc.unref(); // Don't hold the event loop open for this process
+    proc.unref();
 
     proc.on('error', err => {
-        // Log silently — revocation failure should not affect the student's form response
         console.error(`[RevokeAccess] Failed to spawn revoke script for file ${fileId}:`, err.message);
     });
 }
@@ -93,19 +85,6 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
 
 const sheetController = {
 
-    /**
-     * GET /api/sheet/:type
-     * Generate or retrieve a spreadsheet for the logged-in student.
-     *
-     * Flow:
-     *  1. Return existing sheet from DB if present.
-     *  2. Otherwise run generate_sheet.py with STUDENT's own tokens.
-     *     Python script: creates file → shares with master → transfers ownership to master.
-     *  3. Store sheet_id + student_permission_id atomically (findOrCreate).
-     *
-     * NOTE: Your CulturalUserSheet and SportsUserSheet models must have a
-     *       `student_permission_id` VARCHAR column added via migration.
-     */
     async getSheet(req, res) {
         try {
             const userEmail = req.user.email;
@@ -157,10 +136,10 @@ const sheetController = {
                 result = await runPythonScript(scriptPath, [
                     type,
                     userEmail,
-                    studentUser.access_token,   // student token — heavy upload (student's quota)
+                    studentUser.access_token,
                     studentUser.refresh_token,
                     MASTER_EMAIL,
-                    masterUser.access_token,    // master token — lightweight move + permission list
+                    masterUser.access_token,
                     masterUser.refresh_token,
                     folderId
                 ]);
@@ -176,20 +155,19 @@ const sheetController = {
                 });
             }
 
-            // ── 4. Atomic DB write — handles duplicate concurrent requests ───
+            // ── 4. Atomic DB write ───────────────────────────────────────────
+            // student_permission_id is no longer needed — kept null, or you can
+            // remove the column entirely from the model after a migration.
             const [sheet, created] = await Model.findOrCreate({
                 where: { email: userEmail },
                 defaults: {
                     email: userEmail,
-                    user_sheet_id: result.sheet_id,
-                    student_permission_id: result.student_permission_id
+                    user_sheet_id: result.sheet_id
                 }
             });
 
             if (!created) {
-                // A concurrent request already persisted a sheet — return that one.
-                // The freshly created Drive file is now an orphan; log it for cleanup.
-                console.warn(`[SheetController] Race: duplicate sheet created for ${userEmail}. Orphan file ID: ${result.sheet_id}`);
+                console.warn(`[SheetController] Race: duplicate sheet for ${userEmail}. Orphan: ${result.sheet_id}`);
                 return res.status(200).json({
                     success: true,
                     sheet_id: sheet.user_sheet_id,
@@ -213,10 +191,8 @@ const sheetController = {
 
     /**
      * POST /api/sheet/:type/revoke
-     * Called internally after form submission to remove student's Drive access.
-     * Can also be called directly by admin if needed.
-     *
-     * Expects: { email: string } in request body (or infer from req.user)
+     * Called after form submission. Permanently deletes the student's sheet.
+     * Since master owns the file, this is a clean single-API-call operation.
      */
     async revokeAccess(req, res) {
         try {
@@ -234,22 +210,18 @@ const sheetController = {
                 return res.status(404).json({ success: false, message: 'No sheet found for this user.' });
             }
 
-            if (!sheet.student_permission_id) {
-                return res.status(200).json({ success: true, message: 'No student permission to revoke.' });
-            }
-
             const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
             if (!masterUser?.access_token) {
                 return res.status(500).json({ success: false, message: 'Master account not configured.' });
             }
 
-            // Fire revoke in background — don't wait
-            revokeStudentAccess(sheet.user_sheet_id, sheet.student_permission_id, masterUser);
+            // Fire delete in background — don't block the HTTP response
+            revokeStudentAccess(sheet.user_sheet_id, masterUser);
 
-            // Null out the permission_id so we don't try to revoke twice
-            await sheet.update({ student_permission_id: null });
+            // Null out the sheet ID so we don't try to delete twice
+            await sheet.update({ user_sheet_id: null });
 
-            return res.status(200).json({ success: true, message: 'Access revocation initiated.' });
+            return res.status(200).json({ success: true, message: 'Sheet deletion initiated.' });
 
         } catch (error) {
             console.error('[SheetController] revokeAccess error:', error);
@@ -300,7 +272,6 @@ const sheetController = {
         }
     },
 
-    // Expose the helper so formSubmissionController can import it directly
     revokeStudentAccess
 };
 

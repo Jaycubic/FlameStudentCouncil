@@ -103,25 +103,20 @@ async function triggerSheetRevocation(studentEmail, selectedRole) {
       const Model = SHEET_MODEL_MAP[sheetType];
       const sheet = await Model.findOne({ where: { email: studentEmail } });
 
-      if (!sheet) {
-        console.warn(`[Revoke] No ${sheetType} sheet record found for ${studentEmail}. Student never generated one.`);
+      if (!sheet || !sheet.user_sheet_id) {
+        console.warn(`[Revoke] No ${sheetType} sheet found for ${studentEmail}. Nothing to delete.`);
         continue;
       }
 
-      console.log(`[Revoke] Found ${sheetType} sheet: id=${sheet.user_sheet_id}, permission_id=${sheet.student_permission_id}`);
+      console.log(`[Revoke] Found ${sheetType} sheet: id=${sheet.user_sheet_id}`);
 
-      if (!sheet.student_permission_id) {
-        console.warn(`[Revoke] No student_permission_id on record for ${studentEmail} (${sheetType}). Already revoked or never stored.`);
-        continue;
-      }
+      // Fire delete script in detached background process
+      revokeStudentAccess(sheet.user_sheet_id, masterUser);
 
-      // Fire revoke script in detached background process
-      revokeStudentAccess(sheet.user_sheet_id, sheet.student_permission_id, masterUser);
+      // Null out the sheet ID so duplicate submits don't re-trigger
+      await sheet.update({ user_sheet_id: null });
 
-      // Null out the permission_id immediately so duplicate submits don't re-trigger
-      await sheet.update({ student_permission_id: null });
-
-      console.log(`[Revoke] Revocation fired for ${studentEmail} — ${sheetType} sheet (${sheet.user_sheet_id})`);
+      console.log(`[Revoke] Deletion fired for ${studentEmail} — ${sheetType} sheet (${sheet.user_sheet_id})`);
     }
   } catch (err) {
     // Never let revocation errors bubble up to the student's response

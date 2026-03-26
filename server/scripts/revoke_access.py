@@ -1,15 +1,15 @@
 # scripts/revoke_access.py
 #
 # Usage:
-#   python3 revoke_access.py <file_id> <student_permission_id>
-#                            <master_access_token> <master_refresh_token>
+#   python3 revoke_access.py <file_id> <master_access_token> <master_refresh_token>
 #
 # Runs as MASTER (owner of the file).
 #
 # Strategy:
-#   1. Try permissions().delete() — works for new sheets in private folder
-#   2. If 403 (inherited domain permission), fall back to
-#      permissions().update(role='reader') — student can view but not edit
+#   The file lives in master's private folder. After the student submits their
+#   form, we no longer need the sheet at all — so just delete it entirely.
+#   This guarantees the file disappears from the student's "Shared with me"
+#   and any direct links go dead immediately. No permission-revoke edge cases.
 
 import sys
 import json
@@ -42,14 +42,13 @@ def execute_with_retry(request, max_retries=4):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 5:
-        print(json.dumps({"success": False, "error": "Missing arguments."}))
+    if len(sys.argv) < 4:
+        print(json.dumps({"success": False, "error": "Missing arguments. Expected: file_id master_access_token master_refresh_token"}))
         return
 
-    file_id               = sys.argv[1]
-    student_permission_id = sys.argv[2]
-    master_access_token   = sys.argv[3]
-    master_refresh_token  = sys.argv[4]
+    file_id              = sys.argv[1]
+    master_access_token  = sys.argv[2]
+    master_refresh_token = sys.argv[3]
 
     creds = Credentials(
         token=master_access_token,
@@ -70,36 +69,27 @@ def main():
     try:
         service = build('drive', 'v3', credentials=creds)
 
-        # Try 1: Clean delete (works for new sheets in private folder)
+        # Master owns the file → delete it entirely.
+        # This removes it from everyone's Drive, including the student's
+        # "Shared with me" view, and invalidates any direct links.
         try:
             execute_with_retry(
-                service.permissions().delete(
-                    fileId=file_id,
-                    permissionId=student_permission_id
-                )
+                service.files().delete(fileId=file_id)
             )
-            print(json.dumps({"success": True, "message": f"Deleted permission {student_permission_id} on {file_id}"}))
-            return
+            print(json.dumps({
+                "success": True,
+                "message": f"File {file_id} permanently deleted."
+            }))
 
-        except HttpError as delete_err:
-            if delete_err.resp.status == 403:
-                # Inherited domain permission — can't delete, downgrade to reader instead
-                pass
-            elif delete_err.resp.status == 404:
-                print(json.dumps({"success": True, "message": "Permission already removed (404)."}))
-                return
+        except HttpError as e:
+            if e.resp.status == 404:
+                # Already gone — treat as success
+                print(json.dumps({
+                    "success": True,
+                    "message": f"File {file_id} already deleted (404)."
+                }))
             else:
-                raise delete_err
-
-        # Try 2: Downgrade to reader (fallback for old sheets with inherited perms)
-        execute_with_retry(
-            service.permissions().update(
-                fileId=file_id,
-                permissionId=student_permission_id,
-                body={'role': 'reader'}
-            )
-        )
-        print(json.dumps({"success": True, "message": f"Downgraded permission {student_permission_id} to reader on {file_id} (inherited fallback)"}))
+                raise
 
     except HttpError as e:
         print(json.dumps({"success": False, "error": f"Google API error: {str(e)}"}))
