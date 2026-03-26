@@ -2,26 +2,31 @@
 const { CulturalUserSheet, SportsUserSheet, User } = require('../models');
 const { spawn } = require('child_process');
 const path = require('path');
+const { sheetQueue, getJobStatus } = require('../queues/sheetQueue');
 
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
+const FOLDER_ID = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────
+// Fast-path limit: 3 concurrent synchronous operations.
+// When full, new requests overflow to the BullMQ queue (async path).
 class Semaphore {
     constructor(limit) {
         this.limit = limit;
         this.count = 0;
-        this.queue = [];
     }
-    acquire() {
-        return new Promise(resolve => {
-            if (this.count < this.limit) { this.count++; resolve(); }
-            else this.queue.push(resolve);
-        });
+    // Non-blocking: returns true if acquired, false if full
+    tryAcquire() {
+        if (this.count < this.limit) {
+            this.count++;
+            return true;
+        }
+        return false;
     }
     release() {
         this.count--;
-        if (this.queue.length > 0) { this.count++; this.queue.shift()(); }
     }
+    get active() { return this.count; }
 }
 
 const driveSemaphore = new Semaphore(3);
@@ -59,14 +64,6 @@ function runPythonScript(scriptPath, args) {
 /**
  * Fires revoke_access.py in the background — removes only the student's
  * explicit permission entry. The file stays intact in master's Drive.
- *
- * This works cleanly because the file lives in master's private folder,
- * which breaks domain-wide permission inheritance. The student's entry is
- * always explicit → permissions().delete() never 403s.
- *
- * @param {string} fileId               - Google Drive file ID
- * @param {string} studentPermissionId  - Student's Drive permission ID on that file
- * @param {object} masterUser           - Master User record from DB (has tokens)
  */
 function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
     const scriptPath = path.join(__dirname, '../scripts/revoke_access.py');
@@ -91,8 +88,11 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
 const sheetController = {
 
     /**
-     * GET /api/sheet/:type
-     * Generate or retrieve a spreadsheet for the logged-in student.
+     * GET /api/sheets/:type
+     * Hybrid: fast path (semaphore) or async path (BullMQ queue).
+     *
+     * - If semaphore has capacity → run Python synchronously → instant response
+     * - If semaphore is full → enqueue BullMQ job → return 202 + jobId for polling
      */
     async getSheet(req, res) {
         try {
@@ -110,34 +110,7 @@ const sheetController = {
             if (existingSheet) {
                 // If permission was revoked (prior submission), re-grant access
                 if (!existingSheet.student_permission_id) {
-                    const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
-                    if (!masterUser?.access_token) {
-                        return res.status(500).json({ success: false, message: 'Master account configuration missing.' });
-                    }
-
-                    const restoreScript = path.join(__dirname, '../scripts/restore_access.py');
-                    let restoreResult;
-
-                    await driveSemaphore.acquire();
-                    try {
-                        restoreResult = await runPythonScript(restoreScript, [
-                            existingSheet.user_sheet_id,
-                            userEmail,
-                            masterUser.access_token,
-                            masterUser.refresh_token
-                        ]);
-                    } finally {
-                        driveSemaphore.release();
-                    }
-
-                    if (!restoreResult.success) {
-                        console.error('[SheetController] Restore access error:', restoreResult.error);
-                        return res.status(500).json({ success: false, message: 'Failed to restore sheet access: ' + restoreResult.error });
-                    }
-
-                    // Store the new permission ID
-                    await existingSheet.update({ student_permission_id: restoreResult.student_permission_id });
-                    console.log(`[SheetController] Restored access for ${userEmail} on ${type} sheet. New permId: ${restoreResult.student_permission_id}`);
+                    return await this._handleRestore(res, existingSheet, userEmail, type);
                 }
 
                 return res.status(200).json({
@@ -148,80 +121,77 @@ const sheetController = {
                 });
             }
 
-            // ── 2. Fetch student tokens ──────────────────────────────────────
+            // ── 2. Fetch tokens ──────────────────────────────────────────────
             const studentUser = await User.findOne({ where: { email: userEmail } });
             if (!studentUser?.access_token) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Session expired. Please log in again.'
-                });
+                return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
             }
 
-            // ── 2b. Fetch master tokens ──────────────────────────────────────
             const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
             if (!masterUser?.access_token) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Master account configuration missing. Please contact admin.'
-                });
+                return res.status(500).json({ success: false, message: 'Master account configuration missing.' });
             }
 
-            const folderId = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+            const scriptArgs = [
+                type, userEmail,
+                studentUser.access_token, studentUser.refresh_token,
+                MASTER_EMAIL,
+                masterUser.access_token, masterUser.refresh_token,
+                FOLDER_ID
+            ];
 
-            // ── 3. Run Python under semaphore ────────────────────────────────
-            const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
-            let result;
+            // ── 3. Hybrid: try semaphore, fallback to queue ──────────────────
+            if (driveSemaphore.tryAcquire()) {
+                // FAST PATH — run synchronously
+                console.log(`[SheetController] Fast path for ${userEmail} (${driveSemaphore.active}/3 active)`);
+                try {
+                    const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
+                    const result = await runPythonScript(scriptPath, scriptArgs);
 
-            await driveSemaphore.acquire();
-            try {
-                result = await runPythonScript(scriptPath, [
+                    if (!result.success) {
+                        console.error('[SheetController] Python error:', result.error);
+                        return res.status(500).json({ success: false, message: 'Sheet generation failed: ' + result.error });
+                    }
+
+                    // Atomic DB write
+                    const [sheet, created] = await Model.findOrCreate({
+                        where: { email: userEmail },
+                        defaults: {
+                            email: userEmail,
+                            user_sheet_id: result.sheet_id,
+                            student_permission_id: result.student_permission_id
+                        }
+                    });
+
+                    const sheetId = created ? result.sheet_id : sheet.user_sheet_id;
+                    return res.status(created ? 201 : 200).json({
+                        success: true,
+                        sheet_id: sheetId,
+                        url: `https://docs.google.com/spreadsheets/d/${sheetId}`,
+                        isNew: created
+                    });
+                } finally {
+                    driveSemaphore.release();
+                }
+            } else {
+                // QUEUE PATH — semaphore full, offload to BullMQ
+                console.log(`[SheetController] Queue path for ${userEmail} (semaphore full: ${driveSemaphore.active}/3)`);
+                const job = await sheetQueue.add(`generate:${userEmail}`, {
+                    action: 'generate',
                     type,
                     userEmail,
-                    studentUser.access_token,
-                    studentUser.refresh_token,
-                    MASTER_EMAIL,
-                    masterUser.access_token,
-                    masterUser.refresh_token,
-                    folderId
-                ]);
-            } finally {
-                driveSemaphore.release();
-            }
-
-            if (!result.success) {
-                console.error('[SheetController] Python error:', result.error);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Google API error during sheet generation: ' + result.error
+                    args: scriptArgs
+                }, {
+                    jobId: `gen-${type}-${userEmail}-${Date.now()}`
                 });
-            }
 
-            // ── 4. Atomic DB write ───────────────────────────────────────────
-            const [sheet, created] = await Model.findOrCreate({
-                where: { email: userEmail },
-                defaults: {
-                    email: userEmail,
-                    user_sheet_id: result.sheet_id,
-                    student_permission_id: result.student_permission_id
-                }
-            });
-
-            if (!created) {
-                console.warn(`[SheetController] Race: duplicate sheet for ${userEmail}. Orphan: ${result.sheet_id}`);
-                return res.status(200).json({
+                return res.status(202).json({
                     success: true,
-                    sheet_id: sheet.user_sheet_id,
-                    url: `https://docs.google.com/spreadsheets/d/${sheet.user_sheet_id}`,
-                    isNew: false
+                    status: 'queued',
+                    jobId: job.id,
+                    message: 'Your sheet is being generated. Please wait...'
                 });
             }
-
-            return res.status(201).json({
-                success: true,
-                sheet_id: result.sheet_id,
-                url: `https://docs.google.com/spreadsheets/d/${result.sheet_id}`,
-                isNew: true
-            });
 
         } catch (error) {
             console.error('[SheetController] getSheet error:', error);
@@ -230,7 +200,111 @@ const sheetController = {
     },
 
     /**
-     * POST /api/sheet/:type/revoke
+     * Handle permission restore — hybrid fast/queue path.
+     * Called when a sheet exists in DB but permission was revoked.
+     */
+    async _handleRestore(res, existingSheet, userEmail, type) {
+        const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+        if (!masterUser?.access_token) {
+            return res.status(500).json({ success: false, message: 'Master account configuration missing.' });
+        }
+
+        const restoreArgs = [
+            existingSheet.user_sheet_id,
+            userEmail,
+            masterUser.access_token,
+            masterUser.refresh_token
+        ];
+
+        if (driveSemaphore.tryAcquire()) {
+            // FAST PATH
+            console.log(`[SheetController] Fast restore for ${userEmail}`);
+            try {
+                const restoreScript = path.join(__dirname, '../scripts/restore_access.py');
+                const result = await runPythonScript(restoreScript, restoreArgs);
+
+                if (!result.success) {
+                    console.error('[SheetController] Restore error:', result.error);
+                    return res.status(500).json({ success: false, message: 'Failed to restore access: ' + result.error });
+                }
+
+                await existingSheet.update({ student_permission_id: result.student_permission_id });
+                console.log(`[SheetController] Restored ${userEmail} on ${type}. permId: ${result.student_permission_id}`);
+
+                return res.status(200).json({
+                    success: true,
+                    sheet_id: existingSheet.user_sheet_id,
+                    url: `https://docs.google.com/spreadsheets/d/${existingSheet.user_sheet_id}`,
+                    isNew: false
+                });
+            } finally {
+                driveSemaphore.release();
+            }
+        } else {
+            // QUEUE PATH
+            console.log(`[SheetController] Queue restore for ${userEmail} (semaphore full)`);
+            const job = await sheetQueue.add(`restore:${userEmail}`, {
+                action: 'restore',
+                type,
+                userEmail,
+                args: restoreArgs
+            }, {
+                jobId: `restore-${type}-${userEmail}-${Date.now()}`
+            });
+
+            return res.status(202).json({
+                success: true,
+                status: 'queued',
+                jobId: job.id,
+                message: 'Restoring your sheet access. Please wait...'
+            });
+        }
+    },
+
+    /**
+     * GET /api/sheets/job/:jobId
+     * Poll endpoint for queued sheet jobs.
+     * Frontend calls this every 3s until status is 'completed' or 'failed'.
+     */
+    async checkJobStatus(req, res) {
+        try {
+            const { jobId } = req.params;
+            const result = await getJobStatus(jobId);
+
+            if (result.status === 'not_found') {
+                return res.status(404).json({ success: false, status: 'not_found' });
+            }
+
+            if (result.status === 'completed') {
+                return res.status(200).json({
+                    success: true,
+                    status: 'completed',
+                    ...result.result
+                });
+            }
+
+            if (result.status === 'failed') {
+                return res.status(200).json({
+                    success: false,
+                    status: 'failed',
+                    error: result.error || 'Sheet generation failed. Please try again.'
+                });
+            }
+
+            // 'waiting', 'active', 'delayed'
+            return res.status(200).json({
+                success: true,
+                status: result.status
+            });
+
+        } catch (error) {
+            console.error('[SheetController] checkJobStatus error:', error);
+            return res.status(500).json({ success: false, message: 'Internal server error.' });
+        }
+    },
+
+    /**
+     * POST /api/sheets/:type/revoke
      * Removes student's Drive permission. File stays in master's Drive.
      */
     async revokeAccess(req, res) {
@@ -258,10 +332,7 @@ const sheetController = {
                 return res.status(500).json({ success: false, message: 'Master account not configured.' });
             }
 
-            // Fire permission removal in background — don't block the HTTP response
             revokeStudentAccess(sheet.user_sheet_id, sheet.student_permission_id, masterUser);
-
-            // Null out so we don't attempt a double-revoke
             await sheet.update({ student_permission_id: null });
 
             return res.status(200).json({ success: true, message: 'Access revocation initiated.' });

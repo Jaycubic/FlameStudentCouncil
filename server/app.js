@@ -81,6 +81,9 @@ app.use('/api/form-processing', formProcessingRoutes);
 app.use('/api/time-settings', require('./routes/timeSettingsRoutes.js'));
 app.use('/api/sheets', require('./routes/sheetRoutes.js'));
 
+// Start BullMQ sheet worker (runs in-process)
+require('./workers/sheetWorker');
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

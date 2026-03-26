@@ -276,18 +276,64 @@ function ApplicationFormDashboard() {
 
             const result = await response.json();
 
+            // Fast path — sheet ready immediately
             if (result.success && result.url) {
                 setSheetReady(prev => ({ ...prev, [type]: result.url }));
                 toast({ title: 'Ready!', description: 'Your Matrix Sheet is ready. Click the button to open it.', status: 'success' });
-            } else {
-                throw new Error(result.message || 'Failed to generate sheet');
+                return;
             }
+
+            // Queue path — poll for completion
+            if (response.status === 202 && result.jobId) {
+                toast({ title: 'Processing', description: 'Server is busy — your sheet is queued. Please wait...', status: 'info', duration: 5000 });
+                const sheetUrl = await pollJobStatus(result.jobId);
+                setSheetReady(prev => ({ ...prev, [type]: sheetUrl }));
+                toast({ title: 'Ready!', description: 'Your Matrix Sheet is ready. Click the button to open it.', status: 'success' });
+                return;
+            }
+
+            throw new Error(result.message || 'Failed to generate sheet');
         } catch (error) {
             console.error('Sheet generation error:', error);
             toast({ title: 'Error', description: error.message, status: 'error' });
         } finally {
             setGeneratingSheet(prev => ({ ...prev, [type]: false }));
         }
+    };
+
+    // Poll BullMQ job status every 3s until completed or failed
+    const pollJobStatus = (jobId) => {
+        return new Promise((resolve, reject) => {
+            const deviceId = localStorage.getItem('deviceId') || '';
+            let attempts = 0;
+            const maxAttempts = 40; // 40 × 3s = 2 minutes max
+
+            const interval = setInterval(async () => {
+                attempts++;
+                try {
+                    const res = await fetch(`/api/sheets/job/${jobId}`, {
+                        credentials: 'include',
+                        headers: { 'x-device-id': deviceId }
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'completed' && data.url) {
+                        clearInterval(interval);
+                        resolve(data.url);
+                    } else if (data.status === 'failed') {
+                        clearInterval(interval);
+                        reject(new Error(data.error || 'Sheet generation failed'));
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        reject(new Error('Sheet generation timed out. Please try again.'));
+                    }
+                    // else: still 'waiting' or 'active' — keep polling
+                } catch (err) {
+                    clearInterval(interval);
+                    reject(err);
+                }
+            }, 3000);
+        });
     };
 
     if (loading && !formData.name) return (
