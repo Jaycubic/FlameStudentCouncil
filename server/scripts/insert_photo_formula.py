@@ -61,7 +61,11 @@ def main():
         return
 
     # ── Build the IMAGE formula ────────────────────────────────────────────────
-    image_url = f'https://drive.google.com/uc?id={drive_file_id}'
+    # lh3.googleusercontent.com/d/ is Google's image CDN — Sheets treats it as
+    # a first-party trusted source and skips the "external parties" access prompt.
+    # drive.google.com/uc?id= triggers the prompt because Sheets sees it as an
+    # external download redirect, even though it's the same file.
+    image_url = f'https://lh3.googleusercontent.com/d/{drive_file_id}'
     formula   = f'=IMAGE("{image_url}")'
 
     try:
