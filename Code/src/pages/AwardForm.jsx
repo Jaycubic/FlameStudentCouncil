@@ -8,7 +8,7 @@ import {
     Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton,
     ModalBody, ModalFooter, useToast, SimpleGrid, Alert, AlertIcon,
     CircularProgress, List, ListItem, Menu, MenuButton, MenuList, MenuItem,
-    Container, ScaleFade, Fade, Divider, Badge, FormHelperText
+    Container, ScaleFade, Fade, Divider, Badge, FormHelperText, Spinner, Tooltip
 } from '@chakra-ui/react';
 import { ChevronDownIcon, ArrowForwardIcon, CheckIcon as ChakraCheckIcon } from '@chakra-ui/icons';
 import { FaMale, FaFemale, FaUser, FaCamera, FaTrophy, FaMusic, FaGraduationCap, FaChevronLeft, FaFilePdf, FaPlus, FaTimes } from 'react-icons/fa';
@@ -75,8 +75,10 @@ function ApplicationFormDashboard() {
     const pollingRef = useRef(null);
 
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    const PHOTO_MAX_SIZE = 5 * 1024 * 1024; // 5MB for photo
 
     const [photoExists, setPhotoExists] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
     const fetchStatusAndPrefill = async () => {
         try {
@@ -217,20 +219,41 @@ function ApplicationFormDashboard() {
     const handlePhotoChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        // Show preview immediately
+
+        // ── 5MB size guard ──
+        if (file.size > PHOTO_MAX_SIZE) {
+            toast({
+                title: 'Photo Too Large',
+                description: 'Maximum allowed photo size is 5MB. Please compress or choose a smaller image.',
+                status: 'error',
+                duration: 6000,
+                isClosable: true,
+            });
+            return;
+        }
+
+        // Show preview immediately (blob URL)
+        const blobUrl = URL.createObjectURL(file);
         setPhotoFile(file);
-        setFormData(prev => ({ ...prev, photoUrl: URL.createObjectURL(file) }));
-        onPhotoModalClose();
-        // Upload immediately to server
+        setFormData(prev => ({ ...prev, photoUrl: blobUrl }));
+
+        // Upload to server NOW — before form submit
+        setUploadingPhoto(true);
         try {
             await formProcessingService.uploadPhoto(file, formData.studentId || formData.student_id);
             setPhotoExists(true);
-            // Refresh photo URL with cache buster so the image re-renders
+            // Replace blob preview with the real server URL
             const sid = formData.studentId || formData.student_id;
             setFormData(prev => ({ ...prev, photoUrl: `/api/photos/${sid}?t=${Date.now()}` }));
-            toast({ title: 'Photo Uploaded', description: 'Your profile photo has been saved.', status: 'success', duration: 3000 });
+            toast({ title: '✅ Photo Uploaded', description: 'Your profile photo has been saved. You may now fill the rest of the form.', status: 'success', duration: 4000 });
+            onPhotoModalClose();
         } catch (err) {
+            // Revert preview on failure
+            setPhotoFile(null);
+            setFormData(prev => ({ ...prev, photoUrl: defaultProfilePhoto }));
             toast({ title: 'Upload Failed', description: err.message, status: 'error', duration: 5000 });
+        } finally {
+            setUploadingPhoto(false);
         }
     };
 
@@ -578,7 +601,32 @@ function ApplicationFormDashboard() {
                             </HStack>
                         </Box>
 
-                        <VStack spacing={10} align="stretch">
+                        {/* ── Photo Gate Overlay ── */}
+                        <Box position="relative">
+                            {/* Greyed-out click-interceptor — only when photo is missing */}
+                            {!photoExists && (
+                                <Box
+                                    position="absolute"
+                                    top={0} left={0} right={0} bottom={0}
+                                    zIndex={10}
+                                    borderRadius="2xl"
+                                    bg="blackAlpha.100"
+                                    backdropFilter="blur(2px)"
+                                    cursor="not-allowed"
+                                    onClick={() => {
+                                        toast({
+                                            title: '📸 Upload Photo First',
+                                            description: 'A profile photo is mandatory before you can fill this section.',
+                                            status: 'warning',
+                                            duration: 4000,
+                                            isClosable: true,
+                                        });
+                                        onPhotoModalOpen();
+                                    }}
+                                />
+                            )}
+
+                        <VStack spacing={10} align="stretch" opacity={photoExists ? 1 : 0.45} pointerEvents={photoExists ? 'auto' : 'none'}>
                             {/* Sport Section */}
                             {(selectedRole === 'trailblazer' || selectedRole === 'sports_person') && (
                                 <Section title="Sports & Athletics Achievements">
@@ -806,6 +854,7 @@ function ApplicationFormDashboard() {
                                 </Button>
                             </Box>
                         </VStack>
+                        </Box> {/* end photo gate */}
                     </MotionVStack>
                 )}
             </AnimatePresence>
@@ -818,12 +867,31 @@ function ApplicationFormDashboard() {
                     <ModalCloseButton />
                     <ModalBody pb={8}>
                         <VStack spacing={4}>
-                            <Box w="full" h="120px" p={6} border="2px dashed" borderColor="blue.200" borderRadius="xl" textAlign="center" _hover={{ borderColor: 'blue.400' }} cursor="pointer" position="relative">
-                                <Input type="file" opacity={0} position="absolute" w="full" h="full" top={0} left={0} cursor="pointer" accept="image/*" onChange={handlePhotoChange} />
-                                <Icon as={FaCamera} boxSize={8} color="blue.500" mb={2} />
-                                <Text fontWeight="bold">Click to Upload</Text>
-                                <Text fontSize="xs" color="gray.500">JPG, PNG (Max 2MB)</Text>
-                            </Box>
+                            {uploadingPhoto ? (
+                                <VStack spacing={3} py={8}>
+                                    <Spinner size="xl" color="blue.500" thickness="4px" />
+                                    <Text fontWeight="bold" color="blue.600">Uploading photo to server...</Text>
+                                    <Text fontSize="xs" color="gray.500">Please wait, do not close this window.</Text>
+                                </VStack>
+                            ) : (
+                                <Box
+                                    w="full" h="140px" p={6}
+                                    border="2px dashed" borderColor="blue.300" borderRadius="xl"
+                                    textAlign="center"
+                                    _hover={{ borderColor: 'blue.500', bg: 'blue.50' }}
+                                    cursor="pointer" position="relative" transition="0.2s"
+                                >
+                                    <Input
+                                        type="file" opacity={0} position="absolute"
+                                        w="full" h="full" top={0} left={0}
+                                        cursor="pointer" accept="image/*"
+                                        onChange={handlePhotoChange}
+                                    />
+                                    <Icon as={FaCamera} boxSize={10} color="blue.400" mb={2} />
+                                    <Text fontWeight="bold" fontSize="md">Click to Upload Photo</Text>
+                                    <Text fontSize="xs" color="gray.500" mt={1}>JPG or PNG — Maximum 5MB</Text>
+                                </Box>
+                            )}
                         </VStack>
                     </ModalBody>
                 </ModalContent>
