@@ -1144,7 +1144,7 @@ const authController = {
       const client = createOAuth2Client();
       client.setCredentials({ refresh_token: row.refresh_token });
       try {
-        const { tokens } = await client.refreshAccessToken();
+        const { credentials: tokens } = await client.refreshAccessToken();
         await user.update({
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token || user.refresh_token,
