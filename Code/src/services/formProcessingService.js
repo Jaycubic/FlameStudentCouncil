@@ -53,8 +53,10 @@ class FormProcessingService {
             const deviceId = await this.getDeviceId();
             const formData = new FormData();
             formData.append('photo', file);
-            formData.append('studentId', studentId);
-            const response = await fetch('/api/photos/upload', {
+            // studentId goes in the URL as a query param — NOT body.
+            // multer's filename() fires before body is parsed, so req.body.studentId
+            // would always be undefined. req.query is always available.
+            const response = await fetch(`/api/photos/upload?studentId=${encodeURIComponent(studentId)}`, {
                 method: 'POST',
                 headers: { 'x-device-id': deviceId },
                 credentials: 'include',

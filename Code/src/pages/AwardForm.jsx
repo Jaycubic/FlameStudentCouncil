@@ -240,11 +240,14 @@ function ApplicationFormDashboard() {
         // Upload to server NOW — before form submit
         setUploadingPhoto(true);
         try {
-            await formProcessingService.uploadPhoto(file, formData.studentId || formData.student_id);
+            const uploadResult = await formProcessingService.uploadPhoto(file, formData.studentId || formData.student_id);
             setPhotoExists(true);
-            // Replace blob preview with the real server URL
-            const sid = formData.studentId || formData.student_id;
-            setFormData(prev => ({ ...prev, photoUrl: `/api/photos/${sid}?t=${Date.now()}` }));
+            // Use the exact filename (with extension) returned by server — avoids guessing
+            const exactFilename = uploadResult?.filename;
+            const photoUrl = exactFilename
+                ? `/api/photos/${exactFilename}?t=${Date.now()}`
+                : `/api/photos/${formData.studentId || formData.student_id}?t=${Date.now()}`;
+            setFormData(prev => ({ ...prev, photoUrl }));
             toast({ title: '✅ Photo Uploaded', description: 'Your profile photo has been saved. You may now fill the rest of the form.', status: 'success', duration: 4000 });
             onPhotoModalClose();
         } catch (err) {

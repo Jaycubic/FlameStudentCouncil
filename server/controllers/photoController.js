@@ -14,17 +14,24 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const studentId = req.user?.studentId || req.body.studentId || 'unknown';
+    // req.body is NOT reliably available during filename() — multer hasn't parsed it yet.
+    // We pass studentId as a query param: POST /api/photos/upload?studentId=240951
+    const studentId = req.query.studentId || 'unknown';
     const fileExt = path.extname(file.originalname).toLowerCase();
     const filename = `${studentId}${fileExt}`;
     const filePath = path.join(uploadPath, filename);
-    if (fs.existsSync(filePath)) {
-      // if you prefer to overwrite instead of rejecting, replace with cb(null, filename)
-      cb(new Error('Photo already exists'), null);
-    } else {
-      console.log(`Saving file to: ${filePath}`);
-      cb(null, filename);
-    }
+
+    // Clean up any OTHER extension variant so getPhoto finds exactly one file
+    const extensions = ['.jpg', '.jpeg', '.png'];
+    extensions.forEach(ext => {
+      const old = path.join(uploadPath, `${studentId}${ext}`);
+      if (old !== filePath && fs.existsSync(old)) {
+        fs.unlinkSync(old);
+      }
+    });
+
+    console.log(`[PHOTO] Saving: ${filePath}`);
+    cb(null, filename);
   },
 });
 
@@ -44,12 +51,6 @@ const upload = multer({
 exports.uploadPhoto = (req, res) => {
   upload(req, res, (err) => {
     if (err) {
-      if (err.message === 'Photo already exists') {
-        return res.status(409).json({
-          message:
-            'You have already successfully uploaded a photo. For any changes, please contact the Program Office Member for assistance.',
-        });
-      }
       return res.status(400).json({ message: err.message });
     }
     if (!req.file) {
@@ -57,7 +58,7 @@ exports.uploadPhoto = (req, res) => {
     }
     res.status(200).json({
       message: 'Photo uploaded successfully',
-      filename: req.file.filename, // important: includes extension e.g. "123.jpg"
+      filename: req.file.filename, // e.g. "240951.png" — includes extension
     });
   });
 };
