@@ -1,5 +1,5 @@
 // controllers/sheetController.js
-const { CulturalUserSheet, SportsUserSheet, User } = require('../models');
+const { CulturalUserSheet, SportsUserSheet, User, StudentData, PhotoDriveUpload } = require('../models');
 const { spawn } = require('child_process');
 const path = require('path');
 const { sheetQueue, getJobStatus } = require('../queues/sheetQueue');
@@ -83,6 +83,47 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
         log.error({ fileId, err: err.message }, 'Failed to spawn revoke script');
     });
 }
+
+// ─── Insert =IMAGE() formula into cell B2 after sheet creation ──────────────
+// Non-fatal: if Drive file not cached yet or script fails, sheet still works.
+const PHOTO_FOLDER_ID_SHEET = '1zf29mZFzNObWcMjrbtKg13aoO9PNkqxK';
+
+async function insertPhotoFormula(sheetId, userEmail, masterUser) {
+    try {
+        // Resolve student_id from StudentData
+        const student = await StudentData.findOne({ where: { email_id: userEmail } });
+        if (!student?.student_cvue_no) {
+            log.warn({ userEmail }, '[PhotoFormula] No StudentData found — skipping B2 insert');
+            return;
+        }
+        const studentId = student.student_cvue_no.toString();
+
+        // Look up cached Drive file ID
+        const photoRecord = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
+        if (!photoRecord?.drive_file_id) {
+            log.warn({ studentId }, '[PhotoFormula] Photo not on Drive yet — skipping B2 insert');
+            return;
+        }
+
+        const scriptPath = path.join(__dirname, '../scripts/insert_photo_formula.py');
+        const result = await runPythonScript(scriptPath, [
+            sheetId,
+            photoRecord.drive_file_id,
+            masterUser.access_token,
+            masterUser.refresh_token
+        ]);
+
+        if (result.success) {
+            log.info({ sheetId, studentId }, '[PhotoFormula] ✅ IMAGE formula inserted into B2');
+        } else {
+            log.warn({ sheetId, error: result.error }, '[PhotoFormula] Script returned failure');
+        }
+    } catch (err) {
+        // Never block sheet delivery — B2 formula is best-effort
+        log.error({ sheetId, err: err.message }, '[PhotoFormula] Non-fatal error inserting photo formula');
+    }
+}
+
 // ─── Permission Restore Helper ────────────────────────────────────────────────
 // Standalone function (not on controller) to avoid Express `this` binding issues.
 
@@ -223,12 +264,17 @@ const sheetController = {
                     });
 
                     const sheetId = created ? result.sheet_id : sheet.user_sheet_id;
+
+                    // ── Insert =IMAGE() into B2 — best-effort, non-blocking ──
+                    await insertPhotoFormula(sheetId, userEmail, masterUser);
+
                     return res.status(created ? 201 : 200).json({
                         success: true,
                         sheet_id: sheetId,
                         url: `https://docs.google.com/spreadsheets/d/${sheetId}`,
                         isNew: created
                     });
+
                 } finally {
                     driveSemaphore.release();
                 }

@@ -87,6 +87,9 @@ app.use('/api/sheets', require('./routes/sheetRoutes.js'));
 // Start BullMQ sheet worker (runs in-process)
 require('./workers/sheetWorker');
 
+// Start BullMQ photo-upload worker (concurrency=3, hybrid master/student fallback)
+require('./workers/photoUploadWorker');
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   log.error({ err: err.message, stack: err.stack }, 'Unhandled Route Error');

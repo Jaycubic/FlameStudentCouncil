@@ -25,6 +25,7 @@ const EmployeeStudentMaster = require('./EmployeeStudentMaster');
 const WellbeingDeclaration = require('./WellbeingDeclaration');
 const CulturalUserSheet = require('./CulturalUserSheet');
 const SportsUserSheet = require('./SportsUserSheet');
+const PhotoDriveUpload = require('./PhotoDriveUpload');
 
 const models = {
   Organization,
@@ -52,7 +53,8 @@ const models = {
   EmployeeStudentMaster,
   WellbeingDeclaration,
   CulturalUserSheet,
-  SportsUserSheet
+  SportsUserSheet,
+  PhotoDriveUpload
 };
 
 Object.values(models).forEach(model => {

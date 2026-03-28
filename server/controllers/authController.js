@@ -1,5 +1,5 @@
 // controllers/authController.js
-const { User, Role, RoleSetting, StudentData } = require('../models');
+const { User, Role, RoleSetting, StudentData, PhotoDriveUpload } = require('../models');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { google } = require('googleapis');
@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const CryptoJS = require('crypto-js');
 const redis = require('redis');
 const { Op } = require('sequelize');
+const { photoUploadQueue } = require('../queues/photoUploadQueue');
 require('dotenv').config();
 
 // Redis client setup
@@ -101,6 +102,45 @@ const getFingerprintHash = (deviceId, userAgent, salt) => {
   const raw = `${deviceId}|${userAgent}|${salt}`;
   return CryptoJS.SHA256(raw).toString();
 };
+
+// ─── Queue photo → Drive upload on student login ───────────────────────────
+// Adds a job to the BullMQ photo-upload queue — returns instantly (< 1ms).
+// The photoUploadWorker processes it at controlled concurrency=3.
+
+async function queuePhotoUpload(studentEmail) {
+  try {
+    const student = await StudentData.findOne({ where: { email_id: studentEmail } });
+    if (!student?.student_cvue_no) {
+      console.warn(`[PhotoQueue] No StudentData for ${studentEmail}`);
+      return;
+    }
+    const studentId = student.student_cvue_no.toString();
+
+    // Idempotency: skip if already on master Drive
+    const existing = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
+    if (existing?.hosted_by === 'master') {
+      console.log(`[PhotoQueue] ${studentId} already on master Drive — no job needed`);
+      return;
+    }
+
+    // Add to BullMQ queue (deduped by jobId)
+    await photoUploadQueue.add(
+      `upload:${studentId}`,
+      { studentId, studentEmail, jobType: 'upload' },
+      {
+        jobId:    `upload-${studentId}`,  // dedup: only one pending job per student
+        priority: 1,                       // high priority (login-triggered)
+        attempts: 4,
+        backoff:  { type: 'exponential', delay: 15_000 }
+      }
+    );
+    console.log(`[PhotoQueue] ✅ Queued photo upload for ${studentId}`);
+  } catch (err) {
+    // Never block login response
+    console.error('[PhotoQueue] Failed to enqueue:', err.message);
+  }
+}
+
 
 // Generate encrypted access JWT with fingerprint and expiration
 const generateEncryptedAccessToken = (user, roleName, req, deviceIdOverride = null) => {
@@ -643,6 +683,12 @@ const authController = {
         expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
         updated_at: new Date()
       });
+
+      // ── Queue photo Drive upload (Student only) ──────────────────────────
+      if (role.name === 'Student') {
+        queuePhotoUpload(googleEmail).catch(() => {});
+      }
+
       if (!process.env.JWT_SECRET) {
         console.error('JWT_SECRET is not set');
         return res.status(500).json({ message: 'Server configuration error: JWT_SECRET is missing' });
