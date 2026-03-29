@@ -92,16 +92,23 @@ function ApplicationFormDashboard() {
 
             // 2. Load Prefill Data
             const prefillData = await formProcessingService.getPrefillData();
-            const sid = prefillData.prefill.student_id;
-            const photoName = prefillData.prefill.photo || sid;
+            const p = prefillData.prefill;
+            const sid = p.student_id;
+            const photoName = p.photo || sid;
             setFormData(prev => ({
                 ...prev,
-                ...prefillData.prefill,
+                name:          p.name          || prev.name,
+                studentId:     p.student_id    || prev.studentId,    // snake → camel
+                mobileNumber:  p.mobile_number  || prev.mobileNumber, // snake → camel
+                email:         p.email         || prev.email,
+                gender:        p.gender        || prev.gender,
+                batch:         p.batch         || prev.batch,
                 photoUrl: prefillData.photoExists && photoName
                     ? `/api/photos/${photoName}?t=${Date.now()}`
                     : defaultProfilePhoto
             }));
             setPhotoExists(prefillData.photoExists);
+
             const roles = prefillData.filledRoles || [];
             setFilledRoles(roles);
             if (roles.length >= 3) {
