@@ -84,22 +84,11 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route path="/declaration-form" element={<DeclarationForm />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/roles" element={<Roles />} />
                 <Route path="/award-form" element={<AwardForm />} />
-                <Route path="/calendar" element={<Calendar />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/departments" element={<Departments />} />
-                <Route path="/parentsinfo" element={<ParentInfo />} />
-                <Route path="/trackinginfo" element={<TrackingInfo />} />
-                <Route path="/employee" element={<EmployeeDashboard />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/queue-dashboard" element={<QueueDashboard />} />
-                <Route path="/queue-grabber" element={<QueueGrabber />} />
-                <Route path="/report-day" element={<ReportDay />} />
-                <Route path="/report-day-dashboard" element={<QueueCounterDashboard />} />
-                <Route path="/studentStatus" element={<StudentStatus />} />
                 <Route path="/time-management" element={<TimeManagement />} />
                 <Route path="/applicants" element={<ApplicantsView />} />
                 <Route path="/" element={<Dashboard />} />
