@@ -38,6 +38,7 @@ import {
   DocumentCheckIcon,
   PencilSquareIcon,
   DocumentTextIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline'
 import { authService } from '../../services/authService'
 import { useState, useRef } from 'react'
@@ -180,24 +181,11 @@ function Sidebar() {
   const borderColor = useColorModeValue('blue.800/30', 'pink.600/30')
 
   const allNavigation = [
-    { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    { name: 'Time & Title', href: '/time-management', icon: CalendarIcon, roles: ['admin'] },
-    // { name: 'StudentInfo', href: '/roles', icon: AcademicCapIcon, roles: ['admin', 'RC', 'Council', 'user', 'AdminLite'] },
-    //{ name: 'Student Housing', href: '/departments', icon: BuildingOfficeIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    //{ name: 'Parent Info', href: '/parentsinfo', icon: UsersIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    // { name: 'Tracking Info', href: '/trackinginfo', icon: MapPinIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    //{ name: 'StudentStatus', href: '/studentStatus', icon: BuildingOfficeIcon, roles: ['admin', 'RC', 'user', 'AdminLite'] },
-    //{ name: 'NightOut Status', href: '/nightout', icon: MoonIcon, roles: ['admin', 'RC', 'user', 'AdminLite'] },
-    // { name: 'Declaration Form', href: '/declaration-form', icon: PencilSquareIcon, roles: ['admin', 'Council'] },
-    { name: 'Award Form', href: '/award-form', icon: IdentificationIcon, roles: ['Student'] },
-    // { name: 'Dean Certificates', href: '/certificates', icon: DocumentCheckIcon, roles: ['admin', 'AdminLite'] },
-    //{ name: 'Queue Management', href: '/calendar', icon: QueueListIcon, roles: ['admin', 'AdminLite'] },
-    { name: 'Users', href: '/users', icon: UserGroupIcon, roles: ['admin'] },
-    { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
-    //{ name: 'Queue Dashboard', href: '/queue-dashboard', icon: ChartBarIcon, roles: ['AdminLite'] },
-    //{ name: 'Queue Grabber', href: '/queue-grabber', icon: QueueListIcon, roles: ['AdminLite'] },
-    //{ name: 'Report Day', href: '/report-day', icon: ClipboardDocumentIcon, roles: ['admin', 'AdminLite'] },
-    //{ name: 'Report Day Dashboard', href: '/report-day-dashboard', icon: ChartBarIcon, roles: ['admin', 'AdminLite'] },
+    { name: 'Dashboard',   href: '/',            icon: HomeIcon,           roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
+    { name: 'Applicants',  href: '/applicants',  icon: TableCellsIcon,     roles: ['admin'] },
+    { name: 'Time & Title',href: '/time-management', icon: CalendarIcon,   roles: ['admin'] },
+    { name: 'Award Form',  href: '/award-form',  icon: IdentificationIcon, roles: ['Student'] },
+    { name: 'Settings',    href: '/settings',    icon: Cog6ToothIcon,      roles: ['admin'] },
   ]
 
   const mainNavigation = allNavigation.filter(item => item.roles.includes(user?.role))

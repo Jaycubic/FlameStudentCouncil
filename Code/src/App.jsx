@@ -16,22 +16,12 @@ import NotFound from './pages/NotFound'
 // Lazy load components
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Users = lazy(() => import('./pages/Users'))
-const Roles = lazy(() => import('./pages/StudentInfoTable'))
 const AwardForm = lazy(() => import('./pages/AwardForm'))
 const Calendar = lazy(() => import('./pages/Calendar'))
 const Profile = lazy(() => import('./pages/Profile'))
-const Departments = lazy(() => import('./pages/StudentHouseTracking'))
-const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'))
 const Settings = lazy(() => import('./pages/Settings'))
-const ParentInfo = lazy(() => import('./pages/ParentInfo'))
-const TrackingInfo = lazy(() => import('./pages/TrackingInfo'))
-const QueueDashboard = lazy(() => import('./pages/QueueDashboard'))
-const QueueGrabber = lazy(() => import('./pages/QueueGrabber'))
-const DeclarationForm = lazy(() => import('./pages/DeclarationForm'))
-const ReportDay = lazy(() => import('./pages/ReportDay'))
-const QueueCounterDashboard = lazy(() => import('./pages/QueueCounterDashboard'))
-const StudentStatus = lazy(() => import('./pages/StudentStatusTracking'))
 const TimeManagement = lazy(() => import('./pages/TimeManagement'))
+const ApplicantsView = lazy(() => import('./pages/ApplicantsView'))
 
 // Theme configuration
 const theme = extendTheme({
@@ -41,11 +31,11 @@ const theme = extendTheme({
   },
   fontSizes: {
     '2xs': 'clamp(0.625rem, 0.55rem + 0.25vw, 0.75rem)',   // 10px → 12px
-    xs:    'clamp(0.7rem, 0.625rem + 0.3vw, 0.8rem)',       // 11.2px → 12.8px
-    sm:    'clamp(0.8rem, 0.725rem + 0.35vw, 0.9rem)',      // 12.8px → 14.4px
-    md:    'clamp(0.875rem, 0.8rem + 0.4vw, 1rem)',         // 14px → 16px
-    lg:    'clamp(1rem, 0.9rem + 0.5vw, 1.25rem)',          // 16px → 20px
-    xl:    'clamp(1.15rem, 1rem + 0.65vw, 1.5rem)',         // 18.4px → 24px
+    xs: 'clamp(0.7rem, 0.625rem + 0.3vw, 0.8rem)',       // 11.2px → 12.8px
+    sm: 'clamp(0.8rem, 0.725rem + 0.35vw, 0.9rem)',      // 12.8px → 14.4px
+    md: 'clamp(0.875rem, 0.8rem + 0.4vw, 1rem)',         // 14px → 16px
+    lg: 'clamp(1rem, 0.9rem + 0.5vw, 1.25rem)',          // 16px → 20px
+    xl: 'clamp(1.15rem, 1rem + 0.65vw, 1.5rem)',         // 18.4px → 24px
     '2xl': 'clamp(1.35rem, 1.15rem + 0.85vw, 1.875rem)',   // 21.6px → 30px
     '3xl': 'clamp(1.6rem, 1.3rem + 1.1vw, 2.25rem)',       // 25.6px → 36px
     '4xl': 'clamp(1.875rem, 1.5rem + 1.3vw, 2.75rem)',     // 30px → 44px
@@ -112,6 +102,7 @@ function App() {
                 <Route path="/report-day-dashboard" element={<QueueCounterDashboard />} />
                 <Route path="/studentStatus" element={<StudentStatus />} />
                 <Route path="/time-management" element={<TimeManagement />} />
+                <Route path="/applicants" element={<ApplicantsView />} />
                 <Route path="/" element={<Dashboard />} />
               </Route>
 

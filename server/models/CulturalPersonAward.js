@@ -1,3 +1,4 @@
+// server/models/CulturalPersonAward.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/connection');
 
@@ -54,6 +55,10 @@ const CulturalPersonAward = sequelize.define('CulturalPersonAward', {
         defaultValue: 'Submitted',
     },
     photo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    cultural_verified_score: {
         type: DataTypes.STRING,
         allowNull: true,
     },

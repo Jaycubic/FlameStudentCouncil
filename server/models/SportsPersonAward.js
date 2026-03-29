@@ -58,6 +58,10 @@ const SportsPersonAward = sequelize.define('SportsPersonAward', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    sports_verified_score: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
 }, {
     tableName: 'sports_person_awards',
     schema: 'app',
