@@ -35,6 +35,21 @@ class ApplicantsService {
         }
         return res.json();
     }
+    async getProfile(awardType, id) {
+        const deviceId = await this.getDeviceId();
+        const res = await fetch(`/api/applicants/profile/${awardType}/${id}`, {
+            credentials: 'include',
+            headers: { 'x-device-id': deviceId },
+        });
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
+        return res.json();
+    }
+
+    // Returns a URL suitable for <img src> — goes through authenticated proxy
+    getFileUrl(fileType, fileName) {
+        if (!fileName) return null;
+        return `/api/applicants/file/${fileType}/${encodeURIComponent(fileName)}`;
+    }
 }
 
 export const applicantsService = new ApplicantsService();

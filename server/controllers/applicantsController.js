@@ -1,8 +1,13 @@
 // server/controllers/applicantsController.js
-const { TrailblazerAward, SportsPersonAward, CulturalPersonAward } = require('../models');
+const path = require('path');
+const fs   = require('fs');
+const { TrailblazerAward, SportsPersonAward, CulturalPersonAward,
+        SportsUserSheet, CulturalUserSheet,
+        SportAttachment, CulturalAttachment } = require('../models');
 const { Op } = require('sequelize');
 
-// Each table only has its own verified score column
+const ATTACHMENT_DIR = '/opt/View/FlameAwards/server/Attachments';
+const PHOTO_DIR      = '/opt/View/StudentTrackingSystem/server/Photos';
 const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
 const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
 const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','cgpa','submission_date','sports_verified_score','cultural_verified_score','status','photo'];
@@ -125,4 +130,85 @@ async function getApplicants(req, res) {
     }
 }
 
-module.exports = { getApplicants };
+
+// ─── Full profile for the modal ───────────────────────────────────────────────
+// GET /api/applicants/profile/:awardType/:id
+// awardType: sports | cultural | trailblazer
+
+const AWARD_MODEL_MAP = {
+    sports:      SportsPersonAward,
+    cultural:    CulturalPersonAward,
+    trailblazer: TrailblazerAward,
+};
+
+async function getApplicantProfile(req, res) {
+    try {
+        const { awardType, id } = req.params;
+        const Model = AWARD_MODEL_MAP[awardType];
+        if (!Model) return res.status(400).json({ success: false, message: 'Invalid award type' });
+
+        const record = await Model.findByPk(id);
+        if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+
+        const email = record.email;
+
+        // Fetch sheet links and attachments in parallel
+        const [sportsSheet, culturalSheet, sportFiles, culturalFiles] = await Promise.all([
+            SportsUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
+            CulturalUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
+            awardType === 'sports' || awardType === 'trailblazer'
+                ? SportAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
+                : [],
+            awardType === 'cultural' || awardType === 'trailblazer'
+                ? CulturalAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
+                : [],
+        ]);
+
+        return res.json({
+            success: true,
+            data: {
+                ...record.toJSON(),
+                award_type: awardType,
+                sheets: {
+                    sports:   sportsSheet?.user_sheet_id  ? `https://docs.google.com/spreadsheets/d/${sportsSheet.user_sheet_id}` : null,
+                    cultural: culturalSheet?.user_sheet_id ? `https://docs.google.com/spreadsheets/d/${culturalSheet.user_sheet_id}` : null,
+                },
+                attachments: {
+                    sport:    sportFiles.map(f => ({ id: f.id, fileName: f.file_name })),
+                    cultural: culturalFiles.map(f => ({ id: f.id, fileName: f.file_name })),
+                },
+            },
+        });
+    } catch (err) {
+        console.error('[Applicants] getApplicantProfile error:', err.message);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+// ─── Serve attachment or photo files (auth-protected) ─────────────────────────
+// GET /api/applicants/file/:fileType/:fileName
+// fileType: photo | sport | cultural | academic
+
+function serveFile(req, res) {
+    const { fileType, fileName } = req.params;
+
+    // Sanitise — no path traversal
+    const safe = path.basename(fileName);
+
+    let filePath;
+    if (fileType === 'photo') {
+        filePath = path.join(PHOTO_DIR, safe);
+    } else if (['sport', 'cultural', 'academic'].includes(fileType)) {
+        filePath = path.join(ATTACHMENT_DIR, fileType, safe);
+    } else {
+        return res.status(400).json({ message: 'Invalid file type' });
+    }
+
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: 'File not found' });
+    }
+
+    return res.sendFile(filePath);
+}
+
+module.exports = { getApplicants, getApplicantProfile, serveFile };
