@@ -1,3 +1,4 @@
+// server/models/SportsPersonAward.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/connection');
 

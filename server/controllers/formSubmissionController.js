@@ -172,21 +172,25 @@ const formController = {
       };
 
       if (selected_role === 'trailblazer') {
-        submissionData.academic_level       = academicLevel;
-        submissionData.cgpa                 = cgpa ? parseFloat(cgpa) : null;
-        submissionData.sports_score         = sportsScore || null;
-        submissionData.cultural_score       = culturalScore || null;
-        submissionData.statement_of_purpose = sop;
-        submissionData.community_service    = communityService;
+        submissionData.cgpa           = cgpa ? parseFloat(cgpa) : null;
+        submissionData.sports_score   = sportsScore   || null;
+        submissionData.cultural_score = culturalScore || null;
       } else if (selected_role === 'sports_person') {
         submissionData.sports_score   = sportsScore || null;
       } else if (selected_role === 'cultural_person') {
         submissionData.cultural_score = culturalScore || null;
       }
 
-      if (req.files['photo']) {
+      // Photo column: photos are uploaded separately before form submission.
+      // Use studentId as the photo value (matches the filename base in the Photos dir).
+      // If a photo was somehow submitted inline too, that takes priority.
+      if (req.files?.['photo']?.[0]) {
         submissionData.photo = req.files['photo'][0].filename;
+      } else if (studentId) {
+        submissionData.photo = studentId;
       }
+
+
 
       // ── 3. Upsert submission ───────────────────────────────────────────────
       let submission = await AwardModel.findOne({ where: { email } });
