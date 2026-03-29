@@ -28,7 +28,10 @@ def build_creds(access_token, refresh_token):
         token_uri='https://oauth2.googleapis.com/token',
         client_id=os.environ.get('GOOGLE_CLIENT_ID'),
         client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
-        scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+        scopes=[
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/spreadsheets'  # must match what master token was granted
+        ]
     )
     try:
         if creds.expired and creds.refresh_token:
@@ -36,6 +39,7 @@ def build_creds(access_token, refresh_token):
     except Exception as e:
         raise RuntimeError(f'Token refresh failed: {e}')
     return creds
+
 
 
 def main():
