@@ -12,14 +12,16 @@ const {
   User
 } = require('../models');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const path   = require('path');
+const fs     = require('fs');
+const { spawn } = require('child_process');
 
 // Import the fire-and-forget revoke helper from sheetController
 const { revokeStudentAccess } = require('./sheetController');
 const log = require('../utils/logger').child({ module: 'FormSubmissionController' });
 
-const MASTER_EMAIL = 'student.awards@flame.edu.in';
+const MASTER_EMAIL      = 'student.awards@flame.edu.in';
+const SCORE_SCRIPT_PATH = path.join(__dirname, '../scripts/read_sheet_score.py');
 
 // ─── Storage config ───────────────────────────────────────────────────────────
 
@@ -69,6 +71,81 @@ const SHEET_MODEL_MAP = {
   cultural: CulturalUserSheet,
   sports:   SportsUserSheet
 };
+
+// ─── Read B1 score from a student sheet ───────────────────────────────────────
+// Runs read_sheet_score.py synchronously (awaited before DB write).
+// Returns the computed numeric value of B1, or null on any failure.
+
+function runScoreScript(sheetId, masterUser) {
+  return new Promise((resolve) => {       // always resolves — never rejects
+    const proc = spawn('python3', [
+      SCORE_SCRIPT_PATH,
+      sheetId,
+      masterUser.access_token,
+      masterUser.refresh_token
+    ]);
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', d => { stdout += d.toString(); });
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+
+    const timer = setTimeout(() => {
+      proc.kill('SIGTERM');
+      log.warn({ sheetId }, '[ScoreRead] Timed out after 30s — score will be null');
+      resolve(null);
+    }, 30_000);
+
+    proc.on('close', code => {
+      clearTimeout(timer);
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (result.success && result.value !== null && result.value !== undefined) {
+          resolve(String(result.value));  // store as STRING to match column type
+        } else {
+          log.warn({ sheetId, error: result.error }, '[ScoreRead] Script returned no value');
+          resolve(null);
+        }
+      } catch {
+        log.warn({ sheetId, stdout, stderr }, '[ScoreRead] Non-JSON output');
+        resolve(null);
+      }
+    });
+  });
+}
+
+/**
+ * Reads sports_score and/or cultural_score from the student's sheets
+ * depending on the selected_role. Returns { sports_score, cultural_score }.
+ * Both default to null if sheet not found or read fails.
+ */
+async function readScoresForSubmission(email, selectedRole, masterUser) {
+  const scores = { sports_score: null, cultural_score: null };
+
+  try {
+    const needsSports   = selectedRole === 'sports_person'   || selectedRole === 'trailblazer';
+    const needsCultural = selectedRole === 'cultural_person' || selectedRole === 'trailblazer';
+
+    const [sportsSheet, culturalSheet] = await Promise.all([
+      needsSports   ? SportsUserSheet.findOne({ where: { email } })   : null,
+      needsCultural ? CulturalUserSheet.findOne({ where: { email } }) : null
+    ]);
+
+    const [sportsScore, culturalScore] = await Promise.all([
+      sportsSheet?.user_sheet_id   ? runScoreScript(sportsSheet.user_sheet_id,   masterUser) : null,
+      culturalSheet?.user_sheet_id ? runScoreScript(culturalSheet.user_sheet_id, masterUser) : null
+    ]);
+
+    if (needsSports)   scores.sports_score   = sportsScore;
+    if (needsCultural) scores.cultural_score = culturalScore;
+
+    log.info({ email, selectedRole, sportsScore, culturalScore }, '[ScoreRead] Scores resolved');
+  } catch (err) {
+    log.error({ err: err.message }, '[ScoreRead] Unexpected error — scores set to null');
+  }
+
+  return scores;
+}
+
 
 /**
  * Silently removes student Drive permissions for all sheets tied to their role.
@@ -172,24 +249,29 @@ const formController = {
       };
 
       if (selected_role === 'trailblazer') {
-        submissionData.cgpa           = cgpa ? parseFloat(cgpa) : null;
-        submissionData.sports_score   = sportsScore   || null;
-        submissionData.cultural_score = culturalScore || null;
-      } else if (selected_role === 'sports_person') {
-        submissionData.sports_score   = sportsScore || null;
-      } else if (selected_role === 'cultural_person') {
-        submissionData.cultural_score = culturalScore || null;
+        submissionData.cgpa = cgpa ? parseFloat(cgpa) : null;
       }
 
-      // Photo column: photos are uploaded separately before form submission.
-      // Use studentId as the photo value (matches the filename base in the Photos dir).
-      // If a photo was somehow submitted inline too, that takes priority.
+      // Photo column
       if (req.files?.['photo']?.[0]) {
         submissionData.photo = req.files['photo'][0].filename;
       } else if (studentId) {
         submissionData.photo = studentId;
       }
 
+      // ── 2b. Read live scores from student's sheet(s) ───────────────────────
+      // Fetches the computed value of B1 (=SUM(J5:J495)) from the student's
+      // Google Sheet using the master token. Runs BEFORE the DB write so the
+      // final stored score is always the actual sheet value, not a client guess.
+      const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+      if (masterUser?.access_token) {
+        const scores = await readScoresForSubmission(email, selected_role, masterUser);
+        // Overwrite whatever the client sent — sheet is the source of truth
+        if (scores.sports_score   !== null) submissionData.sports_score   = scores.sports_score;
+        if (scores.cultural_score !== null) submissionData.cultural_score = scores.cultural_score;
+      } else {
+        log.warn({ email }, '[ScoreRead] Master tokens unavailable — scores stored as null');
+      }
 
 
       // ── 3. Upsert submission ───────────────────────────────────────────────
