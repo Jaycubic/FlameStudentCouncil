@@ -263,13 +263,13 @@ function Dashboard() {
             title="Trailblazer Applicants"
             stat={stats.trailblazerCount}
             icon={StarIcon}
-            gradient="linear(to-br, amber.400, orange.500)"
+            gradient="linear(to-br, orange.400, orange.600)"
           />
           <StatCard
             title="Total Applicants"
             stat={stats.totalApplicants}
             icon={UserGroupIcon}
-            gradient="linear(to-br, purple.500, indigo.600)"
+            gradient="linear(to-br, purple.500, purple.700)"
             badge="Unique"
           />
         </SimpleGrid>
