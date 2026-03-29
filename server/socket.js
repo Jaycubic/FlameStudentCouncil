@@ -3,7 +3,6 @@ const socketIo = require("socket.io");
 const redis = require("redis");
 require("dotenv").config();
 
-// Create and connect Redis client
 const redisClient = redis.createClient({
   url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
   password: process.env.REDIS_PASSWORD || undefined,
@@ -11,15 +10,13 @@ const redisClient = redis.createClient({
 redisClient.on("error", (err) => console.error("Redis Client Error:", err));
 redisClient.connect();
 
-// We’ll store the Socket.IO instance here once we initialize it.
 let ioInstance = null;
 
 /**
- * Call this from your `app.js` after creating the HTTPS server.
- * This attaches Socket.IO to the server and also populates `ioInstance`.
+ * Attach Socket.IO to the HTTPS server.
+ * Call this once from app.js after creating the server.
  */
 function setupSocket(server) {
-  // Initialize Socket.IO and store it in module scope
   const io = socketIo(server, {
     cors: {
       origin: "https://flameawards.in",
@@ -30,74 +27,66 @@ function setupSocket(server) {
   io.on("connection", async (socket) => {
     console.log("A user connected:", socket.id);
 
-    // Immediately fetch all cached data from Redis (if any) and emit to this new client.
-    const cachedData = {
-      totalStudentCount:
-        JSON.parse(await redisClient.get("totalStudentCount")) || { total: 0 },
-      genderBatchCount:
-        JSON.parse(await redisClient.get("genderBatchCount")) || {
-          data: [],
-          grandTotal: {},
-        },
-      rcFilledCount:
-        JSON.parse(await redisClient.get("rcFilledCount")) || { total: 0 },
-      rcCount: JSON.parse(await redisClient.get("rcCount")) || [],
-      cityWithHighestCount:
-        JSON.parse(await redisClient.get("cityWithHighestCount")) || {
-          homeTown: "None",
-          count: 0,
-        },
-      cityCount: JSON.parse(await redisClient.get("cityCount")) || [],
-      inOutCount: JSON.parse(await redisClient.get("inOutCount")) || [],
-      inOutBatchCount:
-        JSON.parse(await redisClient.get("inOutBatchCount")) || {
-          data: [],
-          grandTotal: {},
-        },
-    };
+    // ── Push cached award dashboard data immediately on connect ────────────
+    try {
+      const cached = await redisClient.get("awardDashboardData");
+      if (cached) {
+        socket.emit("dashboardUpdate", JSON.parse(cached));
+      }
+    } catch (err) {
+      console.error("[Socket] Redis read error on connect:", err.message);
+    }
 
-    console.log("Emitting cached data to", socket.id, cachedData);
-    socket.emit("updateData", cachedData);
-
-    // Relay any client requestData back to them
-    socket.on("requestData", async () => {
-      socket.emit("updateData", cachedData);
+    // ── Client can request a fresh push at any time ─────────────────────────
+    socket.on("requestDashboard", async () => {
+      try {
+        const cached = await redisClient.get("awardDashboardData");
+        if (cached) socket.emit("dashboardUpdate", JSON.parse(cached));
+      } catch (err) {
+        console.error("[Socket] requestDashboard error:", err.message);
+      }
     });
 
-    // --- NEW: Listen for grabGesture from any client, broadcast to all ---
+    // ── Forward grabGesture to all connected clients ─────────────────────────
     socket.on("grabGesture", (payload) => {
       console.log("Received grabGesture from", socket.id, payload);
-      // Forward to everyone (including sender)
       io.emit("grabGesture", payload);
     });
 
-    // Clean up on disconnect
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
     });
   });
 
-  // Store the `io` instance for later use (in controllers)
   ioInstance = io;
   return io;
 }
 
 /**
- * After setupSocket(server) has been called, any controller can do:
- *    const { getIo } = require("../socket");
- *    const io = getIo();
- *    io.emit(...); // etc.
+ * Broadcast fresh award dashboard data to ALL connected clients.
+ * Called by dashboardController.emitDashboardUpdate() after any submission.
+ * Also caches the data in Redis so new connections get it immediately.
+ */
+async function broadcastDashboardUpdate(data) {
+  try {
+    await redisClient.set("awardDashboardData", JSON.stringify(data), { EX: 300 }); // 5 min TTL
+    if (ioInstance) {
+      ioInstance.emit("dashboardUpdate", data);
+    }
+  } catch (err) {
+    console.error("[Socket] broadcastDashboardUpdate error:", err.message);
+  }
+}
+
+/**
+ * Returns the active Socket.IO instance.
+ * Throws if setupSocket() hasn't been called yet.
  */
 function getIo() {
   if (!ioInstance) {
-    throw new Error(
-      "Socket.IO has not been initialized yet. Did you forget to call setupSocket(server)?"
-    );
+    throw new Error("Socket.IO not initialized. Did you call setupSocket(server)?");
   }
   return ioInstance;
 }
 
-module.exports = {
-  setupSocket,
-  getIo,
-};
+module.exports = { setupSocket, getIo, broadcastDashboardUpdate };

@@ -18,6 +18,7 @@ const { spawn } = require('child_process');
 
 // Import the fire-and-forget revoke helper from sheetController
 const { revokeStudentAccess } = require('./sheetController');
+const { emitDashboardUpdate } = require('./dashboardController');
 const log = require('../utils/logger').child({ module: 'FormSubmissionController' });
 
 const MASTER_EMAIL      = 'student.awards@flame.edu.in';
@@ -309,11 +310,10 @@ const formController = {
         submission_id: submission.id
       });
 
-      // ── 6. Fire invisible permission revocation ────────────────────────────
-      // setImmediate defers until after the response is flushed.
-      // Student sees "submitted" instantly; Drive permission removed in background.
+      // ── 6. Background tasks after response is flushed ─────────────────────
       setImmediate(() => {
         triggerSheetRevocation(email, selected_role);
+        emitDashboardUpdate();   // push fresh award counts to admin dashboard
       });
 
     } catch (error) {

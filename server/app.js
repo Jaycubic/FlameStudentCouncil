@@ -83,6 +83,8 @@ app.use('/api/form-submissions', formSubmissionRoutes);
 app.use('/api/form-processing', formProcessingRoutes);
 app.use('/api/time-settings', require('./routes/timeSettingsRoutes.js'));
 app.use('/api/sheets', require('./routes/sheetRoutes.js'));
+app.use('/api/dashboard', require('./routes/dashboardRoutes.js'));
+
 
 // Start BullMQ sheet worker (runs in-process)
 require('./workers/sheetWorker');
