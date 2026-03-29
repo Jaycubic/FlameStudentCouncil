@@ -17,7 +17,6 @@ import NotFound from './pages/NotFound'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Users = lazy(() => import('./pages/Users'))
 const AwardForm = lazy(() => import('./pages/AwardForm'))
-const Calendar = lazy(() => import('./pages/Calendar'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Settings = lazy(() => import('./pages/Settings'))
 const TimeManagement = lazy(() => import('./pages/TimeManagement'))
