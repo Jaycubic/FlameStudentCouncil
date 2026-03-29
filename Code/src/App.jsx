@@ -85,7 +85,6 @@ function App() {
                 }
               >
                 <Route path="/users" element={<Users />} />
-                <Route path="/roles" element={<Roles />} />
                 <Route path="/award-form" element={<AwardForm />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
