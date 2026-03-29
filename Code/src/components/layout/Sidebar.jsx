@@ -181,6 +181,7 @@ function Sidebar() {
 
   const allNavigation = [
     { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
+    { name: 'Time & Title', href: '/time-management', icon: CalendarIcon, roles: ['admin'] },
     // { name: 'StudentInfo', href: '/roles', icon: AcademicCapIcon, roles: ['admin', 'RC', 'Council', 'user', 'AdminLite'] },
     //{ name: 'Student Housing', href: '/departments', icon: BuildingOfficeIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
     //{ name: 'Parent Info', href: '/parentsinfo', icon: UsersIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
@@ -188,21 +189,19 @@ function Sidebar() {
     //{ name: 'StudentStatus', href: '/studentStatus', icon: BuildingOfficeIcon, roles: ['admin', 'RC', 'user', 'AdminLite'] },
     //{ name: 'NightOut Status', href: '/nightout', icon: MoonIcon, roles: ['admin', 'RC', 'user', 'AdminLite'] },
     // { name: 'Declaration Form', href: '/declaration-form', icon: PencilSquareIcon, roles: ['admin', 'Council'] },
-    { name: 'Award Form', href: '/award-form', icon: IdentificationIcon, roles: ['admin', 'AdminLite', 'Student'] },
+    { name: 'Award Form', href: '/award-form', icon: IdentificationIcon, roles: ['Student'] },
     // { name: 'Dean Certificates', href: '/certificates', icon: DocumentCheckIcon, roles: ['admin', 'AdminLite'] },
     //{ name: 'Queue Management', href: '/calendar', icon: QueueListIcon, roles: ['admin', 'AdminLite'] },
     { name: 'Users', href: '/users', icon: UserGroupIcon, roles: ['admin'] },
+    { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
     //{ name: 'Queue Dashboard', href: '/queue-dashboard', icon: ChartBarIcon, roles: ['AdminLite'] },
     //{ name: 'Queue Grabber', href: '/queue-grabber', icon: QueueListIcon, roles: ['AdminLite'] },
     //{ name: 'Report Day', href: '/report-day', icon: ClipboardDocumentIcon, roles: ['admin', 'AdminLite'] },
     //{ name: 'Report Day Dashboard', href: '/report-day-dashboard', icon: ChartBarIcon, roles: ['admin', 'AdminLite'] },
-    { name: 'Documentation & License', href: '/profile', icon: DocumentTextIcon, roles: ['admin', 'RC', 'user', 'AdminLite', 'Council'] },
   ]
 
   const mainNavigation = allNavigation.filter(item => item.roles.includes(user?.role))
   const secondaryNavigation = [
-    { name: 'Time & Title', href: '/time-management', icon: CalendarIcon, roles: ['admin'] },
-    { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
     { name: 'Logout', href: '#', icon: ArrowLeftOnRectangleIcon, onClick: () => { authService.logout(); navigate('/login') }, roles: ['admin', 'RC', 'user'] },
   ].filter(item => item.roles.includes(user?.role))
 
