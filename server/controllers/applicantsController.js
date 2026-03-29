@@ -1,19 +1,10 @@
 // server/controllers/applicantsController.js
-//
-// Returns all award applicants from all three tables, merged with a virtual
-// "award_type" column.  Supports:
-//   - search     : student name or student_id (case-insensitive)
-//   - award_type : 'sports' | 'cultural' | 'trailblazer' | 'all' (default all)
-//   - gender     : exact match
-//   - batch      : exact match
-//   - sort_field : sports_score | cultural_score | sports_verified_score | cultural_verified_score | submission_date
-//   - sort_dir   : asc | desc
-
 const { TrailblazerAward, SportsPersonAward, CulturalPersonAward } = require('../models');
 const { Op } = require('sequelize');
 
-const SPORTS_FIELDS     = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
-const CULTURAL_FIELDS   = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
+// Each table only has its own verified score column
+const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
+const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
 const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','cgpa','submission_date','sports_verified_score','cultural_verified_score','status','photo'];
 
 function buildWhere(search, gender, batch) {
@@ -30,8 +21,27 @@ function buildWhere(search, gender, batch) {
     return where;
 }
 
-function tag(rows, awardType) {
-    return rows.map(r => ({ ...r.toJSON(), award_type: awardType }));
+// Tag rows with award_type and normalise missing columns to null
+function tagSports(rows) {
+    return rows.map(r => ({
+        ...r.toJSON(),
+        award_type:           'Sports Award',
+        cultural_score:       null,
+        cultural_verified_score: null,
+        cgpa:                 null,
+    }));
+}
+function tagCultural(rows) {
+    return rows.map(r => ({
+        ...r.toJSON(),
+        award_type:          'Cultural Award',
+        sports_score:        null,
+        sports_verified_score: null,
+        cgpa:                null,
+    }));
+}
+function tagTrailblazer(rows) {
+    return rows.map(r => ({ ...r.toJSON(), award_type: 'Trailblazer Award' }));
 }
 
 function sortRows(rows, sortField, sortDir) {
@@ -41,7 +51,6 @@ function sortRows(rows, sortField, sortDir) {
         const av = parseFloat(a[sortField]);
         const bv = parseFloat(b[sortField]);
         if (!isNaN(av) && !isNaN(bv)) return (av - bv) * dir;
-        // fallback: string compare
         return ('' + (a[sortField] ?? '')).localeCompare('' + (b[sortField] ?? '')) * dir;
     });
 }
@@ -55,6 +64,8 @@ async function getApplicants(req, res) {
             batch      = '',
             sort_field = '',
             sort_dir   = 'asc',
+            page       = 1,
+            limit      = 50,
         } = req.query;
 
         const where = buildWhere(search.trim(), gender.trim(), batch.trim());
@@ -64,26 +75,32 @@ async function getApplicants(req, res) {
         const needsTrailblazer = award_type === 'all' || award_type === 'trailblazer';
 
         const [sportsRows, culturalRows, trailblazerRows] = await Promise.all([
-            needsSports      ? SportsPersonAward.findAll({ where, attributes: SPORTS_FIELDS })     : [],
-            needsCultural    ? CulturalPersonAward.findAll({ where, attributes: CULTURAL_FIELDS })  : [],
+            needsSports      ? SportsPersonAward.findAll({ where, attributes: SPORTS_FIELDS })      : [],
+            needsCultural    ? CulturalPersonAward.findAll({ where, attributes: CULTURAL_FIELDS })   : [],
             needsTrailblazer ? TrailblazerAward.findAll({ where, attributes: TRAILBLAZER_FIELDS }) : [],
         ]);
 
         let merged = [
-            ...tag(sportsRows,      'Sports Award'),
-            ...tag(culturalRows,    'Cultural Award'),
-            ...tag(trailblazerRows, 'Trailblazer Award'),
+            ...tagSports(sportsRows),
+            ...tagCultural(culturalRows),
+            ...tagTrailblazer(trailblazerRows),
         ];
 
-        // Sort if requested
+        // Sort
         if (sort_field) {
             merged = sortRows(merged, sort_field, sort_dir);
         } else {
-            // Default: newest first
             merged.sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date));
         }
 
-        // Unique gender & batch values for filter dropdowns
+        // Paginate
+        const total     = merged.length;
+        const pageNum   = Math.max(1, parseInt(page));
+        const limitNum  = Math.max(1, Math.min(200, parseInt(limit)));
+        const pages     = Math.ceil(total / limitNum) || 1;
+        const paginated = merged.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+        // Filter dropdown values
         const allRows = await Promise.all([
             SportsPersonAward.findAll({ attributes: ['gender', 'batch'] }),
             CulturalPersonAward.findAll({ attributes: ['gender', 'batch'] }),
@@ -95,12 +112,15 @@ async function getApplicants(req, res) {
 
         return res.json({
             success: true,
-            total: merged.length,
-            data: merged,
+            total,
+            page:  pageNum,
+            pages,
+            limit: limitNum,
+            data:  paginated,
             filters: { genders, batches },
         });
     } catch (err) {
-        console.error('[Applicants] Error:', err.message);
+        console.error('[Applicants] Error:', err.message, err.stack);
         return res.status(500).json({ success: false, message: err.message });
     }
 }

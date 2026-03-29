@@ -5,25 +5,25 @@ import {
   InputLeftElement, InputRightElement, Button, ButtonGroup,
   IconButton, Spinner, Select, Badge, Tooltip,
   Table, Thead, Tbody, Tr, Th, Td,
-  useColorModeValue, useToast,
-  Popover, PopoverTrigger, PopoverContent, PopoverArrow, PopoverBody, Portal,
-  Skeleton,
+  useColorModeValue, useToast, Skeleton,
 } from '@chakra-ui/react';
 import {
   MagnifyingGlassIcon,
-  FunnelIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   XMarkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { TableVirtuoso } from 'react-virtuoso';
 import PageHeader from '../components/layout/PageHeader';
+import { applicantsService } from '../services/applicantsService';
 
 const AWARD_TABS = [
-  { key: 'all',         label: 'All',              color: 'purple' },
-  { key: 'sports',      label: 'Sports Awards',     color: 'blue'   },
-  { key: 'cultural',    label: 'Cultural Awards',   color: 'pink'   },
-  { key: 'trailblazer', label: 'Trailblazer Awards',color: 'orange' },
+  { key: 'all',         label: 'All',               color: 'purple' },
+  { key: 'sports',      label: 'Sports Awards',      color: 'blue'   },
+  { key: 'cultural',    label: 'Cultural Awards',    color: 'pink'   },
+  { key: 'trailblazer', label: 'Trailblazer Awards', color: 'orange' },
 ];
 
 const AWARD_BADGE = {
@@ -33,136 +33,119 @@ const AWARD_BADGE = {
 };
 
 const GRADIENT = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
+const PAGE_LIMIT = 50;
 
-async function fetchApplicants(params) {
-  const qs = new URLSearchParams(params).toString();
-  const deviceId = localStorage.getItem('deviceId') || '';
-  const res = await fetch(`/api/applicants?${qs}`, {
-    credentials: 'include',
-    headers: { 'x-device-id': deviceId },
-  });
-  if (!res.ok) throw new Error('Failed to fetch applicants');
-  return res.json();
-}
-
-function SortButton({ field, sortField, sortDir, onSort }) {
+// ─── Sort arrows on header ─────────────────────────────────────────────────────
+function SortBtn({ field, sortField, sortDir, onSort }) {
   const active = sortField === field;
   return (
-    <HStack spacing={0}>
+    <Flex direction="column" ml={1}>
       <IconButton
-        icon={<ChevronUpIcon className="h-3 w-3" />}
-        size="xs" variant="ghost"
-        color={active && sortDir === 'asc' ? 'yellow.300' : 'whiteAlpha.700'}
-        onClick={() => onSort(field, 'asc')}
-        aria-label={`Sort ${field} asc`}
-        minW="auto" h="auto" p="1"
+        icon={<ChevronUpIcon style={{ width: 10, height: 10 }} />}
+        size="xs" variant="ghost" minW="auto" h="auto" p="0" lineHeight="1"
+        color={active && sortDir === 'asc' ? 'yellow.300' : 'whiteAlpha.600'}
+        onClick={() => onSort(field, active && sortDir === 'asc' ? 'desc' : 'asc')}
+        aria-label={`sort ${field}`}
       />
       <IconButton
-        icon={<ChevronDownIcon className="h-3 w-3" />}
-        size="xs" variant="ghost"
-        color={active && sortDir === 'desc' ? 'yellow.300' : 'whiteAlpha.700'}
-        onClick={() => onSort(field, 'desc')}
-        aria-label={`Sort ${field} desc`}
-        minW="auto" h="auto" p="1"
+        icon={<ChevronDownIcon style={{ width: 10, height: 10 }} />}
+        size="xs" variant="ghost" minW="auto" h="auto" p="0" lineHeight="1"
+        color={active && sortDir === 'desc' ? 'yellow.300' : 'whiteAlpha.600'}
+        onClick={() => onSort(field, active && sortDir === 'desc' ? 'asc' : 'desc')}
+        aria-label={`sort ${field} desc`}
       />
-    </HStack>
+    </Flex>
   );
 }
 
 function ApplicantsView() {
-  const toast   = useToast();
-  const bgColor   = useColorModeValue('white', 'gray.800');
-  const textColor = useColorModeValue('gray.700', 'gray.200');
-  const subColor  = useColorModeValue('gray.500', 'gray.400');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const hoverBg   = useColorModeValue('gray.50', 'gray.700');
+  const toast      = useToast();
+  const bgColor    = useColorModeValue('white', 'gray.800');
+  const textColor  = useColorModeValue('gray.700', 'gray.200');
+  const subColor   = useColorModeValue('gray.400', 'gray.500');
+  const borderColor= useColorModeValue('gray.200', 'gray.600');
+  const hoverBg    = useColorModeValue('gray.50', 'gray.700');
   const titleColor = useColorModeValue('gray.800', 'white');
 
-  const [data, setData]         = useState([]);
-  const [total, setTotal]       = useState(0);
-  const [filters, setFilters]   = useState({ genders: [], batches: [] });
+  const [data,      setData]      = useState([]);
+  const [total,     setTotal]     = useState(0);
+  const [pages,     setPages]     = useState(1);
+  const [filterOpts,setFilterOpts]= useState({ genders: [], batches: [] });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Query params
-  const [awardTab,   setAwardTab]   = useState('all');
-  const [search,     setSearch]     = useState('');
+  // Params
+  const [awardTab,    setAwardTab]    = useState('all');
   const [searchInput, setSearchInput] = useState('');
-  const [gender,     setGender]     = useState('');
-  const [batch,      setBatch]      = useState('');
-  const [sortField,  setSortField]  = useState('');
-  const [sortDir,    setSortDir]    = useState('asc');
+  const [search,      setSearch]      = useState('');
+  const [gender,      setGender]      = useState('');
+  const [batch,       setBatch]       = useState('');
+  const [sortField,   setSortField]   = useState('');
+  const [sortDir,     setSortDir]     = useState('asc');
+  const [page,        setPage]        = useState(1);
 
   // Debounce search
   useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput), 400);
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 400);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [awardTab, gender, batch, sortField, sortDir]);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await fetchApplicants({
-        award_type: awardTab,
-        search,
-        gender,
-        batch,
-        sort_field: sortField,
-        sort_dir:   sortDir,
+      const result = await applicantsService.getApplicants({
+        awardType: awardTab, search, gender, batch,
+        sortField, sortDir, page, limit: PAGE_LIMIT,
       });
-      setData(result.data || []);
-      setTotal(result.total || 0);
-      setFilters(result.filters || { genders: [], batches: [] });
+      setData(result.data       || []);
+      setTotal(result.total     || 0);
+      setPages(result.pages     || 1);
+      setFilterOpts(result.filters || { genders: [], batches: [] });
     } catch (err) {
-      toast({ title: 'Error', description: err.message, status: 'error', duration: 3000 });
+      toast({ title: 'Error loading applicants', description: err.message, status: 'error', duration: 4000 });
     } finally {
       setIsLoading(false);
     }
-  }, [awardTab, search, gender, batch, sortField, sortDir]);
+  }, [awardTab, search, gender, batch, sortField, sortDir, page]);
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSort = (field, dir) => {
-    setSortField(field);
-    setSortDir(dir);
-  };
+  const handleSort = (field, dir) => { setSortField(field); setSortDir(dir); };
 
   const clearFilters = () => {
-    setGender('');
-    setBatch('');
-    setSearchInput('');
-    setSearch('');
-    setSortField('');
-    setSortDir('asc');
+    setGender(''); setBatch(''); setSearchInput('');
+    setSearch(''); setSortField(''); setSortDir('asc'); setPage(1);
   };
-
   const hasFilters = gender || batch || search || sortField;
 
-  // Determine which score columns to show based on active tab
+  // Which columns to show
   const showSports      = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
-  const showCultural    = awardTab === 'all' || awardTab === 'cultural'     || awardTab === 'trailblazer';
-  const showVerSports   = awardTab === 'all' || awardTab === 'sports'       || awardTab === 'trailblazer';
-  const showVerCultural = awardTab === 'all' || awardTab === 'cultural'     || awardTab === 'trailblazer';
+  const showCultural    = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
+  const showVerSports   = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
+  const showVerCultural = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
 
-  const ThCell = ({ children, field, sortable }) => (
+  // ── Compact header cell ──────────────────────────────────────────────────
+  const ThCell = ({ children, field, sortable, minW = 'auto' }) => (
     <Th
-      color="white"
-      borderRight="1px solid rgba(255,255,255,0.2)"
-      borderBottom="1px solid rgba(255,255,255,0.2)"
+      color="white" px={2} py={2} minW={minW}
+      borderRight="1px solid rgba(255,255,255,0.15)"
+      borderBottom="1px solid rgba(255,255,255,0.15)"
+      fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="0.03em"
       whiteSpace="nowrap"
-      py={3}
     >
-      <Flex align="center" gap={1}>
-        <Text color="white" fontSize="xs">{children}</Text>
-        {sortable && (
-          <SortButton field={field} sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-        )}
+      <Flex align="center">
+        <Text color="white">{children}</Text>
+        {sortable && <SortBtn field={field} sortField={sortField} sortDir={sortDir} onSort={handleSort} />}
       </Flex>
     </Th>
   );
 
-  const TdCell = ({ children, minW }) => (
-    <Td borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor} minW={minW}>
-      <Text fontSize="sm" color={textColor}>{children || '—'}</Text>
+  // ── Compact data cell ─────────────────────────────────────────────────────
+  const TdCell = ({ children, color }) => (
+    <Td px={2} py={1} borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor}>
+      <Text fontSize="11px" color={color || textColor} noOfLines={1}>{children ?? '—'}</Text>
     </Td>
   );
 
@@ -170,198 +153,171 @@ function ApplicantsView() {
     <Box p={[2, 4, 6]} pt={[1, 2, 3]}>
       <PageHeader
         title="Award Applicants"
-        description="View all applicants across Sports, Cultural and Trailblazer awards"
+        description="All applicants across Sports, Cultural and Trailblazer awards"
       />
 
       <Card variant="outline" bg={bgColor} overflow="hidden">
-        <Box px={6} py={4}>
+        <Box px={5} py={3}>
 
           {/* Award Type Tabs */}
-          <HStack spacing={2} mb={5} flexWrap="wrap">
+          <HStack spacing={2} mb={3} flexWrap="wrap">
             {AWARD_TABS.map(tab => (
-              <Button
-                key={tab.key}
-                size="sm"
-                borderRadius="full"
+              <Button key={tab.key} size="xs" borderRadius="full"
                 colorScheme={tab.color}
                 variant={awardTab === tab.key ? 'solid' : 'outline'}
                 onClick={() => setAwardTab(tab.key)}
-                fontWeight={awardTab === tab.key ? 'bold' : 'normal'}
+                fontWeight={awardTab === tab.key ? '700' : '500'}
               >
                 {tab.label}
               </Button>
             ))}
           </HStack>
 
-          {/* Search + Filters Row */}
-          <Flex justify="space-between" align="center" mb={4} flexWrap="wrap" gap={3}>
-            <HStack spacing={2} flexWrap="wrap">
-              {/* Search */}
-              <InputGroup maxW="280px">
-                <InputLeftElement pointerEvents="none">
-                  <MagnifyingGlassIcon className="h-5 w-5" style={{ color: 'gray' }} />
-                </InputLeftElement>
-                <Input
-                  placeholder="Search name, ID or email..."
-                  value={searchInput}
-                  onChange={e => setSearchInput(e.target.value)}
-                  borderRadius="lg"
-                />
-                {searchInput !== search && (
-                  <InputRightElement><Spinner size="sm" /></InputRightElement>
-                )}
-              </InputGroup>
-
-              {/* Gender Filter */}
-              <Select
-                placeholder="All Genders"
-                value={gender}
-                onChange={e => setGender(e.target.value)}
-                maxW="140px"
-                size="md"
-                borderRadius="lg"
-              >
-                {filters.genders.map(g => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </Select>
-
-              {/* Batch Filter */}
-              <Select
-                placeholder="All Batches"
-                value={batch}
-                onChange={e => setBatch(e.target.value)}
-                maxW="150px"
-                size="md"
-                borderRadius="lg"
-              >
-                {filters.batches.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </Select>
-
-              {/* Clear filters */}
-              {hasFilters && (
-                <Tooltip label="Clear all filters" hasArrow>
-                  <IconButton
-                    icon={<XMarkIcon className="h-5 w-5" />}
-                    variant="ghost"
-                    colorScheme="red"
-                    onClick={clearFilters}
-                    aria-label="Clear filters"
-                  />
-                </Tooltip>
+          {/* ALL FILTERS ON ONE ROW */}
+          <Flex align="center" gap={2} mb={3} flexWrap="wrap">
+            {/* Search */}
+            <InputGroup size="sm" maxW="240px">
+              <InputLeftElement pointerEvents="none">
+                <MagnifyingGlassIcon style={{ width: 14, height: 14, color: 'gray' }} />
+              </InputLeftElement>
+              <Input
+                placeholder="Name, ID or email…"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                borderRadius="lg" fontSize="12px"
+              />
+              {searchInput !== search && (
+                <InputRightElement><Spinner size="xs" /></InputRightElement>
               )}
-            </HStack>
+            </InputGroup>
 
-            <Text color={subColor} fontSize="sm">
-              {isLoading ? <Skeleton height="20px" width="160px" /> : `Showing ${data.length} of ${total} records`}
+            {/* Gender */}
+            <Select size="sm" maxW="130px" borderRadius="lg" fontSize="12px"
+              value={gender} onChange={e => setGender(e.target.value)}
+              placeholder="All Genders"
+            >
+              {filterOpts.genders.map(g => <option key={g} value={g}>{g}</option>)}
+            </Select>
+
+            {/* Batch */}
+            <Select size="sm" maxW="140px" borderRadius="lg" fontSize="12px"
+              value={batch} onChange={e => setBatch(e.target.value)}
+              placeholder="All Batches"
+            >
+              {filterOpts.batches.map(b => <option key={b} value={b}>{b}</option>)}
+            </Select>
+
+            {/* Clear */}
+            {hasFilters && (
+              <Tooltip label="Clear filters" hasArrow>
+                <IconButton icon={<XMarkIcon style={{ width: 14, height: 14 }} />}
+                  size="sm" variant="ghost" colorScheme="red"
+                  onClick={clearFilters} aria-label="Clear"
+                />
+              </Tooltip>
+            )}
+
+            {/* Spacer + record count */}
+            <Text ml="auto" fontSize="11px" color={subColor} whiteSpace="nowrap">
+              {isLoading ? <Skeleton height="14px" width="120px" display="inline-block" /> :
+                `${(page - 1) * PAGE_LIMIT + 1}–${Math.min(page * PAGE_LIMIT, total)} of ${total}`}
             </Text>
+
+            {/* Pagination */}
+            <ButtonGroup size="sm" isAttached>
+              <IconButton
+                icon={<ChevronLeftIcon style={{ width: 14, height: 14 }} />}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                isDisabled={page <= 1 || isLoading}
+                aria-label="Previous"
+              />
+              <Button minW="80px" fontSize="11px" isDisabled>
+                {isLoading ? <Spinner size="xs" /> : `${page} / ${pages}`}
+              </Button>
+              <IconButton
+                icon={<ChevronRightIcon style={{ width: 14, height: 14 }} />}
+                onClick={() => setPage(p => Math.min(pages, p + 1))}
+                isDisabled={page >= pages || isLoading}
+                aria-label="Next"
+              />
+            </ButtonGroup>
           </Flex>
         </Box>
 
         {/* Table */}
         <Box overflowX="auto">
           {isLoading ? (
-            <Box px={6} py={4}>
-              {[...Array(8)].map((_, i) => (
-                <Skeleton key={i} height="44px" mb={2} borderRadius="md" />
-              ))}
+            <Box px={5} pb={4}>
+              {[...Array(10)].map((_, i) => <Skeleton key={i} height="34px" mb={1} borderRadius="md" />)}
             </Box>
           ) : (
             <TableVirtuoso
               data={data}
-              style={{ height: 'calc(100vh - 340px)', minHeight: '300px' }}
+              style={{ height: 'calc(100vh - 320px)', minHeight: '280px' }}
               components={{
-                Table: ({ style, ...props }) => <Table {...props} style={style} />,
+                Table: ({ style, ...props }) => <Table {...props} style={{ ...style, tableLayout: 'auto' }} size="sm" />,
                 TableHead: Thead,
                 TableRow: ({ item, ...props }) => <Tr {...props} _hover={{ bg: hoverBg }} />,
                 TableBody: React.forwardRef(({ ...props }, ref) => <Tbody {...props} ref={ref} />),
                 EmptyPlaceholder: () => (
-                  <Tr>
-                    <Td colSpan={12} textAlign="center" py={12} color={subColor}>
-                      No applicants found
-                    </Td>
-                  </Tr>
+                  <Tr><Td colSpan={12} textAlign="center" py={10} color={subColor} fontSize="13px">
+                    No applicants found
+                  </Td></Tr>
                 ),
               }}
               fixedHeaderContent={() => (
-                <Tr bg={GRADIENT} backgroundImage={GRADIENT}>
-                  {/* Student (name + id + email stacked) */}
-                  <Th color="white" borderRight="1px solid rgba(255,255,255,0.2)" borderBottom="1px solid rgba(255,255,255,0.2)" minW="200px" py={3}>
-                    <Text color="white" fontSize="xs">Student</Text>
-                  </Th>
-                  <ThCell>Gender</ThCell>
-                  <ThCell>Batch</ThCell>
-                  <ThCell>Award Type</ThCell>
-                  {showSports    && <ThCell field="sports_score"          sortable>Sports Score</ThCell>}
-                  {showCultural  && <ThCell field="cultural_score"        sortable>Cultural Score</ThCell>}
-                  {showVerSports   && <ThCell field="sports_verified_score"   sortable>Verified Sports</ThCell>}
-                  {showVerCultural && <ThCell field="cultural_verified_score" sortable>Verified Cultural</ThCell>}
-                  <ThCell field="submission_date" sortable>Submitted</ThCell>
-                  <ThCell>Status</ThCell>
+                <Tr backgroundImage={GRADIENT}>
+                  <ThCell minW="170px">Student</ThCell>
+                  <ThCell minW="70px">Gender</ThCell>
+                  <ThCell minW="90px">Batch</ThCell>
+                  <ThCell minW="100px">Award Type</ThCell>
+                  {showSports      && <ThCell field="sports_score"           sortable minW="80px">Sports Score</ThCell>}
+                  {showCultural    && <ThCell field="cultural_score"         sortable minW="85px">Cultural Score</ThCell>}
+                  {showVerSports   && <ThCell field="sports_verified_score"  sortable minW="85px">Ver. Sports</ThCell>}
+                  {showVerCultural && <ThCell field="cultural_verified_score" sortable minW="90px">Ver. Cultural</ThCell>}
+                  <ThCell field="submission_date" sortable minW="90px">Submitted</ThCell>
+                  <ThCell minW="75px">Status</ThCell>
                 </Tr>
               )}
-              itemContent={(index, record) => {
+              itemContent={(_, record) => {
                 const badge = AWARD_BADGE[record.award_type] || {};
                 return (
                   <>
-                    {/* Student VStack */}
-                    <Td borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor} minW="200px">
-                      <VStack align="start" spacing={0}>
-                        <Text fontSize="sm" fontWeight="600" color={titleColor} noOfLines={1}>
-                          {record.name || '—'}
-                        </Text>
-                        <Text fontSize="xs" color="blue.500" fontFamily="mono">
-                          {record.student_id || '—'}
-                        </Text>
-                        <Text fontSize="xs" color={subColor} noOfLines={1}>
-                          {record.email || '—'}
-                        </Text>
+                    {/* Student: name + ID + email stacked */}
+                    <Td px={2} py={1} borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor} minW="170px">
+                      <VStack align="start" spacing={0} lineHeight="1.3">
+                        <Text fontSize="11px" fontWeight="600" color={titleColor} noOfLines={1}>{record.name || '—'}</Text>
+                        <Text fontSize="10px" color="blue.500"  fontFamily="mono">{record.student_id || '—'}</Text>
+                        <Text fontSize="10px" color={subColor}  noOfLines={1}>{record.email || '—'}</Text>
                       </VStack>
                     </Td>
                     <TdCell>{record.gender}</TdCell>
                     <TdCell>{record.batch}</TdCell>
-                    <Td borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor}>
-                      <Badge colorScheme={badge.colorScheme} borderRadius="full" px={2}>
+                    {/* Award type badge */}
+                    <Td px={2} py={1} borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor}>
+                      <Badge colorScheme={badge.colorScheme} borderRadius="full" px={2} fontSize="10px">
                         {badge.label || record.award_type}
                       </Badge>
                     </Td>
-                    {showSports    && <TdCell>{record.sports_score}</TdCell>}
-                    {showCultural  && <TdCell>{record.cultural_score}</TdCell>}
+                    {showSports      && <TdCell>{record.sports_score}</TdCell>}
+                    {showCultural    && <TdCell>{record.cultural_score}</TdCell>}
                     {showVerSports   && (
-                      <Td borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor}>
-                        <Text
-                          fontSize="sm"
-                          color={record.sports_verified_score ? 'green.500' : subColor}
-                          fontWeight={record.sports_verified_score ? '600' : 'normal'}
-                        >
-                          {record.sports_verified_score || '—'}
-                        </Text>
-                      </Td>
+                      <TdCell color={record.sports_verified_score ? 'green.500' : subColor}>
+                        {record.sports_verified_score}
+                      </TdCell>
                     )}
                     {showVerCultural && (
-                      <Td borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor}>
-                        <Text
-                          fontSize="sm"
-                          color={record.cultural_verified_score ? 'green.500' : subColor}
-                          fontWeight={record.cultural_verified_score ? '600' : 'normal'}
-                        >
-                          {record.cultural_verified_score || '—'}
-                        </Text>
-                      </Td>
+                      <TdCell color={record.cultural_verified_score ? 'green.500' : subColor}>
+                        {record.cultural_verified_score}
+                      </TdCell>
                     )}
                     <TdCell>
                       {record.submission_date
-                        ? new Date(record.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                        ? new Date(record.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
                         : '—'}
                     </TdCell>
-                    <Td borderColor={borderColor}>
-                      <Badge
-                        colorScheme={record.status === 'Submitted' ? 'green' : 'gray'}
-                        borderRadius="full"
-                        fontSize="xs"
-                      >
+                    <Td px={2} py={1} borderColor={borderColor}>
+                      <Badge colorScheme={record.status === 'Submitted' ? 'green' : 'gray'} borderRadius="full" fontSize="9px">
                         {record.status || 'Submitted'}
                       </Badge>
                     </Td>
