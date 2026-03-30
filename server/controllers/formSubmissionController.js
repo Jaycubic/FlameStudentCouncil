@@ -37,15 +37,30 @@ const PHOTO_DIR = '/opt/View/StudentTrackingSystem/server/Photos';
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dest = ATTACHMENT_DIR;
-    if (file.fieldname === 'photo')                    dest = PHOTO_DIR;
-    else if (file.fieldname === 'sport_attachment')    dest = path.join(ATTACHMENT_DIR, 'sport');
-    else if (file.fieldname === 'cultural_attachment') dest = path.join(ATTACHMENT_DIR, 'cultural');
+    if (file.fieldname === 'photo')                     dest = PHOTO_DIR;
+    else if (file.fieldname === 'sport_attachment')     dest = path.join(ATTACHMENT_DIR, 'sport');
+    else if (file.fieldname === 'cultural_attachment')  dest = path.join(ATTACHMENT_DIR, 'cultural');
     else if (file.fieldname === 'academic_attachments') dest = path.join(ATTACHMENT_DIR, 'academic');
     cb(null, dest);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    // Build a descriptive prefix based on the award type
+    const prefixMap = {
+      sport_attachment:     'SportsAward',
+      cultural_attachment:  'CulturalAward',
+      academic_attachments: 'Academic',
+      photo:                'Photo',
+    };
+    const prefix    = prefixMap[file.fieldname] || 'Attachment';
+    // Sanitise original name: keep alphanumeric, dots, hyphens, underscores; replace spaces
+    const safeName  = file.originalname
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9._-]/g, '')
+      .substring(0, 100);               // cap length
+    const ext       = path.extname(safeName) || path.extname(file.originalname);
+    const baseName  = path.basename(safeName, ext) || Date.now();
+    const unique    = Date.now();        // prevent collisions if same filename uploaded twice
+    cb(null, `${prefix}_${unique}_${baseName}${ext}`);
   }
 });
 

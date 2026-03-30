@@ -67,6 +67,35 @@ const auth = {
     }
     next();
   },
+
+  // ── For file-serve routes only ──────────────────────────────────────────────
+  // Browser file requests (new tab / img src / anchor href) send cookies but
+  // CANNOT send custom headers like x-device-id.  Skips the fingerprint check
+  // while still validating the JWT signature and revocation state.
+  async validateTokenFileServe(req, res, next) {
+    let encryptedToken = req.headers.authorization?.split(' ')[1];
+    if (!encryptedToken && req.cookies?.accessToken) {
+      encryptedToken = req.cookies.accessToken;
+    }
+    if (!encryptedToken) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+    try {
+      const bytes = CryptoJS.AES.decrypt(encryptedToken, process.env.TOKEN_ENCRYPTION_KEY);
+      const token = bytes.toString(CryptoJS.enc.Utf8);
+      if (!token) return res.status(401).json({ message: 'Invalid token' });
+
+      const exists = await redisClient.exists(token);
+      if (exists) return res.status(401).json({ message: 'Token has been revoked' });
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+      // ↑ No fingerprint check — browser cannot send x-device-id on direct requests
+      next();
+    } catch (error) {
+      res.status(401).json({ message: 'Invalid token' });
+    }
+  },
 };
 
 module.exports = auth;
