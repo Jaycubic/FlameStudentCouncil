@@ -77,8 +77,11 @@ function ProfileModal({ isOpen, onClose, record }) {
       .finally(() => setLoading(false));
   }, [isOpen, record]);
 
+  // Photo: the 'photo' column stores the student_id (e.g. "240951").
+  // Photos are served publicly at /api/photos/:studentId which probes
+  // .jpg / .jpeg / .png automatically — same route AwardForm uses.
   const photoUrl = profile?.photo
-    ? applicantsService.getFileUrl('photo', profile.photo)
+    ? `/api/photos/${profile.photo}`
     : null;
 
   const InfoRow = ({ label, value }) => (
