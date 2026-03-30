@@ -1,0 +1,288 @@
+// server/controllers/awardsWorkbookController.js
+const path   = require('path');
+const { spawn } = require('child_process');
+const { Op }  = require('sequelize');
+const {
+    TrailblazerAward, SportsPersonAward, CulturalPersonAward,
+    SportsUserSheet, CulturalUserSheet,
+    AwardsWorkbook, User,
+} = require('../models');
+const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
+
+const MASTER_EMAIL = 'student.awards@flame.edu.in';
+const FOLDER_ID    = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+
+// ─── Immutable columns — NEVER updated by either sync direction ───────────────
+const IMMUTABLE = new Set(['student_id', 'email', 'name']);
+
+// ─── Whitelisted fields that CAN be synced cloud → local ─────────────────────
+const CLOUD_SYNCABLE = [
+    'cgpa', 'sports_score', 'cultural_score',
+    'sports_verified_score', 'cultural_verified_score',
+];
+
+// ─── Python runner ────────────────────────────────────────────────────────────
+function runPython(scriptPath, args, timeoutMs = 180_000) {
+    return new Promise((resolve, reject) => {
+        const proc = spawn('python3', [scriptPath, ...args]);
+        let out = '', err = '';
+        proc.stdout.on('data', d => { out += d.toString(); });
+        proc.stderr.on('data', d => { err += d.toString(); });
+
+        const timer = setTimeout(() => {
+            proc.kill('SIGTERM');
+            reject(new Error('Python script timed out'));
+        }, timeoutMs);
+
+        proc.on('close', code => {
+            clearTimeout(timer);
+            try {
+                resolve(JSON.parse(out.trim()));
+            } catch {
+                reject(new Error(`Non-JSON output (exit ${code}): ${out.slice(0, 200)} | stderr: ${err.slice(0, 200)}`));
+            }
+        });
+    });
+}
+
+// ─── Collect all data for workbook generation / cloud push ───────────────────
+async function collectAllData() {
+    const [sportsRows, culturalRows, trailblazerRows] = await Promise.all([
+        SportsPersonAward.findAll(),
+        CulturalPersonAward.findAll(),
+        TrailblazerAward.findAll(),
+    ]);
+
+    // Build email → sheet URL maps
+    const emails = [
+        ...new Set([
+            ...sportsRows.map(r => r.email),
+            ...culturalRows.map(r => r.email),
+            ...trailblazerRows.map(r => r.email),
+        ]),
+    ];
+
+    const [sportsSheets, culturalSheets] = await Promise.all([
+        SportsUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
+        CulturalUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
+    ]);
+
+    const sportsSheetMap   = Object.fromEntries(sportsSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
+    const culturalSheetMap = Object.fromEntries(culturalSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
+
+    const toRow = (r, awardType) => ({
+        student_id:               r.student_id   || '',
+        name:                     r.name         || '',
+        email:                    r.email        || '',
+        gender:                   r.gender       || '',
+        batch:                    r.batch        || '',
+        mobile_number:            r.mobile_number || '',
+        cgpa:                     r.cgpa         || '',
+        sports_score:             r.sports_score || '',
+        cultural_score:           r.cultural_score || '',
+        sports_verified_score:    r.sports_verified_score || '',
+        cultural_verified_score:  r.cultural_verified_score || '',
+        submission_date:          r.submission_date ? new Date(r.submission_date).toISOString().split('T')[0] : '',
+        'Sports Sheet Link':      sportsSheetMap[r.email]   || '',
+        'Cultural Sheet Link':    culturalSheetMap[r.email] || '',
+        award_type:               awardType,
+    });
+
+    const sports      = sportsRows.map(r      => toRow(r, 'Sports Award'));
+    const cultural    = culturalRows.map(r    => toRow(r, 'Cultural Award'));
+    const trailblazer = trailblazerRows.map(r => toRow(r, 'Trailblazer Award'));
+    const all         = [...sports, ...cultural, ...trailblazer]
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    return { sports, cultural, trailblazer, all };
+}
+
+// ─── Check that workbook still exists on Drive ────────────────────────────────
+async function workbookExistsOnDrive(workbookId, masterUser) {
+    // Quick Sheets API call — if 404 the workbook was deleted
+    const scriptPath = path.join(__dirname, '../scripts/sync_workbook_to_local.py');
+    try {
+        const result = await runPython(scriptPath, [
+            workbookId,
+            masterUser.access_token,
+            masterUser.refresh_token,
+        ], 30_000);
+        return result.success !== false;
+    } catch {
+        return false;
+    }
+}
+
+// ─── Controller ───────────────────────────────────────────────────────────────
+
+async function openOrCreate(req, res) {
+    try {
+        const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+        if (!masterUser?.access_token) {
+            return res.status(500).json({ success: false, message: 'Master account not configured.' });
+        }
+
+        // 1. Check DB for existing workbook ID
+        let workbook = await AwardsWorkbook.findOne();
+
+        if (workbook) {
+            // Verify it still exists on Drive
+            const alive = await workbookExistsOnDrive(workbook.workbook_id, masterUser);
+            if (alive) {
+                log.info({ workbook_id: workbook.workbook_id }, '[Workbook] Returning existing workbook');
+                return res.json({
+                    success: true,
+                    isNew:   false,
+                    url:     `https://docs.google.com/spreadsheets/d/${workbook.workbook_id}/edit`,
+                    workbook_id: workbook.workbook_id,
+                });
+            }
+            // Stale — delete record and regenerate
+            log.warn({ workbook_id: workbook.workbook_id }, '[Workbook] Drive file gone — regenerating');
+            await workbook.destroy();
+            workbook = null;
+        }
+
+        // 2. Collect data and generate new workbook
+        log.info('[Workbook] Generating new workbook …');
+        const data    = await collectAllData();
+        const dataB64 = Buffer.from(JSON.stringify(data)).toString('base64');
+
+        const scriptPath = path.join(__dirname, '../scripts/generate_awards_workbook.py');
+        const result = await runPython(scriptPath, [
+            masterUser.access_token,
+            masterUser.refresh_token,
+            FOLDER_ID,
+            dataB64,
+        ]);
+
+        if (!result.success) {
+            log.error({ error: result.error }, '[Workbook] Generation failed');
+            return res.status(500).json({ success: false, message: result.error });
+        }
+
+        // 3. Store in DB
+        workbook = await AwardsWorkbook.create({
+            workbook_id: result.sheet_id,
+            created_at:  new Date(),
+            updated_at:  new Date(),
+        });
+
+        log.info({ workbook_id: result.sheet_id }, '[Workbook] Created and stored');
+        return res.json({
+            success:     true,
+            isNew:       true,
+            url:         result.url,
+            workbook_id: result.sheet_id,
+        });
+
+    } catch (err) {
+        log.error({ err: err.message }, '[Workbook] openOrCreate error');
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+// ─── Sync cloud → local ───────────────────────────────────────────────────────
+async function syncFromCloud(req, res) {
+    try {
+        const workbook = await AwardsWorkbook.findOne();
+        if (!workbook) {
+            return res.status(404).json({ success: false, message: 'No workbook found. Open the Google Sheet first.' });
+        }
+
+        const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+        if (!masterUser?.access_token) {
+            return res.status(500).json({ success: false, message: 'Master account not configured.' });
+        }
+
+        const scriptPath = path.join(__dirname, '../scripts/sync_workbook_to_local.py');
+        const result = await runPython(scriptPath, [
+            workbook.workbook_id,
+            masterUser.access_token,
+            masterUser.refresh_token,
+        ]);
+
+        if (!result.success) {
+            return res.status(500).json({ success: false, message: result.error });
+        }
+
+        const rows = result.rows || [];
+        let updated = 0, skipped = 0;
+
+        // Lookup all three models by student_id
+        const MODEL_LIST = [SportsPersonAward, CulturalPersonAward, TrailblazerAward];
+
+        for (const cloudRow of rows) {
+            const sid = cloudRow.student_id?.trim();
+            if (!sid) { skipped++; continue; }
+
+            // Build safe update object (never touch immutable fields)
+            const updates = {};
+            for (const field of CLOUD_SYNCABLE) {
+                if (cloudRow[field] !== undefined) {
+                    updates[field] = cloudRow[field] === '' ? null : cloudRow[field];
+                }
+            }
+            if (Object.keys(updates).length === 0) { skipped++; continue; }
+
+            // Try each model — student_id is unique within each table
+            let found = false;
+            for (const Model of MODEL_LIST) {
+                const record = await Model.findOne({ where: { student_id: sid } });
+                if (record) {
+                    await record.update(updates);
+                    updated++;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) skipped++;
+        }
+
+        log.info({ updated, skipped }, '[Workbook] Cloud → local sync complete');
+        return res.json({ success: true, updated, skipped, total: rows.length });
+
+    } catch (err) {
+        log.error({ err: err.message }, '[Workbook] syncFromCloud error');
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+// ─── Sync local → cloud ───────────────────────────────────────────────────────
+async function syncToCloud(req, res) {
+    try {
+        const workbook = await AwardsWorkbook.findOne();
+        if (!workbook) {
+            return res.status(404).json({ success: false, message: 'No workbook found. Open the Google Sheet first.' });
+        }
+
+        const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+        if (!masterUser?.access_token) {
+            return res.status(500).json({ success: false, message: 'Master account not configured.' });
+        }
+
+        const data    = await collectAllData();
+        const dataB64 = Buffer.from(JSON.stringify(data)).toString('base64');
+        const scriptPath = path.join(__dirname, '../scripts/sync_local_to_workbook.py');
+
+        const result = await runPython(scriptPath, [
+            workbook.workbook_id,
+            masterUser.access_token,
+            masterUser.refresh_token,
+            dataB64,
+        ]);
+
+        if (!result.success) {
+            return res.status(500).json({ success: false, message: result.error });
+        }
+
+        log.info({ tabs: result.tabs_updated }, '[Workbook] Local → cloud sync complete');
+        return res.json({ success: true, tabs_updated: result.tabs_updated });
+
+    } catch (err) {
+        log.error({ err: err.message }, '[Workbook] syncToCloud error');
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+module.exports = { openOrCreate, syncFromCloud, syncToCloud };

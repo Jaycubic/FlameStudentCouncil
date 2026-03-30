@@ -18,6 +18,11 @@ import {
   ChevronRightIcon,
   DocumentIcon,
   TableCellsIcon,
+  CheckCircleIcon,
+  PencilSquareIcon,
+  CloudArrowUpIcon,
+  CloudArrowDownIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import { TableVirtuoso } from 'react-virtuoso';
 import PageHeader from '../components/layout/PageHeader';
@@ -56,37 +61,116 @@ function SortBtn({ field, sortField, sortDir, onSort }) {
   );
 }
 
+// ─── Section Header (identical pattern to MyFacultyProfile) ───────────────────
+function SectionHeader({ title, isEditing, onToggle, onSave, isLoading }) {
+  return (
+    <Flex justify="space-between" align="center" mb={3}>
+      <Text fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="wider"
+        color={useColorModeValue('gray.400', 'gray.500')}>{title}</Text>
+      <HStack spacing={1}>
+        {isEditing ? (
+          <>
+            <IconButton size="xs" icon={<CheckCircleIcon style={{ width: 14, height: 14 }} />}
+              colorScheme="green" variant="ghost" onClick={onSave} isLoading={isLoading} aria-label="Save" />
+            <IconButton size="xs" icon={<XMarkIcon style={{ width: 14, height: 14 }} />}
+              colorScheme="red" variant="ghost" onClick={onToggle} isDisabled={isLoading} aria-label="Cancel" />
+          </>
+        ) : (
+          <IconButton size="xs" icon={<PencilSquareIcon style={{ width: 14, height: 14 }} />}
+            variant="ghost" color="gray.400" _hover={{ color: 'blue.500' }}
+            onClick={onToggle} aria-label="Edit" />
+        )}
+      </HStack>
+    </Flex>
+  );
+}
+
+// ─── Editable field row ────────────────────────────────────────────────────────
+function EditableField({ label, value, fieldKey, isEditing, form, onChange, color }) {
+  const labelColor = useColorModeValue('gray.400', 'gray.500');
+  const valueColor = color || useColorModeValue('gray.700', 'gray.200');
+  return (
+    <Box>
+      <Text fontSize="9px" fontWeight="700" textTransform="uppercase" letterSpacing="wider"
+        color={labelColor} mb={0.5}>{label}</Text>
+      {isEditing ? (
+        <Input size="xs" value={form[fieldKey] ?? ''} borderRadius="md" focusBorderColor="blue.400"
+          onChange={e => onChange(fieldKey, e.target.value)} />
+      ) : (
+        <Text fontSize="12px" fontWeight="500" color={valueColor}>{value || '—'}</Text>
+      )}
+    </Box>
+  );
+}
+
 // ─── Profile Modal ─────────────────────────────────────────────────────────────
 function ProfileModal({ isOpen, onClose, record }) {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const toast  = useToast();
+  const [profile,   setProfile]   = useState(null);
+  const [loading,   setLoading]   = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [form,      setForm]      = useState({});
+  const toast    = useToast();
   const subColor = useColorModeValue('gray.500', 'gray.400');
-  const labelColor = useColorModeValue('gray.400', 'gray.500');
-  const cardBg = useColorModeValue('gray.50', 'gray.700');
+  const cardBg   = useColorModeValue('gray.50',  'gray.700');
+  const divColor = useColorModeValue('gray.100', 'gray.600');
 
   useEffect(() => {
     if (!isOpen || !record) return;
     const awardKey = AWARD_BADGE[record.award_type]?.awardKey;
     if (!awardKey) return;
     setProfile(null);
+    setIsEditing(false);
     setLoading(true);
     applicantsService.getProfile(awardKey, record.id)
-      .then(res => setProfile(res.data))
+      .then(res => {
+        setProfile(res.data);
+        resetForm(res.data);
+      })
       .catch(err => toast({ title: 'Error', description: err.message, status: 'error', duration: 3000 }))
       .finally(() => setLoading(false));
   }, [isOpen, record]);
 
-  // Photo: the 'photo' column stores the student_id (e.g. "240951").
-  // Photos are served publicly at /api/photos/:studentId which probes
-  // .jpg / .jpeg / .png automatically — same route AwardForm uses.
-  const photoUrl = profile?.photo
-    ? `/api/photos/${profile.photo}`
-    : null;
+  const resetForm = (p) => setForm({
+    cgpa:                    p?.cgpa                    ?? '',
+    sports_score:            p?.sports_score            ?? '',
+    cultural_score:          p?.cultural_score          ?? '',
+    sports_verified_score:   p?.sports_verified_score   ?? '',
+    cultural_verified_score: p?.cultural_verified_score ?? '',
+  });
+
+  const handleChange = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    const awardKey = AWARD_BADGE[record.award_type]?.awardKey;
+    try {
+      const res = await applicantsService.updateApplicant(awardKey, profile.id, form);
+      const updated = { ...profile, ...res.data };
+      setProfile(updated);
+      resetForm(updated);
+      setIsEditing(false);
+      toast({ title: 'Saved', status: 'success', duration: 2000 });
+    } catch (err) {
+      toast({ title: 'Save failed', description: err.message, status: 'error', duration: 3000 });
+    } finally { setSaving(false); }
+  };
+
+  const handleCancel = () => { resetForm(profile); setIsEditing(false); };
+
+  const photoUrl = profile?.photo ? `/api/photos/${profile.photo}` : null;
+  const badge    = AWARD_BADGE[record?.award_type] || {};
+
+  // Which fields to show per award type
+  const awardKey      = badge.awardKey;
+  const showSports    = awardKey === 'sports'      || awardKey === 'trailblazer';
+  const showCultural  = awardKey === 'cultural'    || awardKey === 'trailblazer';
+  const showCgpa      = awardKey === 'trailblazer';
 
   const InfoRow = ({ label, value }) => (
     <Box>
-      <Text fontSize="9px" fontWeight="700" textTransform="uppercase" letterSpacing="wider" color={labelColor}>{label}</Text>
+      <Text fontSize="9px" fontWeight="700" textTransform="uppercase" letterSpacing="wider"
+        color={useColorModeValue('gray.400', 'gray.500')} mb={0.5}>{label}</Text>
       <Text fontSize="12px" fontWeight="500">{value || '—'}</Text>
     </Box>
   );
@@ -94,41 +178,32 @@ function ProfileModal({ isOpen, onClose, record }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
       <ModalOverlay backdropFilter="blur(4px)" />
-      <ModalContent borderRadius="2xl" fontFamily="'Space Grotesk', sans-serif">
-        {/* Header gradient */}
+      <ModalContent borderRadius="2xl">
+        {/* ── Gradient Header ─────────────────────────────────────────────── */}
         <Box bgGradient={GRADIENT} borderTopRadius="2xl" px={6} py={5}>
           <ModalCloseButton color="white" top={3} />
           {loading ? (
             <HStack spacing={4}>
               <Skeleton w="72px" h="72px" borderRadius="full" />
               <VStack align="start" spacing={1}>
-                <Skeleton h="18px" w="180px" />
-                <Skeleton h="12px" w="120px" />
+                <Skeleton h="18px" w="180px" /><Skeleton h="12px" w="120px" />
               </VStack>
             </HStack>
           ) : profile ? (
-            <HStack spacing={4} align="center">
-              <Avatar
-                size="lg"
-                name={profile.name}
-                src={photoUrl || undefined}
-                border="3px solid white"
-                boxShadow="lg"
-              />
+            <HStack spacing={4} align="center" flexWrap="wrap">
+              <Avatar size="lg" name={profile.name} src={photoUrl || undefined}
+                border="3px solid white" boxShadow="lg" />
               <VStack align="start" spacing={0}>
                 <Text color="white" fontWeight="700" fontSize="lg">{profile.name}</Text>
                 <Text color="whiteAlpha.800" fontSize="12px" fontFamily="mono">{profile.student_id}</Text>
                 <Text color="whiteAlpha.700" fontSize="11px">{profile.email}</Text>
               </VStack>
               <Box ml="auto">
-                {profile.award_type && (
-                  <Badge
-                    colorScheme={AWARD_BADGE[`${profile.award_type.charAt(0).toUpperCase() + profile.award_type.slice(1)} Award`]?.colorScheme || 'purple'}
-                    borderRadius="full" px={3} py={1} fontSize="11px"
-                  >
-                    {profile.award_type.charAt(0).toUpperCase() + profile.award_type.slice(1)} Award
-                  </Badge>
-                )}
+                {/* Award type badge — always visible */}
+                <Badge colorScheme={badge.colorScheme} borderRadius="full" px={3} py={1} fontSize="11px"
+                  textTransform="uppercase" letterSpacing="wide">
+                  {badge.label} Award
+                </Badge>
               </Box>
             </HStack>
           ) : null}
@@ -141,31 +216,68 @@ function ProfileModal({ isOpen, onClose, record }) {
             </VStack>
           ) : profile ? (
             <VStack spacing={5} align="stretch">
-              {/* Core details */}
+
+              {/* ── Read-only identity fields ──────────────────────────────── */}
               <SimpleGrid columns={3} spacing={4}>
-                <InfoRow label="Gender"      value={profile.gender} />
-                <InfoRow label="Batch"       value={profile.batch} />
-                <InfoRow label="Mobile"      value={profile.mobile_number} />
-                <InfoRow label="CGPA"        value={profile.cgpa} />
-                <InfoRow label="Sports Score"   value={profile.sports_score} />
-                <InfoRow label="Cultural Score" value={profile.cultural_score} />
-                <InfoRow label="Ver. Sports"    value={profile.sports_verified_score} />
-                <InfoRow label="Ver. Cultural"  value={profile.cultural_verified_score} />
+                <InfoRow label="Gender"    value={profile.gender} />
+                <InfoRow label="Batch"     value={profile.batch}  />
+                <InfoRow label="Mobile"    value={profile.mobile_number} />
                 <InfoRow label="Submitted"
                   value={profile.submission_date
-                    ? new Date(profile.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                    : null}
-                />
+                    ? new Date(profile.submission_date).toLocaleDateString('en-IN',
+                        { day: '2-digit', month: 'short', year: 'numeric' })
+                    : null} />
               </SimpleGrid>
 
-              <Divider />
+              <Divider borderColor={divColor} />
 
-              {/* Matrix Sheets */}
+              {/* ── Inline-editable score section ──────────────────────────── */}
+              <Box bg={cardBg} borderRadius="xl" p={4}>
+                <SectionHeader
+                  title="Scores & Verified Scores"
+                  isEditing={isEditing}
+                  onToggle={isEditing ? handleCancel : () => setIsEditing(true)}
+                  onSave={handleSave}
+                  isLoading={saving}
+                />
+                <SimpleGrid columns={isEditing ? 2 : 3} spacing={4}>
+                  {showCgpa && (
+                    <EditableField label="CGPA"
+                      value={profile.cgpa} fieldKey="cgpa"
+                      isEditing={isEditing} form={form} onChange={handleChange} />
+                  )}
+                  {showSports && (
+                    <EditableField label="Sports Score"
+                      value={profile.sports_score} fieldKey="sports_score"
+                      isEditing={isEditing} form={form} onChange={handleChange} />
+                  )}
+                  {showCultural && (
+                    <EditableField label="Cultural Score"
+                      value={profile.cultural_score} fieldKey="cultural_score"
+                      isEditing={isEditing} form={form} onChange={handleChange} />
+                  )}
+                  {showSports && (
+                    <EditableField label="Verified Sports"
+                      value={profile.sports_verified_score} fieldKey="sports_verified_score"
+                      isEditing={isEditing} form={form} onChange={handleChange}
+                      color={!isEditing && profile.sports_verified_score ? 'green.500' : undefined} />
+                  )}
+                  {showCultural && (
+                    <EditableField label="Verified Cultural"
+                      value={profile.cultural_verified_score} fieldKey="cultural_verified_score"
+                      isEditing={isEditing} form={form} onChange={handleChange}
+                      color={!isEditing && profile.cultural_verified_score ? 'green.500' : undefined} />
+                  )}
+                </SimpleGrid>
+              </Box>
+
+              <Divider borderColor={divColor} />
+
+              {/* ── Matrix Sheets ───────────────────────────────────────────── */}
               <Box>
-                <Text fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="wider" color={labelColor} mb={2}>
-                  Matrix Sheets
-                </Text>
-                <HStack spacing={3}>
+                <Text fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="wider"
+                  color={subColor} mb={2}>Matrix Sheets</Text>
+                <HStack spacing={3} flexWrap="wrap">
                   {profile.sheets?.sports && (
                     <Link href={profile.sheets.sports} isExternal>
                       <Tag colorScheme="blue" borderRadius="full" cursor="pointer" size="sm">
@@ -188,14 +300,13 @@ function ProfileModal({ isOpen, onClose, record }) {
                 </HStack>
               </Box>
 
-              {/* Attachments */}
+              {/* ── Attachments ─────────────────────────────────────────────── */}
               {((profile.attachments?.sport?.length > 0) || (profile.attachments?.cultural?.length > 0)) && (
                 <>
-                  <Divider />
+                  <Divider borderColor={divColor} />
                   <Box>
-                    <Text fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="wider" color={labelColor} mb={2}>
-                      Attachments
-                    </Text>
+                    <Text fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="wider"
+                      color={subColor} mb={2}>Attachments</Text>
                     <VStack align="start" spacing={2}>
                       {profile.attachments?.sport?.map(f => (
                         <Link key={f.id} href={applicantsService.getFileUrl('sport', f.fileName)} isExternal>
@@ -217,6 +328,7 @@ function ProfileModal({ isOpen, onClose, record }) {
                   </Box>
                 </>
               )}
+
             </VStack>
           ) : null}
         </ModalBody>
@@ -294,6 +406,49 @@ function ApplicantsView() {
 
   const openProfile = (record) => { setSelectedRecord(record); onOpen(); };
 
+  // ── Workbook handlers ────────────────────────────────────────────────────────
+  const [sheetLoading,     setSheetLoading]     = useState(false);
+  const [syncDownLoading,  setSyncDownLoading]  = useState(false);
+  const [syncUpLoading,    setSyncUpLoading]    = useState(false);
+
+  const handleOpenSheet = async () => {
+    setSheetLoading(true);
+    try {
+      const res = await applicantsService.openWorkbook();
+      if (res.success) {
+        window.open(res.url, '_blank');
+        if (res.isNew) toast({ title: 'Workbook created', description: 'Opened in a new tab.', status: 'success', duration: 4000 });
+      }
+    } catch (err) {
+      toast({ title: 'Google Sheet error', description: err.message, status: 'error', duration: 5000 });
+    } finally { setSheetLoading(false); }
+  };
+
+  const handleSyncFromCloud = async () => {
+    setSyncDownLoading(true);
+    try {
+      const res = await applicantsService.syncFromCloud();
+      if (res.success) {
+        toast({ title: `Synced ${res.updated} record${res.updated !== 1 ? 's' : ''} from Cloud`, description: `${res.skipped} unchanged.`, status: 'success', duration: 4000 });
+        load(); // refresh table
+      }
+    } catch (err) {
+      toast({ title: 'Sync from Cloud failed', description: err.message, status: 'error', duration: 5000 });
+    } finally { setSyncDownLoading(false); }
+  };
+
+  const handleSyncToCloud = async () => {
+    setSyncUpLoading(true);
+    try {
+      const res = await applicantsService.syncToCloud();
+      if (res.success) {
+        toast({ title: 'Cloud Sheet updated', description: `${res.tabs_updated} tab${res.tabs_updated !== 1 ? 's' : ''} refreshed.`, status: 'success', duration: 4000 });
+      }
+    } catch (err) {
+      toast({ title: 'Sync to Cloud failed', description: err.message, status: 'error', duration: 5000 });
+    } finally { setSyncUpLoading(false); }
+  };
+
   const showSports      = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
   const showCultural    = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
   const showVerSports   = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
@@ -324,19 +479,84 @@ function ApplicantsView() {
 
       <Card variant="outline" bg={bgColor} overflow="hidden">
         <Box px={5} py={3}>
-          {/* Tabs */}
-          <HStack spacing={2} mb={3} flexWrap="wrap">
-            {AWARD_TABS.map(tab => (
-              <Button key={tab.key} size="xs" borderRadius="full"
-                colorScheme={tab.color}
-                variant={awardTab === tab.key ? 'solid' : 'outline'}
-                onClick={() => setAwardTab(tab.key)}
-                fontWeight={awardTab === tab.key ? '700' : '500'}
-              >
-                {tab.label}
-              </Button>
-            ))}
-          </HStack>
+          {/* Tabs + Workbook buttons on same row */}
+          <Flex align="center" justify="space-between" mb={3} flexWrap="wrap" gap={2}>
+            <HStack spacing={2} flexWrap="wrap">
+              {AWARD_TABS.map(tab => (
+                <Button key={tab.key} size="xs" borderRadius="full"
+                  colorScheme={tab.color}
+                  variant={awardTab === tab.key ? 'solid' : 'outline'}
+                  onClick={() => setAwardTab(tab.key)}
+                  fontWeight={awardTab === tab.key ? '700' : '500'}
+                >
+                  {tab.label}
+                </Button>
+              ))}
+            </HStack>
+
+            {/* ─── Workbook action buttons ─────── */}
+            <HStack spacing={2}>
+              <Tooltip label="Open / generate the admin Google Sheet workbook" hasArrow placement="bottom">
+                <Button
+                  size="sm"
+                  leftIcon={<ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />}
+                  colorScheme="green"
+                  variant="solid"
+                  borderRadius="lg"
+                  fontSize="12px"
+                  fontWeight="600"
+                  isLoading={sheetLoading}
+                  loadingText="Opening…"
+                  onClick={handleOpenSheet}
+                  boxShadow="sm"
+                  _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
+                  transition="all 0.15s"
+                >
+                  Google Sheet
+                </Button>
+              </Tooltip>
+
+              <Tooltip label="Pull cloud edits → Update local DB" hasArrow placement="bottom">
+                <Button
+                  size="sm"
+                  leftIcon={<CloudArrowDownIcon style={{ width: 14, height: 14 }} />}
+                  colorScheme="blue"
+                  variant="outline"
+                  borderRadius="lg"
+                  fontSize="12px"
+                  fontWeight="600"
+                  isLoading={syncDownLoading}
+                  loadingText="Syncing…"
+                  onClick={handleSyncFromCloud}
+                  boxShadow="sm"
+                  _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
+                  transition="all 0.15s"
+                >
+                  Sync ↓
+                </Button>
+              </Tooltip>
+
+              <Tooltip label="Push local changes → Update Google Sheet" hasArrow placement="bottom">
+                <Button
+                  size="sm"
+                  leftIcon={<CloudArrowUpIcon style={{ width: 14, height: 14 }} />}
+                  colorScheme="purple"
+                  variant="outline"
+                  borderRadius="lg"
+                  fontSize="12px"
+                  fontWeight="600"
+                  isLoading={syncUpLoading}
+                  loadingText="Pushing…"
+                  onClick={handleSyncToCloud}
+                  boxShadow="sm"
+                  _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
+                  transition="all 0.15s"
+                >
+                  Sync ↑
+                </Button>
+              </Tooltip>
+            </HStack>
+          </Flex>
 
           {/* Single filter row */}
           <Flex align="center" gap={2} mb={3} flexWrap="wrap">

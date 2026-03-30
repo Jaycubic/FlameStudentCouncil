@@ -211,4 +211,45 @@ function serveFile(req, res) {
     return res.sendFile(filePath);
 }
 
-module.exports = { getApplicants, getApplicantProfile, serveFile };
+// ─── Update editable fields on an applicant record ─────────────────────────
+// PATCH /api/applicants/profile/:awardType/:id
+// Body: { cgpa, sports_score, cultural_score, sports_verified_score, cultural_verified_score }
+
+const EDITABLE_FIELDS = {
+    sports:      ['sports_score', 'sports_verified_score'],
+    cultural:    ['cultural_score', 'cultural_verified_score'],
+    trailblazer: ['cgpa', 'sports_score', 'cultural_score', 'sports_verified_score', 'cultural_verified_score'],
+};
+
+async function updateApplicant(req, res) {
+    try {
+        const { awardType, id } = req.params;
+        const Model = AWARD_MODEL_MAP[awardType];
+        if (!Model) return res.status(400).json({ success: false, message: 'Invalid award type' });
+
+        const record = await Model.findByPk(id);
+        if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+
+        // Only allow whitelisted fields for this award type
+        const allowed = EDITABLE_FIELDS[awardType] || [];
+        const updates = {};
+        for (const field of allowed) {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field] === '' ? null : req.body[field];
+            }
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, message: 'No valid fields to update' });
+        }
+
+        await record.update(updates);
+
+        return res.json({ success: true, data: record.toJSON() });
+    } catch (err) {
+        console.error('[Applicants] updateApplicant error:', err.message);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+module.exports = { getApplicants, getApplicantProfile, updateApplicant, serveFile };

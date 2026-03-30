@@ -85,7 +85,7 @@ app.use('/api/time-settings', require('./routes/timeSettingsRoutes.js'));
 app.use('/api/sheets', require('./routes/sheetRoutes.js'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes.js'));
 app.use('/api/applicants', require('./routes/applicantsRoutes.js'));
-
+app.use('/api/awards-workbook', require('./routes/awardsWorkbookRoutes.js'));
 
 
 // Start BullMQ sheet worker (runs in-process)
