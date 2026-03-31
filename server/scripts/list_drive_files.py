@@ -168,6 +168,40 @@ def main():
         print(f"[INFO] Found {len(owned_spreadsheets)} spreadsheets owned by {student_email}.", file=sys.stderr)
 
         # ── Output Results ─────────────────────────────────────────────────────
+        
+        # Also write results nicely to a .txt file
+        output_filename = f"drive_files_{student_email.replace('@', '_at_')}.txt"
+        with open(output_filename, 'w', encoding='utf-8') as f:
+            f.write(f"Google Drive Report for: {student_email}\n")
+            f.write("=" * 60 + "\n\n")
+            f.write(f"Summary:\n")
+            f.write(f"  Total Files: {len(files)}\n")
+            f.write(f"  Total Folders: {len(folders)}\n")
+            f.write(f"  Total Owned Spreadsheets: {len(owned_spreadsheets)}\n\n")
+            
+            f.write("─── Owned Spreadsheets ───\n")
+            if not owned_spreadsheets:
+                f.write("  (None)\n")
+            else:
+                for idx, sheet in enumerate(owned_spreadsheets, 1):
+                    f.write(f"  {idx}. {sheet['name']} (ID: {sheet['id']})\n")
+            
+            f.write("\n─── Other Files ───\n")
+            if not files:
+                f.write("  (None)\n")
+            else:
+                for idx, item in enumerate(files, 1):
+                    f.write(f"  {idx}. [{item['mimeType'].split('.')[-1]}] {item['name']} (ID: {item['id']})\n")
+
+            f.write("\n─── Folders ───\n")
+            if not folders:
+                f.write("  (None)\n")
+            else:
+                for idx, item in enumerate(folders, 1):
+                    f.write(f"  {idx}. {item['name']} (ID: {item['id']})\n")
+        
+        print(f"[INFO] Details successfully written to {output_filename}", file=sys.stderr)
+
         result = {
             "success": True,
             "student_email": student_email,
@@ -176,6 +210,7 @@ def main():
                 "total_folders": len(folders),
                 "total_owned_spreadsheets": len(owned_spreadsheets)
             },
+            "output_file": output_filename,
             "data": {
                 "folders": folders,
                 "files": files,
