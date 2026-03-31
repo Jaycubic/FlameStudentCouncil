@@ -8,6 +8,8 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
+import io
 
 socket.setdefaulttimeout(90)
 
@@ -122,17 +124,48 @@ def get_tokens_from_db(email):
         if conn:
             conn.close()
 
+def download_file(service, file_id, file_name, mime_type):
+    if mime_type.startswith('application/vnd.google-apps.'):
+        if mime_type == 'application/vnd.google-apps.spreadsheet':
+            request = service.files().export_media(fileId=file_id, mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            if not file_name.endswith('.xlsx'):
+                file_name += '.xlsx'
+        elif mime_type == 'application/vnd.google-apps.document':
+            request = service.files().export_media(fileId=file_id, mimeType='application/pdf')
+            if not file_name.endswith('.pdf'):
+                file_name += '.pdf'
+        else:
+            print(f"[WARN] Skipping unsupported Google workspace type: {mime_type}", file=sys.stderr)
+            return
+    else:
+        request = service.files().get_media(fileId=file_id)
+        
+    try:
+        fh = io.FileIO(file_name, 'wb')
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        print(f"[INFO] Initiating download for '{file_name}'...", file=sys.stderr)
+        while done is False:
+            status, done = downloader.next_chunk()
+            if status:
+                print(f"[INFO] Download {int(status.progress() * 100)}%...", file=sys.stderr)
+        print(f"[INFO] ✅ Download Complete: {file_name}", file=sys.stderr)
+    except Exception as e:
+        print(f"[ERROR] Failed to download {file_name}: {e}", file=sys.stderr)
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({
             "success": False,
-            "error": "Missing arguments. Expected: student_email"
+            "error": "Missing arguments. Expected: student_email [file_to_download]"
         }))
         sys.exit(1)
 
     student_email = sys.argv[1]
+    file_to_download = sys.argv[2] if len(sys.argv) > 2 else None
 
     try:
         student_access_token, student_refresh_token = get_tokens_from_db(student_email)
@@ -201,6 +234,19 @@ def main():
                     f.write(f"  {idx}. {item['name']} (ID: {item['id']})\n")
         
         print(f"[INFO] Details successfully written to {output_filename}", file=sys.stderr)
+
+        # ── Download Logic ──────────────────────────────────────────────────────
+        if file_to_download:
+            print(f"\n[INFO] Searching for file to download: '{file_to_download}'...", file=sys.stderr)
+            matches = [f for f in all_items if f['name'] == file_to_download]
+            if not matches:
+                print(f"[WARN] Could not find '{file_to_download}' in the user's Drive.", file=sys.stderr)
+            else:
+                for match in matches:
+                    f_name = match['name']
+                    if len(matches) > 1:
+                        f_name = f"{match['id'][:8]}_{f_name}"
+                    download_file(service, match['id'], f_name, match['mimeType'])
 
         result = {
             "success": True,
