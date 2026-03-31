@@ -104,7 +104,7 @@ function EditableField({ label, value, fieldKey, isEditing, form, onChange, colo
 }
 
 // ─── Profile Modal ─────────────────────────────────────────────────────────────
-function ProfileModal({ isOpen, onClose, record }) {
+function ProfileModal({ isOpen, onClose, record, onUpdate }) {
   const [profile,   setProfile]   = useState(null);
   const [loading,   setLoading]   = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -150,6 +150,8 @@ function ProfileModal({ isOpen, onClose, record }) {
       setProfile(updated);
       resetForm(updated);
       setIsEditing(false);
+      // Patch the parent table row so it reflects new values immediately
+      if (onUpdate) onUpdate(record.id, record.award_type, res.data);
       toast({ title: 'Saved', status: 'success', duration: 2000 });
     } catch (err) {
       toast({ title: 'Save failed', description: err.message, status: 'error', duration: 3000 });
@@ -405,6 +407,15 @@ function ApplicantsView() {
   const hasFilters = gender || batch || search || sortField;
 
   const openProfile = (record) => { setSelectedRecord(record); onOpen(); };
+
+  // Patch the in-memory data row after a profile save — no reload needed
+  const handleProfileUpdate = (recordId, awardType, updatedFields) => {
+    setData(prev => prev.map(row =>
+      row.id === recordId && row.award_type === awardType
+        ? { ...row, ...updatedFields }
+        : row
+    ));
+  };
 
   // ── Workbook handlers ────────────────────────────────────────────────────────
   const [sheetLoading,     setSheetLoading]     = useState(false);
@@ -684,7 +695,7 @@ function ApplicantsView() {
       </Card>
 
       {/* Profile Modal */}
-      <ProfileModal isOpen={isOpen} onClose={onClose} record={selectedRecord} />
+      <ProfileModal isOpen={isOpen} onClose={onClose} record={selectedRecord} onUpdate={handleProfileUpdate} />
     </Box>
   );
 }
