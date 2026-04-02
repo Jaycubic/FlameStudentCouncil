@@ -499,48 +499,60 @@ function ComposeModal({ isOpen, onClose, nominees }) {
   )
 }
 
-// ─── Winner card ──────────────────────────────────────────────────────────────
+// ─── Winner card (compact — two fit per column) ───────────────────────────────
 function WinnerCard({ nominee, config }) {
   const cardBg      = useColorModeValue('white', 'gray.800')
   const subColor    = useColorModeValue('gray.500', 'gray.400')
   const borderColor = useColorModeValue('gray.200', 'gray.600')
   const scoreBg     = useColorModeValue(`${config.color}.50`, `${config.color}.900`)
   const score       = config.scoreField ? (nominee[config.scoreField] ?? '—') : computeTotal(nominee)
+  const photoSrc    = `/api/photos/${nominee.student_id}`
 
   return (
-    <Card bg={cardBg} borderRadius="2xl" boxShadow="xl" border="1px solid"
+    <Card bg={cardBg} borderRadius="xl" boxShadow="sm" border="1px solid"
       borderColor={borderColor} overflow="hidden"
-      transition="transform 0.2s, box-shadow 0.2s"
-      _hover={{ transform: 'translateY(-4px)', boxShadow: '2xl' }}>
-      <Box bgGradient={config.gradient} h="6px" />
-      <CardBody p={5}>
-        <VStack spacing={3} align="stretch">
-          <HStack spacing={3}>
-            <Avatar name={nominee.name} size="md"
-              border="3px solid" borderColor={`${config.color}.400`} boxShadow="md" />
+      transition="transform 0.18s, box-shadow 0.18s"
+      _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
+    >
+      <Box bgGradient={config.gradient} h="3px" />
+      <CardBody p={3}>
+        <VStack spacing={2} align="stretch">
+          {/* Identity row */}
+          <HStack spacing={2.5}>
+            <Avatar
+              name={nominee.name}
+              src={photoSrc}
+              size="sm"
+              border="2px solid"
+              borderColor={`${config.color}.400`}
+              boxShadow="sm"
+            />
             <VStack align="start" spacing={0} flex="1" minW={0}>
-              <Text fontWeight="700" fontSize="14px" noOfLines={1}>{nominee.name}</Text>
-              <Text fontSize="11px" color="blue.500" fontFamily="mono">{nominee.student_id}</Text>
-              <Text fontSize="10px" color={subColor} noOfLines={1}>{nominee.email}</Text>
+              <Text fontWeight="700" fontSize="13px" noOfLines={1}>{nominee.name}</Text>
+              <Text fontSize="10px" color="blue.500" fontFamily="mono">{nominee.student_id}</Text>
+              <Text fontSize="9px" color={subColor} noOfLines={1}>{nominee.email}</Text>
             </VStack>
           </HStack>
-          <Divider />
-          <SimpleGrid columns={2} spacing={2}>
+
+          {/* Gender + Batch inline */}
+          <HStack spacing={4}>
             <Box>
-              <Text fontSize="9px" fontWeight="700" textTransform="uppercase"
+              <Text fontSize="8px" fontWeight="700" textTransform="uppercase"
                 letterSpacing="wider" color={subColor}>Gender</Text>
-              <Text fontSize="12px" fontWeight="600">{nominee.gender || '—'}</Text>
+              <Text fontSize="11px" fontWeight="600">{nominee.gender || '—'}</Text>
             </Box>
             <Box>
-              <Text fontSize="9px" fontWeight="700" textTransform="uppercase"
+              <Text fontSize="8px" fontWeight="700" textTransform="uppercase"
                 letterSpacing="wider" color={subColor}>Batch</Text>
-              <Text fontSize="12px" fontWeight="600">{nominee.batch || '—'}</Text>
+              <Text fontSize="11px" fontWeight="600">{nominee.batch || '—'}</Text>
             </Box>
-          </SimpleGrid>
-          <Box bg={scoreBg} borderRadius="xl" p={3} textAlign="center">
-            <Text fontSize="9px" fontWeight="700" textTransform="uppercase"
+          </HStack>
+
+          {/* Score pill */}
+          <Box bg={scoreBg} borderRadius="lg" py={1.5} textAlign="center">
+            <Text fontSize="8px" fontWeight="700" textTransform="uppercase"
               letterSpacing="wider" color={`${config.color}.600`}>{config.scoreLabel}</Text>
-            <Text fontSize="26px" fontWeight="black"
+            <Text fontSize="20px" fontWeight="black"
               color={`${config.color}.600`} lineHeight="1.1">{score}</Text>
           </Box>
         </VStack>
@@ -684,10 +696,17 @@ export default function NominationView() {
 
             <HStack spacing={3}>
               <Tooltip label="Recalculate all nominations — overwrites existing" hasArrow>
-                <Button size="sm" variant="outline"
+                <Button size="sm"
                   leftIcon={<Icon as={SparklesIcon} w={4} h={4} />}
                   onClick={handleGenerate} isLoading={isGenerating}
-                  loadingText="Generating…" borderRadius="xl">
+                  loadingText="Generating…" borderRadius="xl"
+                  color="white" fontWeight="700"
+                  bgGradient="linear(to-br, #065f46, #10b981)"
+                  boxShadow="md"
+                  _hover={{ bgGradient: 'linear(to-br, #047857, #059669)', transform: 'translateY(-1px)', boxShadow: 'lg' }}
+                  _active={{ transform: 'translateY(0)' }}
+                  transition="all 0.15s"
+                >
                   Generate Nominations
                 </Button>
               </Tooltip>
@@ -699,8 +718,9 @@ export default function NominationView() {
                   onClick={onComposeOpen}
                   isDisabled={nominees.length === 0}
                   borderRadius="xl"
-                  bgGradient={GRADIENT}
+                  bgGradient="linear(to-br, #1e3a8a, #2563eb)"
                   boxShadow="md"
+                  fontWeight="700"
                   _hover={{ bgGradient: 'linear(to-br, #1e40af, #1d4ed8)', transform: 'translateY(-1px)', boxShadow: 'lg' }}
                   _active={{ transform: 'translateY(0)' }}
                   transition="all 0.15s"
