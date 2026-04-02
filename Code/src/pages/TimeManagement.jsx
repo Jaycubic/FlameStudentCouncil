@@ -31,7 +31,7 @@ function TimeManagement() {
     const toast = useToast()
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
-    const [updatingTemplate, setUpdatingTemplate] = useState({ cultural: false, sports: false })
+    const [updatingTemplate, setUpdatingTemplate] = useState({ cultural: false, sports: false, academic: false })
     const [formData, setFormData] = useState({
         title: '',
         start_date: '',
@@ -277,19 +277,19 @@ function TimeManagement() {
                                         First edit the Master Sheet in Google Drive, then click "Update Local Template" to apply changes.
                                     </Text>
 
-                                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
                                         {/* Sports Card */}
                                         <Card variant="outline" borderColor={borderColor} borderRadius="xl">
                                             <CardBody>
                                                 <VStack align="stretch" spacing={4}>
                                                     <HStack>
                                                         <Box w="10px" h="10px" borderRadius="full" bg="green.400" />
-                                                        <Text fontWeight="bold" fontSize="lg">Sports Master Sheet</Text>
+                                                        <Text fontWeight="bold" fontSize="lg">Sports Master Workbook</Text>
                                                     </HStack>
                                                     <Divider />
                                                     <Button
                                                         as="a"
-                                                        href="https://docs.google.com/spreadsheets/d/1QtdNCK8ENMU_ybRvY9g8IXX4MdClQ3-nvsBwArelSRQ"
+                                                        href="https://docs.google.com/spreadsheets/d/1btB3-q4kZjigr0rlMpH3YngWBWbvPWJ-"
                                                         target="_blank"
                                                         size="sm"
                                                         colorScheme="blue"
@@ -317,12 +317,12 @@ function TimeManagement() {
                                                 <VStack align="stretch" spacing={4}>
                                                     <HStack>
                                                         <Box w="10px" h="10px" borderRadius="full" bg="pink.400" />
-                                                        <Text fontWeight="bold" fontSize="lg">Cultural Master Sheet</Text>
+                                                        <Text fontWeight="bold" fontSize="lg">Cultural Master Workbook</Text>
                                                     </HStack>
                                                     <Divider />
                                                     <Button
                                                         as="a"
-                                                        href="https://docs.google.com/spreadsheets/d/1W5c-6KTh5KxZUZktriJdsHCeLwzGjmHu"
+                                                        href="https://docs.google.com/spreadsheets/d/1uUVRe_9fa_Op10M3dVDmH88ITTRf7pp8"
                                                         target="_blank"
                                                         size="sm"
                                                         colorScheme="blue"
@@ -336,6 +336,39 @@ function TimeManagement() {
                                                         isLoading={updatingTemplate.cultural}
                                                         loadingText="Syncing..."
                                                         colorScheme="pink"
+                                                        size="sm"
+                                                    >
+                                                        Update Local Template
+                                                    </Button>
+                                                </VStack>
+                                            </CardBody>
+                                        </Card>
+
+                                        {/* Academic Card */}
+                                        <Card variant="outline" borderColor={borderColor} borderRadius="xl">
+                                            <CardBody>
+                                                <VStack align="stretch" spacing={4}>
+                                                    <HStack>
+                                                        <Box w="10px" h="10px" borderRadius="full" bg="purple.400" />
+                                                        <Text fontWeight="bold" fontSize="lg">Academic Master Workbook</Text>
+                                                    </HStack>
+                                                    <Divider />
+                                                    <Button
+                                                        as="a"
+                                                        href="https://docs.google.com/spreadsheets/d/1pbleLoKSdHyZEQafP06prqmovWRempTh"
+                                                        target="_blank"
+                                                        size="sm"
+                                                        colorScheme="blue"
+                                                        variant="outline"
+                                                        leftIcon={<Icon as={ArrowTopRightOnSquareIcon} />}
+                                                    >
+                                                        Open in Google Drive
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => handleUpdateTemplate('academic')}
+                                                        isLoading={updatingTemplate.academic}
+                                                        loadingText="Syncing..."
+                                                        colorScheme="purple"
                                                         size="sm"
                                                     >
                                                         Update Local Template

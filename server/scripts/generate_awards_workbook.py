@@ -7,10 +7,10 @@
 #
 # json_data_base64: base64-encoded JSON with keys:
 #   sports[]  cultural[]  trailblazer[]
-#   Each row: { student_id, name, email, gender, batch, mobile_number, cgpa,
+#   Each row: { student_id, name, email, gender, batch, mobile_number, academic_score,
 #               sports_score, cultural_score, sports_verified_score,
 #               cultural_verified_score, submission_date,
-#               sports_sheet_url, cultural_sheet_url }
+#               Sports Sheet Link, Cultural Sheet Link, Academic Sheet Link }
 #
 # Returns: { success, sheet_id, url }
 
@@ -43,9 +43,9 @@ PROTECTED_COLS = ['student_id', 'name', 'email']   # never allow edits via sync
 
 # Column definitions per tab
 ALL_COLS     = ['student_id','name','email','gender','batch','mobile_number',
-                'cgpa','sports_score','cultural_score',
+                'academic_score','sports_score','cultural_score',
                 'sports_verified_score','cultural_verified_score',
-                'submission_date','Sports Sheet Link','Cultural Sheet Link']
+                'submission_date','Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link']
 SPORTS_COLS  = ['student_id','name','email','gender','batch','mobile_number',
                 'sports_score','sports_verified_score',
                 'submission_date','Sports Sheet Link']
@@ -53,9 +53,9 @@ CULTURAL_COLS= ['student_id','name','email','gender','batch','mobile_number',
                 'cultural_score','cultural_verified_score',
                 'submission_date','Cultural Sheet Link']
 TRAIL_COLS   = ['student_id','name','email','gender','batch','mobile_number',
-                'cgpa','sports_score','cultural_score',
+                'academic_score','sports_score','cultural_score',
                 'sports_verified_score','cultural_verified_score',
-                'submission_date','Sports Sheet Link','Cultural Sheet Link']
+                'submission_date','Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link']
 
 HEADER_FILL = PatternFill("solid", fgColor="1E3A8A")
 HEADER_FONT = Font(bold=True, color="FFFFFF", size=10)

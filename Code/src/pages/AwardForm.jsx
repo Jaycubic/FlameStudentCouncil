@@ -57,7 +57,7 @@ function ApplicationFormDashboard() {
     const [formData, setFormData] = useState({
         name: '', studentId: '', mobileNumber: '', email: '',
         gender: '', batch: '', photoUrl: defaultProfilePhoto,
-        academicLevel: '', cgpa: '', sportsRawScore: '',
+        academicLevel: '', academic_score: '', sportsRawScore: '',
         culturalRawScore: '', sportsScore: '', culturalScore: '',
         notOnProbation: false, trueStatement: false,
         sop: '', communityService: ''
@@ -68,10 +68,11 @@ function ApplicationFormDashboard() {
     const [sportFiles, setSportFiles] = useState([]);
     const [culturalFiles, setCulturalFiles] = useState([]);
     const [academicFiles, setAcademicFiles] = useState([]);
-    const [generatingSheet, setGeneratingSheet] = useState({ sports: false, cultural: false });
-    const [sheetReady, setSheetReady] = useState({ sports: null, cultural: null });
+    const [generatingSheet, setGeneratingSheet] = useState({ sports: false, cultural: false, academic: false });
+    const [sheetReady, setSheetReady] = useState({ sports: null, cultural: null, academic: null });
     const sportFileRef = useRef(null);
     const culturalFileRef = useRef(null);
+    const academicFileRef = useRef(null);
     const pollingRef = useRef(null);
 
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -406,8 +407,8 @@ function ApplicationFormDashboard() {
         setSportFiles([]);
         setCulturalFiles([]);
         setAcademicFiles([]);
-        setGeneratingSheet({ sports: false, cultural: false });
-        setSheetReady({ sports: null, cultural: null });
+        setGeneratingSheet({ sports: false, cultural: false, academic: false });
+        setSheetReady({ sports: null, cultural: null, academic: null });
         setFormData(prev => ({
             ...prev,
             trueStatement: false,
@@ -835,6 +836,98 @@ function ApplicationFormDashboard() {
                                                                     <Text fontSize="2xs" color={mutedTextColor} flexShrink={0}>({(file.size / 1024).toFixed(0)} KB)</Text>
                                                                 </HStack>
                                                                 <Box as="button" onClick={() => setCulturalFiles(prev => prev.filter((_, idx) => idx !== i))} p={1} borderRadius="md" _hover={{ bg: 'red.100' }}>
+                                                                    <Icon as={FaTimes} color="red.400" boxSize={3} />
+                                                                </Box>
+                                                            </HStack>
+                                                        ))}
+                                                    </VStack>
+                                                )}
+                                            </VStack>
+                                        </HStack>
+                                    </VStack>
+                                </Section>
+                            )}
+
+                            {/* Academic Section — Trailblazer only */}
+                            {selectedRole === 'trailblazer' && (
+                                <Section title="Academic Excellence">
+                                    <VStack spacing={0} align="stretch">
+                                        {/* Step 1: Generate / Open Academic Matrix */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="purple.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">1</Box>
+                                                <Box w="2px" h="40px" bg="purple.200" />
+                                            </VStack>
+                                            <VStack align="start" spacing={2} pb={4} flex="1">
+                                                <Text fontWeight="bold" fontSize="sm">Open your Academic Matrix Sheet</Text>
+                                                <Text fontSize="xs" color={mutedTextColor}>Fill in your academic achievements in the standardized spreadsheet.</Text>
+                                                {generatingSheet.academic ? (
+                                                    <HStack spacing={3} p={3} bg="purple.50" borderRadius="lg" w="full">
+                                                        <CircularProgress isIndeterminate size="24px" color="purple.500" />
+                                                        <VStack align="start" spacing={0}>
+                                                            <Text fontSize="xs" fontWeight="bold" color="purple.700">Preparing your Academic Matrix Sheet...</Text>
+                                                            <Text fontSize="2xs" color="purple.500">This may take a few seconds</Text>
+                                                        </VStack>
+                                                    </HStack>
+                                                ) : sheetReady.academic ? (
+                                                    <Button
+                                                        leftIcon={<Icon as={FaGraduationCap} />}
+                                                        colorScheme="green"
+                                                        variant="solid"
+                                                        size="sm"
+                                                        onClick={() => window.open(sheetReady.academic, '_blank')}
+                                                    >
+                                                        Open Academic Matrix Sheet
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        leftIcon={<Icon as={FaGraduationCap} />}
+                                                        colorScheme="purple"
+                                                        variant="solid"
+                                                        size="sm"
+                                                        onClick={() => handleGenerateSheet('academic')}
+                                                    >
+                                                        Generate Academic Matrix Sheet
+                                                    </Button>
+                                                )}
+                                            </VStack>
+                                        </HStack>
+                                        {/* Step 2: Upload Evidence */}
+                                        <HStack spacing={4} align="start">
+                                            <VStack spacing={0} align="center" minW="32px">
+                                                <Box w="32px" h="32px" borderRadius="full" bg="purple.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">2</Box>
+                                            </VStack>
+                                            <VStack align="start" spacing={3} flex="1">
+                                                <Text fontWeight="bold" fontSize="sm">Upload Supporting Documents (PDF)</Text>
+                                                <input ref={academicFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => {
+                                                    const files = Array.from(e.target.files || []);
+                                                    if (files.length === 0) return;
+                                                    const validFiles = files.filter(file => {
+                                                        if (file.size > MAX_SIZE) {
+                                                            toast({ title: 'File too large', description: `${file.name} exceeds 5MB limit`, status: 'error' });
+                                                            return false;
+                                                        }
+                                                        return true;
+                                                    });
+                                                    if (validFiles.length > 0) {
+                                                        setAcademicFiles(prev => {
+                                                            const newFiles = validFiles.filter(f => !prev.some(p => p.name === f.name && p.size === f.size));
+                                                            return [...prev, ...newFiles];
+                                                        });
+                                                    }
+                                                    e.target.value = '';
+                                                }} multiple />
+                                                <Button leftIcon={<FaPlus />} size="sm" variant="outline" colorScheme="purple" onClick={() => { if (academicFileRef.current) { academicFileRef.current.value = ''; academicFileRef.current.click(); } }}>Add PDF Files</Button>
+                                                {academicFiles.length > 0 && (
+                                                    <VStack align="stretch" spacing={2} w="full">
+                                                        {academicFiles.map((file, i) => (
+                                                            <HStack key={i} p={2} bg="purple.50" borderRadius="lg" border="1px solid" borderColor="purple.100" justify="space-between">
+                                                                <HStack spacing={2} overflow="hidden">
+                                                                    <Icon as={FaFilePdf} color="red.400" flexShrink={0} />
+                                                                    <Text fontSize="xs" fontWeight="medium" isTruncated>{file.name}</Text>
+                                                                    <Text fontSize="2xs" color={mutedTextColor} flexShrink={0}>({(file.size / 1024).toFixed(0)} KB)</Text>
+                                                                </HStack>
+                                                                <Box as="button" onClick={() => setAcademicFiles(prev => prev.filter((_, idx) => idx !== i))} p={1} borderRadius="md" _hover={{ bg: 'red.100' }}>
                                                                     <Icon as={FaTimes} color="red.400" boxSize={3} />
                                                                 </Box>
                                                             </HStack>

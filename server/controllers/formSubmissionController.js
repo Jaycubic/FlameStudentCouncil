@@ -9,6 +9,7 @@ const {
   StudentData,
   CulturalUserSheet,
   SportsUserSheet,
+  AcademicUserSheet,
   User
 } = require('../models');
 const multer = require('multer');
@@ -80,12 +81,13 @@ const upload = multer({ storage }).fields([
 const ROLE_TO_SHEET_TYPES = {
   sports_person:   ['sports'],
   cultural_person: ['cultural'],
-  trailblazer:     ['sports', 'cultural']
+  trailblazer:     ['sports', 'cultural', 'academic']
 };
 
 const SHEET_MODEL_MAP = {
   cultural: CulturalUserSheet,
-  sports:   SportsUserSheet
+  sports:   SportsUserSheet,
+  academic: AcademicUserSheet
 };
 
 // ─── Read B1 score from a student sheet ───────────────────────────────────────
@@ -135,26 +137,30 @@ function runScoreScript(sheetId, masterUser) {
  * Both default to null if sheet not found or read fails.
  */
 async function readScoresForSubmission(email, selectedRole, masterUser) {
-  const scores = { sports_score: null, cultural_score: null };
+  const scores = { sports_score: null, cultural_score: null, academic_score: null };
 
   try {
     const needsSports   = selectedRole === 'sports_person'   || selectedRole === 'trailblazer';
     const needsCultural = selectedRole === 'cultural_person' || selectedRole === 'trailblazer';
+    const needsAcademic = selectedRole === 'trailblazer';
 
-    const [sportsSheet, culturalSheet] = await Promise.all([
+    const [sportsSheet, culturalSheet, academicSheet] = await Promise.all([
       needsSports   ? SportsUserSheet.findOne({ where: { email } })   : null,
-      needsCultural ? CulturalUserSheet.findOne({ where: { email } }) : null
+      needsCultural ? CulturalUserSheet.findOne({ where: { email } }) : null,
+      needsAcademic ? AcademicUserSheet.findOne({ where: { email } }) : null
     ]);
 
-    const [sportsScore, culturalScore] = await Promise.all([
+    const [sportsScore, culturalScore, academicScore] = await Promise.all([
       sportsSheet?.user_sheet_id   ? runScoreScript(sportsSheet.user_sheet_id,   masterUser) : null,
-      culturalSheet?.user_sheet_id ? runScoreScript(culturalSheet.user_sheet_id, masterUser) : null
+      culturalSheet?.user_sheet_id ? runScoreScript(culturalSheet.user_sheet_id, masterUser) : null,
+      academicSheet?.user_sheet_id ? runScoreScript(academicSheet.user_sheet_id, masterUser) : null
     ]);
 
     if (needsSports)   scores.sports_score   = sportsScore;
     if (needsCultural) scores.cultural_score = culturalScore;
+    if (needsAcademic) scores.academic_score = academicScore;
 
-    log.info({ email, selectedRole, sportsScore, culturalScore }, '[ScoreRead] Scores resolved');
+    log.info({ email, selectedRole, sportsScore, culturalScore, academicScore }, '[ScoreRead] Scores resolved');
   } catch (err) {
     log.error({ err: err.message }, '[ScoreRead] Unexpected error — scores set to null');
   }
@@ -235,7 +241,7 @@ const formController = {
     try {
       const {
         name, studentId, mobileNumber, gender, batch, email,
-        academicLevel, cgpa, sportsScore, culturalScore,
+        academicLevel, academic_score, sportsScore, culturalScore,
         notOnProbation, trueStatement, sop, communityService,
         selected_role
       } = req.body;
@@ -265,7 +271,7 @@ const formController = {
       };
 
       if (selected_role === 'trailblazer') {
-        submissionData.cgpa = cgpa ? parseFloat(cgpa) : null;
+        submissionData.academic_score = academic_score ? parseFloat(academic_score) : null;
       }
 
       // Photo column
@@ -285,6 +291,7 @@ const formController = {
         // Overwrite whatever the client sent — sheet is the source of truth
         if (scores.sports_score   !== null) submissionData.sports_score   = scores.sports_score;
         if (scores.cultural_score !== null) submissionData.cultural_score = scores.cultural_score;
+        if (scores.academic_score !== null) submissionData.academic_score = scores.academic_score;
       } else {
         log.warn({ email }, '[ScoreRead] Master tokens unavailable — scores stored as null');
       }

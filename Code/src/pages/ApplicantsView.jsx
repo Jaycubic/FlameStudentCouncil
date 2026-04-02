@@ -132,7 +132,7 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
   }, [isOpen, record]);
 
   const resetForm = (p) => setForm({
-    cgpa:                    p?.cgpa                    ?? '',
+    academic_score:          p?.academic_score          ?? '',
     sports_score:            p?.sports_score            ?? '',
     cultural_score:          p?.cultural_score          ?? '',
     sports_verified_score:   p?.sports_verified_score   ?? '',
@@ -167,7 +167,7 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
   const awardKey      = badge.awardKey;
   const showSports    = awardKey === 'sports'      || awardKey === 'trailblazer';
   const showCultural  = awardKey === 'cultural'    || awardKey === 'trailblazer';
-  const showCgpa      = awardKey === 'trailblazer';
+  const showAcademicScore = awardKey === 'trailblazer';
 
   const InfoRow = ({ label, value }) => (
     <Box>
@@ -243,9 +243,9 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                   isLoading={saving}
                 />
                 <SimpleGrid columns={isEditing ? 2 : 3} spacing={4}>
-                  {showCgpa && (
-                    <EditableField label="CGPA"
-                      value={profile.cgpa} fieldKey="cgpa"
+                  {showAcademicScore && (
+                    <EditableField label="Academic Score"
+                      value={profile.academic_score} fieldKey="academic_score"
                       isEditing={isEditing} form={form} onChange={handleChange} />
                   )}
                   {showSports && (

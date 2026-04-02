@@ -1,7 +1,7 @@
 # scripts/read_sheet_score.py
 #
-# Reads the computed value of cell B1 from a Google Spreadsheet.
-# B1 contains =SUM(J5:J495) — we want the result, not the formula.
+# Reads the computed value of the merged cell C11:D11 from
+# the 'Personal Information' tab of a student's workbook.
 #
 # Usage:
 #   python3 read_sheet_score.py <spreadsheet_id>
@@ -30,7 +30,7 @@ def build_creds(access_token, refresh_token):
         client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
         scopes=[
             'https://www.googleapis.com/auth/drive',
-            'https://www.googleapis.com/auth/spreadsheets'  # must match what master token was granted
+            'https://www.googleapis.com/auth/spreadsheets'
         ]
     )
     try:
@@ -39,7 +39,6 @@ def build_creds(access_token, refresh_token):
     except Exception as e:
         raise RuntimeError(f'Token refresh failed: {e}')
     return creds
-
 
 
 def main():
@@ -58,11 +57,11 @@ def main():
         creds   = build_creds(access_token, refresh_token)
         service = build('sheets', 'v4', credentials=creds)
 
-        # UNFORMATTED_VALUE returns the actual computed number, not the formula string
+        # Read from 'Personal Information'!C11:D11 (merged cell with total score)
         result = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
-            range='B1',
-            valueRenderOption='UNFORMATTED_VALUE'   # raw number, e.g. 8.5
+            range="'Personal Information'!C11:D11",
+            valueRenderOption='UNFORMATTED_VALUE'
         ).execute()
 
         values = result.get('values', [])

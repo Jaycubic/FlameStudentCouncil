@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 const { Op }  = require('sequelize');
 const {
     TrailblazerAward, SportsPersonAward, CulturalPersonAward,
-    SportsUserSheet, CulturalUserSheet,
+    SportsUserSheet, CulturalUserSheet, AcademicUserSheet,
     AwardsWorkbook, User,
 } = require('../models');
 const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
@@ -17,7 +17,7 @@ const IMMUTABLE = new Set(['student_id', 'email', 'name']);
 
 // ─── Whitelisted fields that CAN be synced cloud → local ─────────────────────
 const CLOUD_SYNCABLE = [
-    'cgpa', 'sports_score', 'cultural_score',
+    'academic_score', 'sports_score', 'cultural_score',
     'sports_verified_score', 'cultural_verified_score',
 ];
 
@@ -62,13 +62,15 @@ async function collectAllData() {
         ]),
     ];
 
-    const [sportsSheets, culturalSheets] = await Promise.all([
+    const [sportsSheets, culturalSheets, academicSheets] = await Promise.all([
         SportsUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
         CulturalUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
+        AcademicUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
     ]);
 
     const sportsSheetMap   = Object.fromEntries(sportsSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
     const culturalSheetMap = Object.fromEntries(culturalSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
+    const academicSheetMap = Object.fromEntries(academicSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
 
     const toRow = (r, awardType) => ({
         student_id:               r.student_id   || '',
@@ -77,7 +79,7 @@ async function collectAllData() {
         gender:                   r.gender       || '',
         batch:                    r.batch        || '',
         mobile_number:            r.mobile_number || '',
-        cgpa:                     r.cgpa         || '',
+        academic_score:           r.academic_score || '',
         sports_score:             r.sports_score || '',
         cultural_score:           r.cultural_score || '',
         sports_verified_score:    r.sports_verified_score || '',
@@ -85,6 +87,7 @@ async function collectAllData() {
         submission_date:          r.submission_date ? new Date(r.submission_date).toISOString().split('T')[0] : '',
         'Sports Sheet Link':      sportsSheetMap[r.email]   || '',
         'Cultural Sheet Link':    culturalSheetMap[r.email] || '',
+        'Academic Sheet Link':    academicSheetMap[r.email] || '',
         award_type:               awardType,
     });
 

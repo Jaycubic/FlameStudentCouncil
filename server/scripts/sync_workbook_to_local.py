@@ -21,7 +21,7 @@ SCOPES = [
 
 # Columns that CAN be synced back to local (all others are ignored)
 SYNCABLE_FIELDS = {
-    'cgpa', 'sports_score', 'cultural_score',
+    'academic_score', 'sports_score', 'cultural_score',
     'sports_verified_score', 'cultural_verified_score',
 }
 

@@ -3,9 +3,10 @@
 # Usage:
 #   python3 insert_photo_formula.py <sheet_id> <drive_file_id>
 #                                   <master_access_token> <master_refresh_token>
+#                                   <name> <student_id> <batch> <email> <mobile_number>
 #
-# Writes  =IMAGE("https://drive.google.com/uc?id=<drive_file_id>")
-# into cell B2 of the given Google Spreadsheet using the master token.
+# Writes =IMAGE() into 'Personal Information'!B13
+# Writes student info into 'Personal Information'!C4:D4 through C8:D8
 #
 # Returns: { success: true }  OR  { success: false, error }
 
@@ -44,7 +45,8 @@ def main():
         print(json.dumps({
             'success': False,
             'error': 'Usage: insert_photo_formula.py <sheet_id> <drive_file_id> '
-                     '<master_access_token> <master_refresh_token>'
+                     '<master_access_token> <master_refresh_token> '
+                     '[name] [student_id] [batch] [email] [mobile_number]'
         }))
         return
 
@@ -52,6 +54,13 @@ def main():
     drive_file_id     = sys.argv[2]
     master_access     = sys.argv[3]
     master_refresh    = sys.argv[4]
+
+    # Optional student info args
+    name              = sys.argv[5] if len(sys.argv) > 5 else ''
+    student_id        = sys.argv[6] if len(sys.argv) > 6 else ''
+    batch             = sys.argv[7] if len(sys.argv) > 7 else ''
+    email             = sys.argv[8] if len(sys.argv) > 8 else ''
+    mobile_number     = sys.argv[9] if len(sys.argv) > 9 else ''
 
     # ── Build credentials ──────────────────────────────────────────────────────
     try:
@@ -61,20 +70,39 @@ def main():
         return
 
     # ── Build the IMAGE formula ────────────────────────────────────────────────
-    # lh3.googleusercontent.com/d/ is Google's image CDN — Sheets treats it as
-    # a first-party trusted source and skips the "external parties" access prompt.
-    # drive.google.com/uc?id= triggers the prompt because Sheets sees it as an
-    # external download redirect, even though it's the same file.
     image_url = f'https://lh3.googleusercontent.com/d/{drive_file_id}'
     formula   = f'=IMAGE("{image_url}")'
 
     try:
         sheets_service = build('sheets', 'v4', credentials=creds)
-        sheets_service.spreadsheets().values().update(
+
+        # Batch update: photo formula + student info
+        data = [
+            # Photo in B13 of Personal Information tab
+            {
+                'range': "'Personal Information'!B13",
+                'values': [[formula]]
+            },
+        ]
+
+        # Student info in merged cells C4:D4 through C8:D8
+        if name:
+            data.append({'range': "'Personal Information'!C4", 'values': [[name]]})
+        if student_id:
+            data.append({'range': "'Personal Information'!C5", 'values': [[student_id]]})
+        if batch:
+            data.append({'range': "'Personal Information'!C6", 'values': [[batch]]})
+        if email:
+            data.append({'range': "'Personal Information'!C7", 'values': [[email]]})
+        if mobile_number:
+            data.append({'range': "'Personal Information'!C8", 'values': [[mobile_number]]})
+
+        sheets_service.spreadsheets().values().batchUpdate(
             spreadsheetId=sheet_id,
-            range='B2',
-            valueInputOption='USER_ENTERED',   # allows formula parsing
-            body={'values': [[formula]]}
+            body={
+                'valueInputOption': 'USER_ENTERED',
+                'data': data
+            }
         ).execute()
 
         print(json.dumps({'success': True}))

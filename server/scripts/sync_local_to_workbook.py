@@ -21,9 +21,9 @@ SCOPES = [
 ]
 
 ALL_COLS     = ['student_id','name','email','gender','batch','mobile_number',
-                'cgpa','sports_score','cultural_score',
+                'academic_score','sports_score','cultural_score',
                 'sports_verified_score','cultural_verified_score',
-                'submission_date','Sports Sheet Link','Cultural Sheet Link']
+                'submission_date','Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link']
 SPORTS_COLS  = ['student_id','name','email','gender','batch','mobile_number',
                 'sports_score','sports_verified_score',
                 'submission_date','Sports Sheet Link']
@@ -31,9 +31,9 @@ CULTURAL_COLS= ['student_id','name','email','gender','batch','mobile_number',
                 'cultural_score','cultural_verified_score',
                 'submission_date','Cultural Sheet Link']
 TRAIL_COLS   = ['student_id','name','email','gender','batch','mobile_number',
-                'cgpa','sports_score','cultural_score',
+                'academic_score','sports_score','cultural_score',
                 'sports_verified_score','cultural_verified_score',
-                'submission_date','Sports Sheet Link','Cultural Sheet Link']
+                'submission_date','Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link']
 
 
 def execute_with_retry(request, max_retries=4):

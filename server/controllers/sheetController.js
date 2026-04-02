@@ -1,5 +1,5 @@
 // controllers/sheetController.js
-const { CulturalUserSheet, SportsUserSheet, User, StudentData, PhotoDriveUpload } = require('../models');
+const { CulturalUserSheet, SportsUserSheet, AcademicUserSheet, User, StudentData, PhotoDriveUpload } = require('../models');
 const { spawn } = require('child_process');
 const path = require('path');
 const { sheetQueue, getJobStatus } = require('../queues/sheetQueue');
@@ -90,10 +90,10 @@ const PHOTO_FOLDER_ID_SHEET = '1zf29mZFzNObWcMjrbtKg13aoO9PNkqxK';
 
 async function insertPhotoFormula(sheetId, userEmail, masterUser) {
     try {
-        // Resolve student_id from StudentData
+        // Resolve student data
         const student = await StudentData.findOne({ where: { email_id: userEmail } });
         if (!student?.student_cvue_no) {
-            log.warn({ userEmail }, '[PhotoFormula] No StudentData found — skipping B2 insert');
+            log.warn({ userEmail }, '[PhotoFormula] No StudentData found — skipping insert');
             return;
         }
         const studentId = student.student_cvue_no.toString();
@@ -101,7 +101,7 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
         // Look up cached Drive file ID
         const photoRecord = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
         if (!photoRecord?.drive_file_id) {
-            log.warn({ studentId }, '[PhotoFormula] Photo not on Drive yet — skipping B2 insert');
+            log.warn({ studentId }, '[PhotoFormula] Photo not on Drive yet — skipping insert');
             return;
         }
 
@@ -110,17 +110,23 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
             sheetId,
             photoRecord.drive_file_id,
             masterUser.access_token,
-            masterUser.refresh_token
+            masterUser.refresh_token,
+            // Student info for Personal Information tab
+            student.student_name || '',
+            studentId,
+            student.batch || '',
+            student.email_id || userEmail,
+            student.contact_no ? student.contact_no.toString() : '',
         ]);
 
         if (result.success) {
-            log.info({ sheetId, studentId }, '[PhotoFormula] ✅ IMAGE formula inserted into B2');
+            log.info({ sheetId, studentId }, '[PhotoFormula] ✅ Photo + student info inserted');
         } else {
             log.warn({ sheetId, error: result.error }, '[PhotoFormula] Script returned failure');
         }
     } catch (err) {
-        // Never block sheet delivery — B2 formula is best-effort
-        log.error({ sheetId, err: err.message }, '[PhotoFormula] Non-fatal error inserting photo formula');
+        // Never block sheet delivery — photo/info insertion is best-effort
+        log.error({ sheetId, err: err.message }, '[PhotoFormula] Non-fatal error');
     }
 }
 
@@ -199,11 +205,12 @@ const sheetController = {
             const userEmail = req.user.email;
             const type = req.params.type;
 
-            if (!['cultural', 'sports'].includes(type)) {
+            if (!['cultural', 'sports', 'academic'].includes(type)) {
                 return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
             }
 
-            const Model = type === 'cultural' ? CulturalUserSheet : SportsUserSheet;
+            const MODEL_MAP = { cultural: CulturalUserSheet, sports: SportsUserSheet, academic: AcademicUserSheet };
+            const Model = MODEL_MAP[type];
 
             // ── 1. Check DB (fast path) ──────────────────────────────────────
             const existingSheet = await Model.findOne({ where: { email: userEmail } });
@@ -355,11 +362,11 @@ const sheetController = {
             const userEmail = req.body.email || req.user.email;
             const type = req.params.type;
 
-            if (!['cultural', 'sports'].includes(type)) {
+            if (!['cultural', 'sports', 'academic'].includes(type)) {
                 return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
             }
 
-            const Model = type === 'cultural' ? CulturalUserSheet : SportsUserSheet;
+            const Model = type === 'cultural' ? CulturalUserSheet : type === 'sports' ? SportsUserSheet : AcademicUserSheet;
             const sheet = await Model.findOne({ where: { email: userEmail } });
 
             if (!sheet) {
@@ -394,7 +401,7 @@ const sheetController = {
         try {
             const type = req.params.type;
 
-            if (!['cultural', 'sports'].includes(type)) {
+            if (!['cultural', 'sports', 'academic'].includes(type)) {
                 return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
             }
 

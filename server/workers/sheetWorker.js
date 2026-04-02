@@ -6,7 +6,7 @@ const { Worker } = require('bullmq');
 const { spawn } = require('child_process');
 const path = require('path');
 const redisConnection = require('../config/redis');
-const { CulturalUserSheet, SportsUserSheet } = require('../models');
+const { CulturalUserSheet, SportsUserSheet, AcademicUserSheet } = require('../models');
 const log = require('../utils/logger').child({ module: 'SheetWorker' });
 
 // ─── Python script runner (same as sheetController's) ─────────────────────────
@@ -41,7 +41,8 @@ function runPythonScript(scriptPath, args) {
 // ─── Job processor ────────────────────────────────────────────────────────────
 async function processSheetJob(job) {
     const { action, type, userEmail, args } = job.data;
-    const Model = type === 'cultural' ? CulturalUserSheet : SportsUserSheet;
+    const MODEL_MAP = { cultural: CulturalUserSheet, sports: SportsUserSheet, academic: AcademicUserSheet };
+    const Model = MODEL_MAP[type];
 
     log.info({ action, type, userEmail }, 'Processing sheet job');
 
