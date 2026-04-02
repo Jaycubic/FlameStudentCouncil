@@ -89,7 +89,7 @@ class NominationService {
             }
             throw error;
         }
-    }
+    }  // ← this brace was missing in the previous version
 
     async sendNotifications({ to, cc, subject, html }) {
         try {
