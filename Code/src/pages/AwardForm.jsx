@@ -565,23 +565,26 @@ function ApplicationFormDashboard() {
                 {!agreedToInstructions ? (
                     <MotionVStack key="instructions" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} spacing={8} align="stretch" mt={6}>
                         <Box p={{ base: 6, md: 10 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
-                            <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="bold" mb={{ base: 4, md: 6 }} color="blue.600">Important Instructions</Text>
                             <List spacing={5}>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>Formal Photograph:</b> A passport-sized formal photo is mandatory for all applicants.</Text>
+                                    <Text><b>1. Photo:</b> Your photo is usually already available in the form. Only upload a passport photo if the photo section is empty, otherwise you cannot continue.</Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>Evidence & Proof:</b> For Sports/Cultural Person roles, you must provide verifiable proof and score sheets.</Text>
+                                    <Text><b>2. Attachments:</b> Upload supporting documents as PDF only for each award section. Only PDF files can be previewed and accepted.</Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>Trailblazer Role:</b> Requires a combined submission of both Sport and Cultural achievements.</Text>
+                                    <Text><b>3. Generate Matrix Sheet:</b> After clicking "Generate Matrix Sheet", wait 5–10 seconds for processing. Generation time depends on system load. If it fails, simply try again.</Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>Integrity:</b> Any false information provided will lead to immediate disqualification and disciplinary action.</Text>
+                                    <Text><b>4. Allow Access:</b> When the matrix sheet opens, click "Allow access" at the top of the Google Sheet. This is required for your photo to load correctly into the sheet.</Text>
+                                </ListItem>
+                                <ListItem display="flex" alignItems="start">
+                                    <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
+                                    <Text><b>5. After Submission:</b> Once you submit a particular award form, your access to that Google Sheet will be removed automatically.</Text>
                                 </ListItem>
                             </List>
                             <Divider my={8} />
