@@ -565,26 +565,39 @@ function ApplicationFormDashboard() {
                 {!agreedToInstructions ? (
                     <MotionVStack key="instructions" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} spacing={8} align="stretch" mt={6}>
                         <Box p={{ base: 6, md: 10 }} borderRadius="2xl" bg={panelBg} borderWidth="1px" borderColor={boxBorderColor} boxShadow="sm">
-                            <List spacing={5}>
+                            <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="black" mb={{ base: 6, md: 8 }} color="red.500" textTransform="uppercase" letterSpacing="wider">
+                                Important Instructions
+                            </Text>
+                            <List spacing={6}>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>1. Photo:</b> Your photo is usually already available in the form. Only upload a passport photo if the photo section is empty, otherwise you cannot continue.</Text>
+                                    <Text fontSize="md">
+                                        <Text as="span" fontWeight="bold" color={textColor}>1. Photo:</Text> Upload a <b>passport photo</b> only if the photo section is <b>empty</b>. Otherwise, you cannot continue.
+                                    </Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>2. Attachments:</b> Upload supporting documents as PDF only for each award section. Only PDF files can be previewed and accepted.</Text>
+                                    <Text fontSize="md">
+                                        <Text as="span" fontWeight="bold" color={textColor}>2. Attachments:</Text> Upload <b>PDF ONLY</b> for each award section.
+                                    </Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>3. Generate Matrix Sheet:</b> After clicking "Generate Matrix Sheet", wait 5–10 seconds for processing. Generation time depends on system load. If it fails, simply try again.</Text>
+                                    <Text fontSize="md">
+                                        <Text as="span" fontWeight="bold" color={textColor}>3. Generate Matrix Sheet:</Text> On clicking the <b>Generate Matrix Sheet</b> button, wait <b>5–10 seconds</b> for processing. If generation fails, <b>retry</b>.
+                                    </Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>4. Allow Access:</b> When the matrix sheet opens, click "Allow access" at the top of the Google Sheet. This is required for your photo to load correctly into the sheet.</Text>
+                                    <Text fontSize="md">
+                                        <Text as="span" fontWeight="bold" color={textColor}>4. Allow Access:</Text> When the matrix sheet opens, click <b>Allow Access</b> at the top of the Google Sheet. This is <b>required</b> for your photo to load correctly.
+                                    </Text>
                                 </ListItem>
                                 <ListItem display="flex" alignItems="start">
                                     <Icon as={ChakraCheckIcon} color="green.500" mt={1} mr={3} />
-                                    <Text><b>5. After Submission:</b> Once you submit a particular award form, your access to that Google Sheet will be removed automatically.</Text>
+                                    <Text fontSize="md">
+                                        <Text as="span" fontWeight="bold" color={textColor}>5. After Submission:</Text> Once you submit a particular award form, <b>access to that Google Sheet will be removed automatically</b>.
+                                    </Text>
                                 </ListItem>
                             </List>
                             <Divider my={8} />
