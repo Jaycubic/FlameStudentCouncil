@@ -549,40 +549,68 @@ function WinnerCard({ nominee, config }) {
   )
 }
 
-// ─── Award section ────────────────────────────────────────────────────────────
+// ─── Award section (column card) ─────────────────────────────────────────────
 function AwardSection({ title, nominees, config }) {
-  const headingColor = useColorModeValue('gray.800', 'white')
-
-  if (!nominees?.length) return (
-    <Box>
-      <HStack mb={4}>
-        <Text fontSize="lg">{config.icon}</Text>
-        <Text fontWeight="700" fontSize="lg" color={headingColor}>{title}</Text>
-        <Badge colorScheme={config.color} borderRadius="full" px={2}>0</Badge>
-      </HStack>
-      <Alert status="info" borderRadius="xl" fontSize="sm">
-        <AlertIcon />
-        <AlertDescription>No nominees yet — click Generate Nominations to run selection.</AlertDescription>
-      </Alert>
-    </Box>
-  )
+  const colBg      = useColorModeValue('white', 'gray.800')
+  const borderColor= useColorModeValue('gray.200', 'gray.600')
+  const subColor   = useColorModeValue('gray.500', 'gray.400')
+  const emptyBg    = useColorModeValue('gray.50',  'gray.900')
 
   return (
-    <Box>
-      <HStack mb={4}>
-        <Text fontSize="lg">{config.icon}</Text>
-        <Text fontWeight="700" fontSize="lg" color={headingColor}>{title}</Text>
-        <Badge colorScheme={config.color} borderRadius="full" px={2}>
-          {nominees.length} {nominees.length === 1 ? 'Nominee' : 'Nominees'}
-        </Badge>
-      </HStack>
-      <SimpleGrid
-        columns={{ base: 1, md: nominees.length === 1 ? 1 : 2 }}
-        spacing={5}
-        maxW={nominees.length === 1 ? '420px' : 'full'}
+    <Box
+      bg={colBg}
+      border="1px solid" borderColor={borderColor}
+      borderRadius="2xl" overflow="hidden" boxShadow="md"
+      display="flex" flexDirection="column"
+      // fixed column height — nominees scroll inside
+      h="480px"
+    >
+      {/* Gradient accent strip */}
+      <Box bgGradient={config.gradient} h="5px" flexShrink={0} />
+
+      {/* Column header */}
+      <Box px={4} py={3} borderBottom="1px solid" borderColor={borderColor} flexShrink={0}>
+        <HStack justify="space-between" align="center">
+          <HStack spacing={2}>
+            <Text fontSize="18px" lineHeight="1">{config.icon}</Text>
+            <Text fontWeight="800" fontSize="13px" letterSpacing="-0.01em" noOfLines={1}>
+              {title}
+            </Text>
+          </HStack>
+          <Badge
+            colorScheme={config.color}
+            borderRadius="full" px={2} py={0.5}
+            fontSize="10px" fontWeight="700"
+          >
+            {nominees.length} {nominees.length === 1 ? 'Nominee' : 'Nominees'}
+          </Badge>
+        </HStack>
+      </Box>
+
+      {/* Scrollable nominees area */}
+      <Box flex="1" overflowY="auto" p={3}
+        sx={{
+          '&::-webkit-scrollbar':       { width: '4px' },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
+          '&::-webkit-scrollbar-thumb': { background: 'gray.300', borderRadius: '4px' },
+        }}
       >
-        {nominees.map(n => <WinnerCard key={n.id} nominee={n} config={config} />)}
-      </SimpleGrid>
+        {!nominees.length ? (
+          <Box h="full" display="flex" alignItems="center" justifyContent="center">
+            <VStack spacing={2} textAlign="center" px={4}>
+              <Text fontSize="28px">{config.icon}</Text>
+              <Text fontSize="12px" color={subColor} lineHeight="1.5">
+                No nominees yet.
+                <br />Click <b>Generate Nominations</b> to run selection.
+              </Text>
+            </VStack>
+          </Box>
+        ) : (
+          <VStack spacing={3} align="stretch">
+            {nominees.map(n => <WinnerCard key={n.id} nominee={n} config={config} />)}
+          </VStack>
+        )}
+      </Box>
     </Box>
   )
 }
@@ -705,7 +733,7 @@ export default function NominationView() {
         </CardBody>
       </Card>
 
-      {/* ── Award sections ── */}
+      {/* ── Award columns ── */}
       {isLoading ? (
         <Center py={16}>
           <VStack spacing={4}>
@@ -714,12 +742,12 @@ export default function NominationView() {
           </VStack>
         </Center>
       ) : (
-        <VStack spacing={10} align="stretch">
+        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={5} alignItems="start">
           {AWARD_ORDER.map(award => (
             <AwardSection key={award} title={award}
               nominees={grouped[award] || []} config={AWARD_CONFIG[award]} />
           ))}
-        </VStack>
+        </SimpleGrid>
       )}
 
       {/* ── Compose modal ── */}
