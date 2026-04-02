@@ -100,9 +100,15 @@ function ApplicationFormDashboard() {
     const [photoExists, setPhotoExists] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-    // ─── Validate that a role value is one of the expected server-side strings ─
     const VALID_ROLES = ['trailblazer', 'sports_person', 'cultural_person'];
     const isValidRole = (role) => VALID_ROLES.includes(role);
+
+    // Explicit map — avoids the broken .replace() transform that caused 'Sports Person' != 'Sports Person Award'
+    const ROLE_TITLE_MAP = {
+        trailblazer:     'Trailblazer',
+        sports_person:   'Sports Person Award',
+        cultural_person: 'Co-curricular Person Award',
+    };
 
     const fetchStatusAndPrefill = async () => {
         try {
@@ -137,16 +143,22 @@ function ApplicationFormDashboard() {
                 setAllCompleted(true);
             }
 
-            // Restore saved state — validate the saved role before trusting it
+            // Restore saved local state — but only if the role hasn't already been
+            // submitted from another device. The old transform ('sports_person' → 'Sports Person')
+            // was wrong; use the explicit map so the cross-device guard actually fires.
             const savedAgreed = localStorage.getItem('awardForm_agreed');
-            const savedRole = localStorage.getItem('awardForm_role');
+            const savedRole   = localStorage.getItem('awardForm_role');
+
             if (savedAgreed === 'true') setAgreedToInstructions(true);
-            if (
-                savedRole &&
-                isValidRole(savedRole) && // ← reject any tampered value
-                !roles.includes(savedRole.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()))
-            ) {
-                setSelectedRole(savedRole);
+
+            if (savedRole && isValidRole(savedRole)) {
+                const savedRoleTitle = ROLE_TITLE_MAP[savedRole];
+                if (roles.includes(savedRoleTitle)) {
+                    // Role was already submitted (possibly on another device) — clear stale localStorage
+                    localStorage.removeItem('awardForm_role');
+                } else {
+                    setSelectedRole(savedRole);
+                }
             }
 
             if (currentSettings && currentSettings.start_date) {
