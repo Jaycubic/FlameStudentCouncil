@@ -29,16 +29,16 @@ import PageHeader from '../components/layout/PageHeader';
 import { applicantsService } from '../services/applicantsService';
 
 const AWARD_TABS = [
-  { key: 'all',         label: 'All',                        color: 'purple' },
-  { key: 'sports',      label: 'Sports Person Award',        color: 'blue'   },
-  { key: 'cultural',    label: 'Co-curricular Person Award', color: 'pink'   },
-  { key: 'trailblazer', label: 'Trailblazer Awards',         color: 'orange' },
+  { key: 'all', label: 'All', color: 'purple' },
+  { key: 'sports', label: 'Sports Person Award', color: 'blue' },
+  { key: 'cultural', label: 'Co-curricular Person Award', color: 'pink' },
+  { key: 'trailblazer', label: 'Trailblazer Awards', color: 'orange' },
 ];
 
 const AWARD_BADGE = {
-  'Sports Person Award':        { colorScheme: 'blue',   label: 'Sports',      awardKey: 'sports'      },
-  'Co-curricular Person Award': { colorScheme: 'pink',   label: 'Co-curricular', awardKey: 'cultural'    },
-  'Trailblazer Award':          { colorScheme: 'orange', label: 'Trailblazer', awardKey: 'trailblazer' },
+  'Sports Person Award': { colorScheme: 'blue', label: 'Sports', awardKey: 'sports' },
+  'Co-curricular Person Award': { colorScheme: 'pink', label: 'Co-curricular', awardKey: 'cultural' },
+  'Trailblazer Award': { colorScheme: 'orange', label: 'Trailblazer', awardKey: 'trailblazer' },
 };
 
 const GRADIENT = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';
@@ -61,7 +61,7 @@ function SortBtn({ field, sortField, sortDir, onSort }) {
   );
 }
 
-// ─── Section Header (identical pattern to MyFacultyProfile) ───────────────────
+// ─── Section Header ───────────────────────────────────────────────────────────
 function SectionHeader({ title, isEditing, onToggle, onSave, isLoading }) {
   return (
     <Flex justify="space-between" align="center" mb={3}>
@@ -105,14 +105,14 @@ function EditableField({ label, value, fieldKey, isEditing, form, onChange, colo
 
 // ─── Profile Modal ─────────────────────────────────────────────────────────────
 function ProfileModal({ isOpen, onClose, record, onUpdate }) {
-  const [profile,   setProfile]   = useState(null);
-  const [loading,   setLoading]   = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [saving,    setSaving]    = useState(false);
-  const [form,      setForm]      = useState({});
-  const toast    = useToast();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({});
+  const toast = useToast();
   const subColor = useColorModeValue('gray.500', 'gray.400');
-  const cardBg   = useColorModeValue('gray.50',  'gray.700');
+  const cardBg = useColorModeValue('gray.50', 'gray.700');
   const divColor = useColorModeValue('gray.100', 'gray.600');
 
   useEffect(() => {
@@ -123,21 +123,18 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
     setIsEditing(false);
     setLoading(true);
     applicantsService.getProfile(awardKey, record.id)
-      .then(res => {
-        setProfile(res.data);
-        resetForm(res.data);
-      })
+      .then(res => { setProfile(res.data); resetForm(res.data); })
       .catch(err => toast({ title: 'Error', description: err.message, status: 'error', duration: 3000 }))
       .finally(() => setLoading(false));
   }, [isOpen, record]);
 
   const resetForm = (p) => setForm({
-    academic_score:           p?.academic_score           ?? '',
-    sports_score:             p?.sports_score             ?? '',
-    cultural_score:           p?.cultural_score           ?? '',
-    sports_verified_score:    p?.sports_verified_score    ?? '',
-    cultural_verified_score:  p?.cultural_verified_score  ?? '',
-    academic_verified_score:  p?.academic_verified_score  ?? '',
+    academic_score: p?.academic_score ?? '',
+    sports_score: p?.sports_score ?? '',
+    cultural_score: p?.cultural_score ?? '',
+    sports_verified_score: p?.sports_verified_score ?? '',
+    cultural_verified_score: p?.cultural_verified_score ?? '',
+    academic_verified_score: p?.academic_verified_score ?? '',
   });
 
   const handleChange = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -151,7 +148,6 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
       setProfile(updated);
       resetForm(updated);
       setIsEditing(false);
-      // Patch the parent table row so it reflects new values immediately
       if (onUpdate) onUpdate(record.id, record.award_type, res.data);
       toast({ title: 'Saved', status: 'success', duration: 2000 });
     } catch (err) {
@@ -162,12 +158,10 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
   const handleCancel = () => { resetForm(profile); setIsEditing(false); };
 
   const photoUrl = profile?.photo ? `/api/photos/${profile.photo}` : null;
-  const badge    = AWARD_BADGE[record?.award_type] || {};
-
-  // Which fields to show per award type
-  const awardKey      = badge.awardKey;
-  const showSports    = awardKey === 'sports'      || awardKey === 'trailblazer';
-  const showCultural  = awardKey === 'cultural'    || awardKey === 'trailblazer';
+  const badge = AWARD_BADGE[record?.award_type] || {};
+  const awardKey = badge.awardKey;
+  const showSports = awardKey === 'sports' || awardKey === 'trailblazer';
+  const showCultural = awardKey === 'cultural' || awardKey === 'trailblazer';
   const showAcademicScore = awardKey === 'trailblazer';
 
   const InfoRow = ({ label, value }) => (
@@ -182,7 +176,6 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
     <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
       <ModalOverlay backdropFilter="blur(4px)" />
       <ModalContent borderRadius="2xl">
-        {/* ── Gradient Header ─────────────────────────────────────────────── */}
         <Box bgGradient={GRADIENT} borderTopRadius="2xl" px={6} py={5}>
           <ModalCloseButton color="white" top={3} />
           {loading ? (
@@ -202,7 +195,6 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                 <Text color="whiteAlpha.700" fontSize="11px">{profile.email}</Text>
               </VStack>
               <Box ml="auto">
-                {/* Award type badge — always visible */}
                 <Badge colorScheme={badge.colorScheme} borderRadius="full" px={3} py={1} fontSize="11px"
                   textTransform="uppercase" letterSpacing="wide">
                   {badge.label} Award
@@ -219,22 +211,19 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
             </VStack>
           ) : profile ? (
             <VStack spacing={5} align="stretch">
-
-              {/* ── Read-only identity fields ──────────────────────────────── */}
               <SimpleGrid columns={3} spacing={4}>
-                <InfoRow label="Gender"    value={profile.gender} />
-                <InfoRow label="Batch"     value={profile.batch}  />
-                <InfoRow label="Mobile"    value={profile.mobile_number} />
+                <InfoRow label="Gender" value={profile.gender} />
+                <InfoRow label="Batch" value={profile.batch} />
+                <InfoRow label="Mobile" value={profile.mobile_number} />
                 <InfoRow label="Submitted"
                   value={profile.submission_date
                     ? new Date(profile.submission_date).toLocaleDateString('en-IN',
-                        { day: '2-digit', month: 'short', year: 'numeric' })
+                      { day: '2-digit', month: 'short', year: 'numeric' })
                     : null} />
               </SimpleGrid>
 
               <Divider borderColor={divColor} />
 
-              {/* ── Inline-editable score section ──────────────────────────── */}
               <Box bg={cardBg} borderRadius="xl" p={4}>
                 <SectionHeader
                   title="Scores & Verified Scores"
@@ -282,7 +271,6 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
 
               <Divider borderColor={divColor} />
 
-              {/* ── Matrix Sheets ───────────────────────────────────────────── */}
               <Box>
                 <Text fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="wider"
                   color={subColor} mb={2}>Matrix Sheets</Text>
@@ -317,7 +305,6 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                 </HStack>
               </Box>
 
-              {/* ── Attachments ─────────────────────────────────────────────── */}
               {((profile.attachments?.sport?.length > 0) || (profile.attachments?.cultural?.length > 0) || (profile.attachments?.academic?.length > 0)) && (
                 <>
                   <Divider borderColor={divColor} />
@@ -353,7 +340,6 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                   </Box>
                 </>
               )}
-
             </VStack>
           ) : null}
         </ModalBody>
@@ -368,31 +354,31 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function ApplicantsView() {
-  const toast      = useToast();
-  const bgColor    = useColorModeValue('white', 'gray.800');
-  const textColor  = useColorModeValue('gray.700', 'gray.200');
-  const subColor   = useColorModeValue('gray.400', 'gray.500');
-  const borderColor= useColorModeValue('gray.200', 'gray.600');
-  const hoverBg    = useColorModeValue('gray.50', 'gray.700');
+  const toast = useToast();
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.700', 'gray.200');
+  const subColor = useColorModeValue('gray.400', 'gray.500');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const hoverBg = useColorModeValue('gray.50', 'gray.700');
   const titleColor = useColorModeValue('gray.800', 'white');
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedRecord, setSelectedRecord] = useState(null);
 
-  const [data,       setData]       = useState([]);
-  const [total,      setTotal]      = useState(0);
-  const [pages,      setPages]      = useState(1);
+  const [data, setData] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
   const [filterOpts, setFilterOpts] = useState({ genders: [], batches: [] });
-  const [isLoading,  setIsLoading]  = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [awardTab,    setAwardTab]    = useState('all');
+  const [awardTab, setAwardTab] = useState('all');
   const [searchInput, setSearchInput] = useState('');
-  const [search,      setSearch]      = useState('');
-  const [gender,      setGender]      = useState('');
-  const [batch,       setBatch]       = useState('');
-  const [sortField,   setSortField]   = useState('');
-  const [sortDir,     setSortDir]     = useState('asc');
-  const [page,        setPage]        = useState(1);
+  const [search, setSearch] = useState('');
+  const [gender, setGender] = useState('');
+  const [batch, setBatch] = useState('');
+  const [sortField, setSortField] = useState('');
+  const [sortDir, setSortDir] = useState('asc');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 400);
@@ -408,9 +394,9 @@ function ApplicantsView() {
         awardType: awardTab, search, gender, batch,
         sortField, sortDir, page, limit: PAGE_LIMIT,
       });
-      setData(result.data       || []);
-      setTotal(result.total     || 0);
-      setPages(result.pages     || 1);
+      setData(result.data || []);
+      setTotal(result.total || 0);
+      setPages(result.pages || 1);
       setFilterOpts(result.filters || { genders: [], batches: [] });
     } catch (err) {
       toast({ title: 'Error', description: err.message, status: 'error', duration: 4000 });
@@ -431,7 +417,6 @@ function ApplicantsView() {
 
   const openProfile = (record) => { setSelectedRecord(record); onOpen(); };
 
-  // Patch the in-memory data row after a profile save — no reload needed
   const handleProfileUpdate = (recordId, awardType, updatedFields) => {
     setData(prev => prev.map(row =>
       row.id === recordId && row.award_type === awardType
@@ -440,22 +425,45 @@ function ApplicantsView() {
     ));
   };
 
-  // ── Workbook handlers ────────────────────────────────────────────────────────
-  const [sheetLoading,     setSheetLoading]     = useState(false);
-  const [syncDownLoading,  setSyncDownLoading]  = useState(false);
-  const [syncUpLoading,    setSyncUpLoading]    = useState(false);
+  // ── Workbook state ────────────────────────────────────────────────────────────
+  // workbookUrl: null = not yet generated, string = ready to open
+  const [sheetLoading, setSheetLoading] = useState(false);
+  const [workbookUrl, setWorkbookUrl] = useState(null);
+  const [syncDownLoading, setSyncDownLoading] = useState(false);
+  const [syncUpLoading, setSyncUpLoading] = useState(false);
 
+  // ── First click: fetch URL from server and store it (no popup) ───────────────
+  // ── Second click (the <Link> renders instead): user navigates themselves ─────
   const handleOpenSheet = async () => {
+    // If URL is already known just let the Link handle it — this branch never runs
+    // because the button is replaced by the Link once workbookUrl is set.
     setSheetLoading(true);
     try {
       const res = await applicantsService.openWorkbook();
-      if (res.success) {
-        window.open(res.url, '_blank');
-        if (res.isNew) toast({ title: 'Workbook created', description: 'Opened in a new tab.', status: 'success', duration: 4000 });
+      if (res.success && res.url) {
+        setWorkbookUrl(res.url);
+        // No window.open — the button transforms into a link instead
+        if (res.isNew) {
+          toast({
+            title: 'Workbook created',
+            description: 'Click "Open Sheet" to view it.',
+            status: 'success',
+            duration: 4000,
+          });
+        } else {
+          toast({
+            title: 'Sheet ready',
+            description: 'Click "Open Sheet" to view it.',
+            status: 'info',
+            duration: 3000,
+          });
+        }
       }
     } catch (err) {
       toast({ title: 'Google Sheet error', description: err.message, status: 'error', duration: 5000 });
-    } finally { setSheetLoading(false); }
+    } finally {
+      setSheetLoading(false);
+    }
   };
 
   const handleSyncFromCloud = async () => {
@@ -463,8 +471,12 @@ function ApplicantsView() {
     try {
       const res = await applicantsService.syncFromCloud();
       if (res.success) {
-        toast({ title: `Synced ${res.updated} record${res.updated !== 1 ? 's' : ''} from Cloud`, description: `${res.skipped} unchanged.`, status: 'success', duration: 4000 });
-        load(); // refresh table
+        toast({
+          title: `Synced ${res.updated} record${res.updated !== 1 ? 's' : ''} from Cloud`,
+          description: `${res.skipped} unchanged.`,
+          status: 'success', duration: 4000,
+        });
+        load();
       }
     } catch (err) {
       toast({ title: 'Sync from Cloud failed', description: err.message, status: 'error', duration: 5000 });
@@ -476,20 +488,24 @@ function ApplicantsView() {
     try {
       const res = await applicantsService.syncToCloud();
       if (res.success) {
-        toast({ title: 'Cloud Sheet updated', description: `${res.tabs_updated} tab${res.tabs_updated !== 1 ? 's' : ''} refreshed.`, status: 'success', duration: 4000 });
+        toast({
+          title: 'Cloud Sheet updated',
+          description: `${res.tabs_updated} tab${res.tabs_updated !== 1 ? 's' : ''} refreshed.`,
+          status: 'success', duration: 4000,
+        });
       }
     } catch (err) {
       toast({ title: 'Sync to Cloud failed', description: err.message, status: 'error', duration: 5000 });
     } finally { setSyncUpLoading(false); }
   };
 
-  const showSports            = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
-  const showCultural          = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
-  const showVerSports         = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
-  const showVerCultural       = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
-  const showAcademic          = awardTab === 'all' || awardTab === 'trailblazer';
-  const showVerAcademic       = awardTab === 'all' || awardTab === 'trailblazer';
-  const showTotal             = awardTab === 'all' || awardTab === 'trailblazer';
+  const showSports = awardTab === 'all' || awardTab === 'sports' || awardTab === 'trailblazer';
+  const showCultural = awardTab === 'all' || awardTab === 'cultural' || awardTab === 'trailblazer';
+  const showVerSports = awardTab === 'all' || awardTab === 'sports' || awardTab === 'trailblazer';
+  const showVerCultural = awardTab === 'all' || awardTab === 'cultural' || awardTab === 'trailblazer';
+  const showAcademic = awardTab === 'all' || awardTab === 'trailblazer';
+  const showVerAcademic = awardTab === 'all' || awardTab === 'trailblazer';
+  const showTotal = awardTab === 'all' || awardTab === 'trailblazer';
 
   const ThCell = ({ children, field, sortable, minW = 'auto' }) => (
     <Th color="white" px={2} py={2} minW={minW}
@@ -516,7 +532,7 @@ function ApplicantsView() {
 
       <Card variant="outline" bg={bgColor} overflow="hidden">
         <Box px={5} py={3}>
-          {/* Tabs + Workbook buttons on same row */}
+          {/* Tabs + Workbook buttons */}
           <Flex align="center" justify="space-between" mb={3} flexWrap="wrap" gap={2}>
             <HStack spacing={2} flexWrap="wrap">
               {AWARD_TABS.map(tab => (
@@ -531,27 +547,68 @@ function ApplicantsView() {
               ))}
             </HStack>
 
-            {/* ─── Workbook action buttons ─────── */}
+            {/* ─── Workbook action buttons ──────────────────────────────────── */}
             <HStack spacing={2}>
-              <Tooltip label="Open / generate the admin Google Sheet workbook" hasArrow placement="bottom">
-                <Button
-                  size="sm"
-                  leftIcon={<ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />}
-                  colorScheme="green"
-                  variant="solid"
-                  borderRadius="lg"
-                  fontSize="12px"
-                  fontWeight="600"
-                  isLoading={sheetLoading}
-                  loadingText="Opening…"
-                  onClick={handleOpenSheet}
-                  boxShadow="sm"
-                  _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
-                  transition="all 0.15s"
-                >
-                  Google Sheet
-                </Button>
-              </Tooltip>
+
+              {/*
+                ── Google Sheet button — two states ────────────────────────────
+                STATE 1 (workbookUrl is null):
+                  Button triggers the API call. No popup.
+                  On success the URL is stored and the button swaps to State 2.
+
+                STATE 2 (workbookUrl is set):
+                  Renders as a plain <Link> styled to look like the button.
+                  The browser treats it as a normal user-initiated navigation —
+                  no popup blocker can interfere because there is no programmatic
+                  window.open() involved at all.
+              */}
+              {workbookUrl ? (
+                // ── State 2: URL known — render as a native anchor ────────────
+                <Tooltip label="Click to open your Google Sheet" hasArrow placement="bottom">
+                  <Link
+                    href={workbookUrl}
+                    isExternal
+                    _hover={{ textDecoration: 'none' }}
+                  >
+                    <Button
+                      as="span"           // prevents nested <a> — Link is the real anchor
+                      size="sm"
+                      leftIcon={<ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />}
+                      colorScheme="green"
+                      variant="solid"
+                      borderRadius="lg"
+                      fontSize="12px"
+                      fontWeight="600"
+                      boxShadow="sm"
+                      _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
+                      transition="all 0.15s"
+                    >
+                      Open Sheet ↗
+                    </Button>
+                  </Link>
+                </Tooltip>
+              ) : (
+                // ── State 1: URL not yet fetched — trigger the API ────────────
+                <Tooltip label="Generate / open the admin Google Sheet workbook" hasArrow placement="bottom">
+                  <Button
+                    size="sm"
+                    leftIcon={<ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />}
+                    colorScheme="green"
+                    variant="solid"
+                    borderRadius="lg"
+                    fontSize="12px"
+                    fontWeight="600"
+                    isLoading={sheetLoading}
+                    loadingText="Generating…"
+                    onClick={handleOpenSheet}
+                    boxShadow="sm"
+                    _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
+                    transition="all 0.15s"
+                  >
+                    Google Sheet
+                  </Button>
+                </Tooltip>
+              )}
 
               <Tooltip label="Pull cloud edits → Update local DB" hasArrow placement="bottom">
                 <Button
@@ -668,13 +725,13 @@ function ApplicantsView() {
                   <ThCell minW="50px">Gender</ThCell>
                   <ThCell minW="65px">Batch</ThCell>
                   <ThCell minW="75px">Award</ThCell>
-                  {showSports      && <ThCell field="sports_score"            sortable minW="58px">Sports</ThCell>}
-                  {showCultural    && <ThCell field="cultural_score"          sortable minW="60px">Cultural</ThCell>}
-                  {showAcademic    && <ThCell field="academic_score"          sortable minW="60px">Academic</ThCell>}
-                  {showVerSports   && <ThCell field="sports_verified_score"   sortable minW="60px">Ver. Sports</ThCell>}
+                  {showSports && <ThCell field="sports_score" sortable minW="58px">Sports</ThCell>}
+                  {showCultural && <ThCell field="cultural_score" sortable minW="60px">Cultural</ThCell>}
+                  {showAcademic && <ThCell field="academic_score" sortable minW="60px">Academic</ThCell>}
+                  {showVerSports && <ThCell field="sports_verified_score" sortable minW="60px">Ver. Sports</ThCell>}
                   {showVerCultural && <ThCell field="cultural_verified_score" sortable minW="64px">Ver. Cultural</ThCell>}
                   {showVerAcademic && <ThCell field="academic_verified_score" sortable minW="64px">Ver. Academic</ThCell>}
-                  {showTotal       && <ThCell field="total_verified_score"    sortable minW="60px">Total</ThCell>}
+                  {showTotal && <ThCell field="total_verified_score" sortable minW="60px">Total</ThCell>}
                   <ThCell field="submission_date" sortable minW="72px">Submitted</ThCell>
                   <ThCell minW="78px">Action</ThCell>
                 </Tr>
@@ -683,7 +740,6 @@ function ApplicantsView() {
                 const badge = AWARD_BADGE[record.award_type] || {};
                 return (
                   <>
-                    {/* Student VStack */}
                     <Td px={2} py={1} borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor} minW="160px">
                       <VStack align="start" spacing={0} lineHeight="1.3">
                         <Text fontSize="11px" fontWeight="600" color={titleColor} noOfLines={1}>{record.name || '—'}</Text>
@@ -693,25 +749,23 @@ function ApplicantsView() {
                     </Td>
                     <TdCell>{record.gender}</TdCell>
                     <TdCell>{record.batch}</TdCell>
-                    {/* Award badge */}
                     <Td px={2} py={1} borderColor={borderColor} borderRight="1px solid" borderRightColor={borderColor}>
                       <Badge colorScheme={badge.colorScheme} borderRadius="full" px={2} fontSize="10px">
                         {badge.label}
                       </Badge>
                     </Td>
-                    {showSports      && <TdCell>{record.sports_score}</TdCell>}
-                    {showCultural    && <TdCell>{record.cultural_score}</TdCell>}
-                    {showAcademic    && <TdCell>{record.academic_score}</TdCell>}
-                    {showVerSports   && <TdCell color={record.sports_verified_score   ? 'green.500' : subColor}>{record.sports_verified_score}</TdCell>}
+                    {showSports && <TdCell>{record.sports_score}</TdCell>}
+                    {showCultural && <TdCell>{record.cultural_score}</TdCell>}
+                    {showAcademic && <TdCell>{record.academic_score}</TdCell>}
+                    {showVerSports && <TdCell color={record.sports_verified_score ? 'green.500' : subColor}>{record.sports_verified_score}</TdCell>}
                     {showVerCultural && <TdCell color={record.cultural_verified_score ? 'green.500' : subColor}>{record.cultural_verified_score}</TdCell>}
                     {showVerAcademic && <TdCell color={record.academic_verified_score ? 'green.500' : subColor}>{record.academic_verified_score}</TdCell>}
-                    {showTotal       && <TdCell color={record.total_verified_score    ? 'orange.500' : subColor}><b>{record.total_verified_score}</b></TdCell>}
+                    {showTotal && <TdCell color={record.total_verified_score ? 'orange.500' : subColor}><b>{record.total_verified_score}</b></TdCell>}
                     <TdCell>
                       {record.submission_date
                         ? new Date(record.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
                         : '—'}
                     </TdCell>
-                    {/* Action */}
                     <Td px={2} py={1} borderColor={borderColor}>
                       <Button size="xs" colorScheme="blue" variant="outline" borderRadius="full"
                         fontSize="10px" onClick={() => openProfile(record)}>
@@ -726,7 +780,6 @@ function ApplicantsView() {
         </Box>
       </Card>
 
-      {/* Profile Modal */}
       <ProfileModal isOpen={isOpen} onClose={onClose} record={selectedRecord} onUpdate={handleProfileUpdate} />
     </Box>
   );
