@@ -17,10 +17,14 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
-          // Vite injects a small inline script for module preloading — allow it
           "'unsafe-inline'",
+          "https://static.cloudflareinsights.com", // ← Cloudflare Web Analytics
         ],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Chakra UI requires unsafe-inline styles
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com", // ← Google Fonts stylesheet
+        ],
         imgSrc: [
           "'self'",
           "data:",
@@ -31,10 +35,15 @@ app.use(
         connectSrc: [
           "'self'",
           "https://flameawards.in",
+          "https://cloudflareinsights.com", // ← Cloudflare sends beacon data here
         ],
-        fontSrc: ["'self'", "data:"],
+        fontSrc: [
+          "'self'",
+          "data:",
+          "https://fonts.gstatic.com", // ← Google Fonts actual font files
+        ],
         objectSrc: ["'none'"],
-        frameAncestors: ["'none'"], // prevents clickjacking
+        frameAncestors: ["'none'"],
         formAction: ["'self'"],
         upgradeInsecureRequests: [],
       },
