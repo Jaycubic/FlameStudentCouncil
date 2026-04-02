@@ -487,8 +487,8 @@ function ApplicantsView() {
   const showCultural          = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
   const showVerSports         = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
   const showVerCultural       = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
-  const showAcademic          = awardTab === 'trailblazer';
-  const showVerAcademic       = awardTab === 'trailblazer';
+  const showAcademic          = awardTab === 'all' || awardTab === 'trailblazer';
+  const showVerAcademic       = awardTab === 'all' || awardTab === 'trailblazer';
 
   const ThCell = ({ children, field, sortable, minW = 'auto' }) => (
     <Th color="white" px={2} py={2} minW={minW}
