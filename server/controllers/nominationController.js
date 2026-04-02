@@ -9,8 +9,7 @@ function toFloat(val) {
     return isNaN(n) ? null : n;
 }
 
-// ─── Helper: pick top-scorer per gender ───────────────────────────────────────
-// Returns { Male: record|null, Female: record|null }
+// ─── Helper: pick top-scorer per gender ──────────────────────────────────────
 function topPerGender(rows, scoreField) {
     const best = {};
     for (const row of rows) {
@@ -36,15 +35,15 @@ async function generateNominations(req, res) {
             }),
             TrailblazerAward.findAll({
                 attributes: ['id', 'name', 'student_id', 'gender', 'batch', 'email',
-                             'sports_verified_score', 'cultural_verified_score', 'academic_verified_score'],
+                    'sports_verified_score', 'cultural_verified_score', 'academic_verified_score'],
             }),
         ]);
 
         const nominees = [];
 
-        // ── Sports Person Award: best Male + best Female ───────────────────────
+        // ── Sports Person Award ───────────────────────────────────────────────
         const sportsWinners = topPerGender(sportsRows.map(r => r.toJSON()), 'sports_verified_score');
-        for (const [gender, row] of Object.entries(sportsWinners)) {
+        for (const row of Object.values(sportsWinners)) {
             nominees.push({
                 name:                  row.name,
                 student_id:            row.student_id,
@@ -56,9 +55,9 @@ async function generateNominations(req, res) {
             });
         }
 
-        // ── Co-curricular Person Award: best Male + best Female ────────────────
+        // ── Co-curricular Person Award ────────────────────────────────────────
         const culturalWinners = topPerGender(culturalRows.map(r => r.toJSON()), 'cultural_verified_score');
-        for (const [gender, row] of Object.entries(culturalWinners)) {
+        for (const row of Object.values(culturalWinners)) {
             nominees.push({
                 name:                    row.name,
                 student_id:              row.student_id,
@@ -70,7 +69,7 @@ async function generateNominations(req, res) {
             });
         }
 
-        // ── Trailblazer Award: single highest total ────────────────────────────
+        // ── Trailblazer Award: single highest total ───────────────────────────
         let trailWinner = null;
         let trailBestTotal = -Infinity;
         for (const r of trailblazerRows) {
@@ -101,7 +100,7 @@ async function generateNominations(req, res) {
             });
         }
 
-        // ── Overwrite existing nominations ─────────────────────────────────────
+        // ── Overwrite existing nominations ────────────────────────────────────
         await NominatedStudent.destroy({ where: {}, truncate: true });
         const created = await NominatedStudent.bulkCreate(nominees);
 
@@ -109,7 +108,7 @@ async function generateNominations(req, res) {
 
         return res.json({
             success: true,
-            count: created.length,
+            count:   created.length,
             nominees: created.map(n => n.toJSON()),
         });
 
@@ -122,7 +121,9 @@ async function generateNominations(req, res) {
 // ─── Get all nominees ─────────────────────────────────────────────────────────
 async function getNominations(req, res) {
     try {
-        const rows = await NominatedStudent.findAll({ order: [['award_name', 'ASC'], ['gender', 'ASC']] });
+        const rows = await NominatedStudent.findAll({
+            order: [['award_name', 'ASC'], ['gender', 'ASC']],
+        });
         return res.json({ success: true, data: rows.map(r => r.toJSON()) });
     } catch (err) {
         log.error({ err: err.message }, '[Nominations] getNominations error');
@@ -130,4 +131,35 @@ async function getNominations(req, res) {
     }
 }
 
-module.exports = { generateNominations, getNominations };
+// ─── Delete a single nominee by id ───────────────────────────────────────────
+async function deleteNominee(req, res) {
+    try {
+        const { id } = req.params;
+
+        // Guard: id must be a positive integer
+        const parsedId = parseInt(id, 10);
+        if (!parsedId || parsedId < 1) {
+            return res.status(400).json({ success: false, message: 'Invalid nominee ID.' });
+        }
+
+        const nominee = await NominatedStudent.findByPk(parsedId);
+        if (!nominee) {
+            return res.status(404).json({ success: false, message: 'Nominee not found.' });
+        }
+
+        await nominee.destroy();
+
+        log.info({ id: parsedId, name: nominee.name }, '[Nominations] Nominee deleted');
+
+        return res.json({
+            success: true,
+            message: `Nominee "${nominee.name}" has been removed.`,
+        });
+
+    } catch (err) {
+        log.error({ err: err.message }, '[Nominations] deleteNominee error');
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+module.exports = { generateNominations, getNominations, deleteNominee };

@@ -6,18 +6,19 @@ import {
   Flex, Icon, Stat, StatLabel, StatNumber, useDisclosure, Tooltip,
   Alert, AlertIcon, AlertDescription, AlertTitle,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  ModalCloseButton, Checkbox, Input,
+  ModalCloseButton, Checkbox, Input, IconButton,
 } from '@chakra-ui/react'
 import {
   TrophyIcon, SparklesIcon, EnvelopeIcon, PaperAirplaneIcon,
-  CheckCircleIcon, ExclamationCircleIcon, XMarkIcon,
+  CheckCircleIcon, ExclamationCircleIcon, XMarkIcon, TrashIcon,
 } from '@heroicons/react/24/outline'
-import axios from 'axios'
 
-const API = axios.create({ withCredentials: true })
+// ← axios removed; nominationService handles all calls now
+import { nominationService } from '../services/nominationService'
+
 const GRADIENT = 'linear(to-br, #1e3a8a, #2563eb)'
 
-// ─── Award config ─────────────────────────────────────────────────────────────
+// ─── Award config (unchanged) ─────────────────────────────────────────────────
 const AWARD_CONFIG = {
   'Sports Person Award': {
     color: 'blue', gradient: 'linear(to-br, #1e40af, #3b82f6)',
@@ -43,16 +44,15 @@ function computeTotal(n) {
   return vals.length ? vals.reduce((a, b) => a + b, 0).toFixed(2) : '—'
 }
 
-// ─── Email chip validation ────────────────────────────────────────────────────
 const isValidEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 
-// ─── TagInput (email chips) ───────────────────────────────────────────────────
+// ─── TagInput (unchanged) ─────────────────────────────────────────────────────
 function TagInput({ tags, setTags, placeholder, colorScheme = 'blue' }) {
-  const [input, setInput]     = useState('')
-  const borderCol  = useColorModeValue('gray.200', 'gray.600')
-  const chipBg     = useColorModeValue(`${colorScheme}.50`,  `${colorScheme}.900`)
-  const chipColor  = useColorModeValue(`${colorScheme}.700`, `${colorScheme}.200`)
-  const invalid    = input.length > 3 && !isValidEmail(input)
+  const [input, setInput] = useState('')
+  const borderCol = useColorModeValue('gray.200', 'gray.600')
+  const chipBg = useColorModeValue(`${colorScheme}.50`, `${colorScheme}.900`)
+  const chipColor = useColorModeValue(`${colorScheme}.700`, `${colorScheme}.200`)
+  const invalid = input.length > 3 && !isValidEmail(input)
 
   const addTag = val => {
     const email = val.trim().toLowerCase()
@@ -93,7 +93,7 @@ function TagInput({ tags, setTags, placeholder, colorScheme = 'blue' }) {
   )
 }
 
-// ─── Toolbar button (module-level to avoid remount on re-render) ──────────────
+// ─── ToolBtn (unchanged) ──────────────────────────────────────────────────────
 function ToolBtn({ label, onExec, title, btnStyle = {} }) {
   const hoverBg = useColorModeValue('gray.200', 'gray.600')
   return (
@@ -102,7 +102,7 @@ function ToolBtn({ label, onExec, title, btnStyle = {} }) {
         size="xs" variant="ghost" fontFamily="mono" fontSize="11px"
         px={1.5} minW="26px" h="24px" borderRadius="sm"
         onClick={onExec} _hover={{ bg: hoverBg }} style={btnStyle}
-        onMouseDown={e => e.preventDefault()} // keep editor focus
+        onMouseDown={e => e.preventDefault()}
       >
         {label}
       </Button>
@@ -110,14 +110,14 @@ function ToolBtn({ label, onExec, title, btnStyle = {} }) {
   )
 }
 
-// ─── Rich text editor ─────────────────────────────────────────────────────────
+// ─── RichTextEditor (unchanged) ───────────────────────────────────────────────
 function RichTextEditor({ editorRef }) {
-  const [isEmpty, setIsEmpty]   = useState(true)
-  const toolbarBg  = useColorModeValue('gray.50', 'gray.750')
-  const borderCol  = useColorModeValue('gray.200', 'gray.600')
-  const editorBg   = useColorModeValue('white', 'gray.800')
-  const phColor    = useColorModeValue('gray.400', 'gray.500')
-  const linkColor  = useColorModeValue('blue.600', 'blue.300')
+  const [isEmpty, setIsEmpty] = useState(true)
+  const toolbarBg = useColorModeValue('gray.50', 'gray.750')
+  const borderCol = useColorModeValue('gray.200', 'gray.600')
+  const editorBg = useColorModeValue('white', 'gray.800')
+  const phColor = useColorModeValue('gray.400', 'gray.500')
+  const linkColor = useColorModeValue('blue.600', 'blue.300')
 
   const exec = (cmd, val = null) => {
     editorRef.current?.focus()
@@ -129,30 +129,27 @@ function RichTextEditor({ editorRef }) {
   return (
     <Box border="1px solid" borderColor={borderCol} borderRadius="xl"
       overflow="hidden" display="flex" flexDirection="column" h="full">
-      {/* ── Formatting toolbar ── */}
       <Box bg={toolbarBg} px={2} py={1.5} borderBottom="1px solid" borderColor={borderCol} flexShrink={0}>
         <HStack spacing={0.5} flexWrap="wrap" rowGap="4px">
-          <ToolBtn label="B"  onExec={() => exec('bold')}              title="Bold (Ctrl+B)"      btnStyle={{ fontWeight: 900 }} />
-          <ToolBtn label="I"  onExec={() => exec('italic')}            title="Italic (Ctrl+I)"    btnStyle={{ fontStyle: 'italic' }} />
-          <ToolBtn label="U"  onExec={() => exec('underline')}         title="Underline (Ctrl+U)" btnStyle={{ textDecoration: 'underline' }} />
-          <ToolBtn label="S"  onExec={() => exec('strikeThrough')}     title="Strikethrough"      btnStyle={{ textDecoration: 'line-through' }} />
+          <ToolBtn label="B" onExec={() => exec('bold')} title="Bold" btnStyle={{ fontWeight: 900 }} />
+          <ToolBtn label="I" onExec={() => exec('italic')} title="Italic" btnStyle={{ fontStyle: 'italic' }} />
+          <ToolBtn label="U" onExec={() => exec('underline')} title="Underline" btnStyle={{ textDecoration: 'underline' }} />
+          <ToolBtn label="S" onExec={() => exec('strikeThrough')} title="Strikethrough" btnStyle={{ textDecoration: 'line-through' }} />
           <ToolSep />
-          <ToolBtn label="•"  onExec={() => exec('insertUnorderedList')} title="Bullet List" />
-          <ToolBtn label="1." onExec={() => exec('insertOrderedList')}   title="Numbered List" />
+          <ToolBtn label="•" onExec={() => exec('insertUnorderedList')} title="Bullet List" />
+          <ToolBtn label="1." onExec={() => exec('insertOrderedList')} title="Numbered List" />
           <ToolSep />
-          <ToolBtn label="H1" onExec={() => exec('formatBlock', 'h2')} title="Heading"    btnStyle={{ fontWeight: 800, fontSize: '10px' }} />
-          <ToolBtn label="¶"  onExec={() => exec('formatBlock', 'p')}  title="Paragraph"  btnStyle={{ fontSize: '13px' }} />
+          <ToolBtn label="H1" onExec={() => exec('formatBlock', 'h2')} title="Heading" btnStyle={{ fontWeight: 800, fontSize: '10px' }} />
+          <ToolBtn label="¶" onExec={() => exec('formatBlock', 'p')} title="Paragraph" btnStyle={{ fontSize: '13px' }} />
           <ToolSep />
-          <ToolBtn label="⬅" onExec={() => exec('justifyLeft')}   title="Align Left" />
+          <ToolBtn label="⬅" onExec={() => exec('justifyLeft')} title="Align Left" />
           <ToolBtn label="⬛" onExec={() => exec('justifyCenter')} title="Align Center" />
-          <ToolBtn label="➡" onExec={() => exec('justifyRight')}  title="Align Right" />
+          <ToolBtn label="➡" onExec={() => exec('justifyRight')} title="Align Right" />
           <ToolSep />
-          <ToolBtn label="—"  onExec={() => exec('insertHorizontalRule')} title="Horizontal Rule" />
-          <ToolBtn label="↩" onExec={() => exec('removeFormat')}          title="Clear Formatting" />
+          <ToolBtn label="—" onExec={() => exec('insertHorizontalRule')} title="Horizontal Rule" />
+          <ToolBtn label="↩" onExec={() => exec('removeFormat')} title="Clear Formatting" />
         </HStack>
       </Box>
-
-      {/* ── Editor area ── */}
       <Box position="relative" bg={editorBg} flex="1" overflow="hidden">
         {isEmpty && (
           <Text position="absolute" top={3} left={3} right={3} fontSize="13px"
@@ -184,28 +181,27 @@ function RichTextEditor({ editorRef }) {
   )
 }
 
-// ─── Compose modal ────────────────────────────────────────────────────────────
+// ─── ComposeModal — only handleSend updated to use nominationService ──────────
 function ComposeModal({ isOpen, onClose, nominees }) {
-  const toast      = useToast()
-  const editorRef  = useRef(null)
+  const toast = useToast()
+  const editorRef = useRef(null)
 
-  const modalBg    = useColorModeValue('white',   'gray.800')
-  const leftBg     = useColorModeValue('gray.50', 'gray.900')
-  const divColor   = useColorModeValue('gray.200','gray.600')
-  const subColor   = useColorModeValue('gray.500','gray.400')
-  const rowHover   = useColorModeValue('gray.100','gray.700')
-  const inputBorder= useColorModeValue('gray.200','gray.600')
-  const sentBg     = useColorModeValue('green.50', 'green.900')
-  const failedBg   = useColorModeValue('red.50',   'red.900')
+  const modalBg = useColorModeValue('white', 'gray.800')
+  const leftBg = useColorModeValue('gray.50', 'gray.900')
+  const divColor = useColorModeValue('gray.200', 'gray.600')
+  const subColor = useColorModeValue('gray.500', 'gray.400')
+  const rowHover = useColorModeValue('gray.100', 'gray.700')
+  const inputBorder = useColorModeValue('gray.200', 'gray.600')
+  const sentBg = useColorModeValue('green.50', 'green.900')
+  const failedBg = useColorModeValue('red.50', 'red.900')
 
-  const [selectedIds,     setSelectedIds]     = useState(new Set())
+  const [selectedIds, setSelectedIds] = useState(new Set())
   const [extraRecipients, setExtraRecipients] = useState([])
-  const [ccList,          setCcList]          = useState([])
-  const [subject,         setSubject]         = useState('')
-  const [isSending,       setIsSending]       = useState(false)
-  const [sendResult,      setSendResult]      = useState(null)
+  const [ccList, setCcList] = useState([])
+  const [subject, setSubject] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [sendResult, setSendResult] = useState(null)
 
-  // Reset on open
   useEffect(() => {
     if (isOpen) {
       setSelectedIds(new Set(nominees.map(n => n.id)))
@@ -218,7 +214,7 @@ function ComposeModal({ isOpen, onClose, nominees }) {
     }
   }, [isOpen, nominees])
 
-  const allSelected  = nominees.length > 0 && selectedIds.size === nominees.length
+  const allSelected = nominees.length > 0 && selectedIds.size === nominees.length
   const someSelected = selectedIds.size > 0 && selectedIds.size < nominees.length
 
   const toggleNominee = id =>
@@ -228,24 +224,25 @@ function ComposeModal({ isOpen, onClose, nominees }) {
     setSelectedIds(checked ? new Set(nominees.map(n => n.id)) : new Set())
 
   const selectedEmails = nominees.filter(n => selectedIds.has(n.id)).map(n => n.email)
-  const allEmails      = [...new Set([...selectedEmails, ...extraRecipients])]
-  const totalCount     = allEmails.length
+  const allEmails = [...new Set([...selectedEmails, ...extraRecipients])]
+  const totalCount = allEmails.length
 
+  // ← Now uses nominationService instead of inline axios
   const handleSend = async () => {
     const body = editorRef.current?.innerHTML || ''
-    if (!totalCount)         { toast({ title: 'Select at least one recipient',   status: 'warning', duration: 3000, isClosable: true }); return }
-    if (!subject.trim())     { toast({ title: 'Subject is required',              status: 'warning', duration: 3000, isClosable: true }); return }
+    if (!totalCount) { toast({ title: 'Select at least one recipient', status: 'warning', duration: 3000, isClosable: true }); return }
+    if (!subject.trim()) { toast({ title: 'Subject is required', status: 'warning', duration: 3000, isClosable: true }); return }
     if (!body || body === '<br>' || body.trim() === '') {
       toast({ title: 'Email body cannot be empty', status: 'warning', duration: 3000, isClosable: true }); return
     }
     setIsSending(true)
     try {
-      const res = await API.post('/api/email/send-notifications', {
+      const result = await nominationService.sendNotifications({
         to: allEmails, cc: ccList, subject: subject.trim(), html: body,
       })
-      setSendResult(res.data)
+      setSendResult(result)
     } catch (err) {
-      toast({ title: 'Send failed', description: err.response?.data?.message || err.message, status: 'error', duration: 6000, isClosable: true })
+      toast({ title: 'Send failed', description: err.message, status: 'error', duration: 6000, isClosable: true })
     } finally {
       setIsSending(false)
     }
@@ -258,7 +255,6 @@ function ComposeModal({ isOpen, onClose, nominees }) {
       <ModalContent borderRadius="2xl" overflow="hidden" maxH="90vh" m={4} bg={modalBg}
         boxShadow="0 32px 80px rgba(0,0,0,0.25)">
 
-        {/* ── Gradient header ── */}
         <Box bgGradient={GRADIENT} px={6} py={4} flexShrink={0}>
           <ModalCloseButton color="white" top={3} right={4} isDisabled={isSending}
             _hover={{ bg: 'whiteAlpha.200' }} borderRadius="lg" />
@@ -280,7 +276,6 @@ function ComposeModal({ isOpen, onClose, nominees }) {
 
         <ModalBody p={0} overflow="hidden">
           {sendResult ? (
-            /* ── Result screen ── */
             <Box p={8}>
               <VStack spacing={5} align="stretch">
                 <Alert
@@ -339,14 +334,9 @@ function ComposeModal({ isOpen, onClose, nominees }) {
               </VStack>
             </Box>
           ) : (
-            /* ── Compose UI ── */
             <Flex h="calc(90vh - 148px)" overflow="hidden">
-
-              {/* ── Left: Recipients ── */}
               <Box w="310px" flexShrink={0} bg={leftBg} borderRight="1px solid"
                 borderColor={divColor} display="flex" flexDirection="column" overflow="hidden">
-
-                {/* Select all */}
                 <Box p={4} borderBottom="1px solid" borderColor={divColor} flexShrink={0}>
                   <Text fontSize="10px" fontWeight="700" textTransform="uppercase"
                     letterSpacing="wider" color={subColor} mb={2}>Nominees</Text>
@@ -362,7 +352,6 @@ function ComposeModal({ isOpen, onClose, nominees }) {
                   </Checkbox>
                 </Box>
 
-                {/* Nominee list */}
                 <Box flex="1" overflowY="auto" p={3}>
                   {AWARD_ORDER.map(award => {
                     const group = nominees.filter(n => n.award_name === award)
@@ -400,7 +389,6 @@ function ComposeModal({ isOpen, onClose, nominees }) {
                   })}
                 </Box>
 
-                {/* Additional recipients */}
                 <Box p={3} borderTop="1px solid" borderColor={divColor} flexShrink={0}>
                   <Text fontSize="10px" fontWeight="700" textTransform="uppercase"
                     letterSpacing="wider" color={subColor} mb={1.5}>Additional Recipients</Text>
@@ -409,10 +397,7 @@ function ComposeModal({ isOpen, onClose, nominees }) {
                 </Box>
               </Box>
 
-              {/* ── Right: Compose ── */}
               <Flex flex="1" flexDirection="column" overflow="hidden">
-
-                {/* CC + Subject */}
                 <Box px={5} pt={4} pb={3} borderBottom="1px solid" borderColor={divColor} flexShrink={0}>
                   <HStack mb={2.5} align="start" spacing={3}>
                     <Text fontSize="11px" fontWeight="700" color={subColor}
@@ -424,7 +409,6 @@ function ComposeModal({ isOpen, onClose, nominees }) {
                         placeholder="Add CC recipients… (Enter to add)" colorScheme="purple" />
                     </Box>
                   </HStack>
-
                   <HStack align="center" spacing={3}>
                     <Text fontSize="11px" fontWeight="700" color={subColor}
                       w="42px" flexShrink={0} letterSpacing="wider" textTransform="uppercase">
@@ -441,8 +425,6 @@ function ComposeModal({ isOpen, onClose, nominees }) {
                     />
                   </HStack>
                 </Box>
-
-                {/* Rich text */}
                 <Box flex="1" p={3} overflow="hidden">
                   <RichTextEditor editorRef={editorRef} />
                 </Box>
@@ -451,13 +433,10 @@ function ComposeModal({ isOpen, onClose, nominees }) {
           )}
         </ModalBody>
 
-        {/* ── Footer ── */}
         <Box borderTop="1px solid" borderColor={divColor} px={5} py={3} flexShrink={0}>
           {sendResult ? (
             <Flex justify="flex-end">
-              <Button onClick={onClose} colorScheme="blue" size="sm" borderRadius="xl" px={6}>
-                Close
-              </Button>
+              <Button onClick={onClose} colorScheme="blue" size="sm" borderRadius="xl" px={6}>Close</Button>
             </Flex>
           ) : (
             <Flex justify="space-between" align="center">
@@ -468,9 +447,7 @@ function ComposeModal({ isOpen, onClose, nominees }) {
               </Text>
               <HStack spacing={3}>
                 <Button size="sm" variant="ghost" onClick={onClose}
-                  isDisabled={isSending} borderRadius="xl" fontSize="13px">
-                  Cancel
-                </Button>
+                  isDisabled={isSending} borderRadius="xl" fontSize="13px">Cancel</Button>
                 <Button
                   size="sm"
                   leftIcon={<Icon as={PaperAirplaneIcon} w={4} h={4} />}
@@ -480,10 +457,7 @@ function ComposeModal({ isOpen, onClose, nominees }) {
                   isDisabled={totalCount === 0 || isSending}
                   borderRadius="xl"
                   bgGradient={GRADIENT}
-                  color="white"
-                  fontWeight="700"
-                  px={5}
-                  boxShadow="md"
+                  color="white" fontWeight="700" px={5} boxShadow="md"
                   _hover={{ bgGradient: 'linear(to-br, #1e40af, #1d4ed8)', transform: 'translateY(-1px)', boxShadow: 'lg' }}
                   _active={{ transform: 'translateY(0)' }}
                   transition="all 0.15s"
@@ -499,25 +473,59 @@ function ComposeModal({ isOpen, onClose, nominees }) {
   )
 }
 
-// ─── Winner card (compact — two fit per column) ───────────────────────────────
-function WinnerCard({ nominee, config }) {
-  const cardBg      = useColorModeValue('white', 'gray.800')
-  const subColor    = useColorModeValue('gray.500', 'gray.400')
+// ─── WinnerCard — delete icon added ──────────────────────────────────────────
+// onDelete prop is called with nominee.id when the trash icon is clicked
+function WinnerCard({ nominee, config, onDelete }) {
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const cardBg = useColorModeValue('white', 'gray.800')
+  const subColor = useColorModeValue('gray.500', 'gray.400')
   const borderColor = useColorModeValue('gray.200', 'gray.600')
-  const scoreBg     = useColorModeValue(`${config.color}.50`, `${config.color}.900`)
-  const score       = config.scoreField ? (nominee[config.scoreField] ?? '—') : computeTotal(nominee)
-  const photoSrc    = `/api/photos/${nominee.student_id}`
+  const scoreBg = useColorModeValue(`${config.color}.50`, `${config.color}.900`)
+  const score = config.scoreField ? (nominee[config.scoreField] ?? '—') : computeTotal(nominee)
+  const photoSrc = `/api/photos/${nominee.student_id}`
+
+  const handleDelete = async (e) => {
+    e.stopPropagation()
+    setIsDeleting(true)
+    try {
+      await onDelete(nominee.id)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <Card bg={cardBg} borderRadius="xl" boxShadow="sm" border="1px solid"
       borderColor={borderColor} overflow="hidden"
       transition="transform 0.18s, box-shadow 0.18s"
       _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
+      position="relative"   // ← needed so the absolute delete btn positions inside the card
     >
+      {/* ── Delete button — top-right corner ── */}
+      <Tooltip label="Remove nominee" hasArrow fontSize="11px">
+        <IconButton
+          icon={<Icon as={TrashIcon} w={3.5} h={3.5} />}
+          aria-label="Delete nominee"
+          size="xs"
+          variant="ghost"
+          colorScheme="red"
+          position="absolute"
+          top={1.5}
+          right={1.5}
+          zIndex={1}
+          isLoading={isDeleting}
+          onClick={handleDelete}
+          borderRadius="lg"
+          opacity={0.5}
+          _hover={{ opacity: 1, bg: 'red.50' }}
+          transition="opacity 0.15s"
+        />
+      </Tooltip>
+
       <Box bgGradient={config.gradient} h="3px" />
       <CardBody p={3}>
         <VStack spacing={2} align="stretch">
-          {/* Identity row */}
           <HStack spacing={2.5}>
             <Avatar
               name={nominee.name}
@@ -534,7 +542,6 @@ function WinnerCard({ nominee, config }) {
             </VStack>
           </HStack>
 
-          {/* Gender + Batch inline */}
           <HStack spacing={4}>
             <Box>
               <Text fontSize="8px" fontWeight="700" textTransform="uppercase"
@@ -548,7 +555,6 @@ function WinnerCard({ nominee, config }) {
             </Box>
           </HStack>
 
-          {/* Score pill */}
           <Box bg={scoreBg} borderRadius="lg" py={1.5} textAlign="center">
             <Text fontSize="8px" fontWeight="700" textTransform="uppercase"
               letterSpacing="wider" color={`${config.color}.600`}>{config.scoreLabel}</Text>
@@ -561,48 +567,34 @@ function WinnerCard({ nominee, config }) {
   )
 }
 
-// ─── Award section (column card) ─────────────────────────────────────────────
-function AwardSection({ title, nominees, config }) {
-  const colBg      = useColorModeValue('white', 'gray.800')
-  const borderColor= useColorModeValue('gray.200', 'gray.600')
-  const subColor   = useColorModeValue('gray.500', 'gray.400')
-  const emptyBg    = useColorModeValue('gray.50',  'gray.900')
+// ─── AwardSection — receives onDelete and passes it down ─────────────────────
+function AwardSection({ title, nominees, config, onDelete }) {
+  const colBg = useColorModeValue('white', 'gray.800')
+  const borderColor = useColorModeValue('gray.200', 'gray.600')
+  const subColor = useColorModeValue('gray.500', 'gray.400')
 
   return (
     <Box
-      bg={colBg}
-      border="1px solid" borderColor={borderColor}
+      bg={colBg} border="1px solid" borderColor={borderColor}
       borderRadius="2xl" overflow="hidden" boxShadow="md"
-      display="flex" flexDirection="column"
-      // fixed column height — nominees scroll inside
-      h="480px"
+      display="flex" flexDirection="column" h="480px"
     >
-      {/* Gradient accent strip */}
       <Box bgGradient={config.gradient} h="5px" flexShrink={0} />
-
-      {/* Column header */}
       <Box px={4} py={3} borderBottom="1px solid" borderColor={borderColor} flexShrink={0}>
         <HStack justify="space-between" align="center">
           <HStack spacing={2}>
             <Text fontSize="18px" lineHeight="1">{config.icon}</Text>
-            <Text fontWeight="800" fontSize="13px" letterSpacing="-0.01em" noOfLines={1}>
-              {title}
-            </Text>
+            <Text fontWeight="800" fontSize="13px" letterSpacing="-0.01em" noOfLines={1}>{title}</Text>
           </HStack>
-          <Badge
-            colorScheme={config.color}
-            borderRadius="full" px={2} py={0.5}
-            fontSize="10px" fontWeight="700"
-          >
+          <Badge colorScheme={config.color} borderRadius="full" px={2} py={0.5} fontSize="10px" fontWeight="700">
             {nominees.length} {nominees.length === 1 ? 'Nominee' : 'Nominees'}
           </Badge>
         </HStack>
       </Box>
 
-      {/* Scrollable nominees area */}
       <Box flex="1" overflowY="auto" p={3}
         sx={{
-          '&::-webkit-scrollbar':       { width: '4px' },
+          '&::-webkit-scrollbar': { width: '4px' },
           '&::-webkit-scrollbar-track': { background: 'transparent' },
           '&::-webkit-scrollbar-thumb': { background: 'gray.300', borderRadius: '4px' },
         }}
@@ -612,14 +604,15 @@ function AwardSection({ title, nominees, config }) {
             <VStack spacing={2} textAlign="center" px={4}>
               <Text fontSize="28px">{config.icon}</Text>
               <Text fontSize="12px" color={subColor} lineHeight="1.5">
-                No nominees yet.
-                <br />Click <b>Generate Nominations</b> to run selection.
+                No nominees yet.<br />Click <b>Generate Nominations</b> to run selection.
               </Text>
             </VStack>
           </Box>
         ) : (
           <VStack spacing={3} align="stretch">
-            {nominees.map(n => <WinnerCard key={n.id} nominee={n} config={config} />)}
+            {nominees.map(n => (
+              <WinnerCard key={n.id} nominee={n} config={config} onDelete={onDelete} />
+            ))}
           </VStack>
         )}
       </Box>
@@ -629,44 +622,62 @@ function AwardSection({ title, nominees, config }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function NominationView() {
-  const toast       = useToast()
-  const bgColor     = useColorModeValue('gray.50', 'gray.900')
-  const cardBg      = useColorModeValue('white', 'gray.800')
-  const subColor    = useColorModeValue('gray.500', 'gray.400')
+  const toast = useToast()
+  const bgColor = useColorModeValue('gray.50', 'gray.900')
+  const cardBg = useColorModeValue('white', 'gray.800')
+  const subColor = useColorModeValue('gray.500', 'gray.400')
   const borderColor = useColorModeValue('gray.200', 'gray.600')
 
   const { isOpen: isComposeOpen, onOpen: onComposeOpen, onClose: onComposeClose } = useDisclosure()
 
-  const [nominees,     setNominees]     = useState([])
-  const [isLoading,    setIsLoading]    = useState(true)
+  const [nominees, setNominees] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  const load = useCallback(async () => {
+  // ← loadNominees uses nominationService now
+  const loadNominees = useCallback(async () => {
     setIsLoading(true)
     try {
-      const res = await API.get('/api/nominations')
-      setNominees(res.data?.data || [])
+      const res = await nominationService.getNominations()
+      setNominees(res?.data || [])
     } catch (err) {
-      toast({ title: 'Error loading nominations', description: err.response?.data?.message || err.message, status: 'error', duration: 4000 })
+      toast({ title: 'Error loading nominations', description: err.message, status: 'error', duration: 4000 })
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { loadNominees() }, [loadNominees])
 
+  // ← generateNominations uses nominationService now
   const handleGenerate = async () => {
     setIsGenerating(true)
     try {
-      const res = await API.post('/api/nominations/generate')
-      setNominees(res.data?.nominees || [])
-      toast({ title: `Generated ${res.data?.count || 0} nominees`, status: 'success', duration: 3000 })
+      const res = await nominationService.generateNominations()
+      setNominees(res?.nominees || [])
+      toast({ title: `Generated ${res?.count || 0} nominees`, status: 'success', duration: 3000 })
     } catch (err) {
-      toast({ title: 'Generation failed', description: err.response?.data?.message || err.message, status: 'error', duration: 4000 })
+      toast({ title: 'Generation failed', description: err.message, status: 'error', duration: 4000 })
     } finally {
       setIsGenerating(false)
     }
   }
+
+  // ← New: delete a single nominee optimistically
+  const handleDelete = useCallback(async (id) => {
+    // Optimistic remove — feels instant
+    const previous = nominees
+    setNominees(prev => prev.filter(n => n.id !== id))
+
+    try {
+      const res = await nominationService.deleteNominee(id)
+      toast({ title: res.message || 'Nominee removed', status: 'success', duration: 3000, isClosable: true })
+    } catch (err) {
+      // Roll back on failure
+      setNominees(previous)
+      toast({ title: 'Delete failed', description: err.message, status: 'error', duration: 5000, isClosable: true })
+    }
+  }, [nominees])
 
   const grouped = {}
   for (const n of nominees) {
@@ -678,7 +689,6 @@ export default function NominationView() {
   return (
     <Box p={[3, 5, 8]} pt={[1, 2, 3]} bg={bgColor} minH="100vh">
 
-      {/* ── Page header card ── */}
       <Card bg={cardBg} borderRadius="2xl" boxShadow="sm"
         border="1px solid" borderColor={borderColor} mb={6}>
         <CardBody p={6}>
@@ -719,8 +729,7 @@ export default function NominationView() {
                   isDisabled={nominees.length === 0}
                   borderRadius="xl"
                   bgGradient="linear(to-br, #1e3a8a, #2563eb)"
-                  boxShadow="md"
-                  fontWeight="700"
+                  boxShadow="md" fontWeight="700"
                   _hover={{ bgGradient: 'linear(to-br, #1e40af, #1d4ed8)', transform: 'translateY(-1px)', boxShadow: 'lg' }}
                   _active={{ transform: 'translateY(0)' }}
                   transition="all 0.15s"
@@ -753,7 +762,6 @@ export default function NominationView() {
         </CardBody>
       </Card>
 
-      {/* ── Award columns ── */}
       {isLoading ? (
         <Center py={16}>
           <VStack spacing={4}>
@@ -764,13 +772,17 @@ export default function NominationView() {
       ) : (
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={5} alignItems="start">
           {AWARD_ORDER.map(award => (
-            <AwardSection key={award} title={award}
-              nominees={grouped[award] || []} config={AWARD_CONFIG[award]} />
+            <AwardSection
+              key={award}
+              title={award}
+              nominees={grouped[award] || []}
+              config={AWARD_CONFIG[award]}
+              onDelete={handleDelete}   // ← wired in
+            />
           ))}
         </SimpleGrid>
       )}
 
-      {/* ── Compose modal ── */}
       <ComposeModal isOpen={isComposeOpen} onClose={onComposeClose} nominees={nominees} />
     </Box>
   )
