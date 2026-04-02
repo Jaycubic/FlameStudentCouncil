@@ -45,23 +45,34 @@ const storage = multer.diskStorage({
     cb(null, dest);
   },
   filename: (req, file, cb) => {
-    // Build a descriptive prefix based on the award type
-    const prefixMap = {
-      sport_attachment:     'SportsAward',
-      cultural_attachment:  'CulturalAward',
+    // Role-based prefix — multer populates req.body text fields before file fields
+    const ROLE_PREFIX_MAP = {
+      sports_person:   'SportsPerson',
+      cultural_person: 'CocurricularPerson',
+      trailblazer:     'Trailblazer',
+    };
+    const role      = req.body?.selected_role || '';
+    const roleLabel = ROLE_PREFIX_MAP[role] || 'Award';
+
+    // Field-level type suffix
+    const FIELD_SUFFIX = {
+      sport_attachment:     'Sports',
+      cultural_attachment:  'Cocurricular',
       academic_attachments: 'Academic',
       photo:                'Photo',
     };
-    const prefix    = prefixMap[file.fieldname] || 'Attachment';
-    // Sanitise original name: keep alphanumeric, dots, hyphens, underscores; replace spaces
-    const safeName  = file.originalname
+    const suffix = FIELD_SUFFIX[file.fieldname] || 'Attachment';
+
+    // Sanitise original filename
+    const safeName = file.originalname
       .replace(/\s+/g, '_')
       .replace(/[^a-zA-Z0-9._-]/g, '')
-      .substring(0, 100);               // cap length
-    const ext       = path.extname(safeName) || path.extname(file.originalname);
-    const baseName  = path.basename(safeName, ext) || Date.now();
-    const unique    = Date.now();        // prevent collisions if same filename uploaded twice
-    cb(null, `${prefix}_${unique}_${baseName}${ext}`);
+      .substring(0, 100);
+    const ext      = path.extname(safeName) || path.extname(file.originalname);
+    const baseName = path.basename(safeName, ext) || 'file';
+
+    // Format: RoleLabel-FieldType-OriginalName.ext  (no timestamp)
+    cb(null, `${roleLabel}-${suffix}-${baseName}${ext}`);
   }
 });
 

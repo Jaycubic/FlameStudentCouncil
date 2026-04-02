@@ -74,6 +74,10 @@ const TrailblazerAward = sequelize.define('TrailblazerAward', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    academic_verified_score: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
 }, {
     tableName: 'trailblazer_awards',
     schema: 'app',

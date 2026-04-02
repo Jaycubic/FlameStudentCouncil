@@ -2,15 +2,15 @@
 const path = require('path');
 const fs   = require('fs');
 const { TrailblazerAward, SportsPersonAward, CulturalPersonAward,
-        SportsUserSheet, CulturalUserSheet,
-        SportAttachment, CulturalAttachment } = require('../models');
+        SportsUserSheet, CulturalUserSheet, AcademicUserSheet,
+        SportAttachment, CulturalAttachment, academicAttachment } = require('../models');
 const { Op } = require('sequelize');
 
 const ATTACHMENT_DIR = '/opt/View/FlameAwards/server/Attachments';
 const PHOTO_DIR      = '/opt/View/StudentTrackingSystem/server/Photos';
 const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
 const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
-const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','academic_score','submission_date','sports_verified_score','cultural_verified_score','status','photo'];
+const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','academic_score','submission_date','sports_verified_score','cultural_verified_score','academic_verified_score','status','photo'];
 
 function buildWhere(search, gender, batch) {
     const where = {};
@@ -30,19 +30,21 @@ function buildWhere(search, gender, batch) {
 function tagSports(rows) {
     return rows.map(r => ({
         ...r.toJSON(),
-        award_type:           'Sports Person Award',
-        cultural_score:       null,
+        award_type:              'Sports Person Award',
+        cultural_score:          null,
         cultural_verified_score: null,
-        academic_score:       null,
+        academic_score:          null,
+        academic_verified_score: null,
     }));
 }
 function tagCultural(rows) {
     return rows.map(r => ({
         ...r.toJSON(),
-        award_type:          'Co-curricular Person Award',
-        sports_score:        null,
-        sports_verified_score: null,
-        academic_score:      null,
+        award_type:              'Co-curricular Person Award',
+        sports_score:            null,
+        sports_verified_score:   null,
+        academic_score:          null,
+        academic_verified_score: null,
     }));
 }
 function tagTrailblazer(rows) {
@@ -153,14 +155,18 @@ async function getApplicantProfile(req, res) {
         const email = record.email;
 
         // Fetch sheet links and attachments in parallel
-        const [sportsSheet, culturalSheet, sportFiles, culturalFiles] = await Promise.all([
+        const [sportsSheet, culturalSheet, academicSheet, sportFiles, culturalFiles, academicFiles] = await Promise.all([
             SportsUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
             CulturalUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
+            AcademicUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
             awardType === 'sports' || awardType === 'trailblazer'
                 ? SportAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
                 : [],
             awardType === 'cultural' || awardType === 'trailblazer'
                 ? CulturalAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
+                : [],
+            awardType === 'trailblazer'
+                ? academicAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
                 : [],
         ]);
 
@@ -170,12 +176,14 @@ async function getApplicantProfile(req, res) {
                 ...record.toJSON(),
                 award_type: awardType,
                 sheets: {
-                    sports:   sportsSheet?.user_sheet_id  ? `https://docs.google.com/spreadsheets/d/${sportsSheet.user_sheet_id}` : null,
+                    sports:   sportsSheet?.user_sheet_id   ? `https://docs.google.com/spreadsheets/d/${sportsSheet.user_sheet_id}`   : null,
                     cultural: culturalSheet?.user_sheet_id ? `https://docs.google.com/spreadsheets/d/${culturalSheet.user_sheet_id}` : null,
+                    academic: academicSheet?.user_sheet_id ? `https://docs.google.com/spreadsheets/d/${academicSheet.user_sheet_id}` : null,
                 },
                 attachments: {
-                    sport:    sportFiles.map(f => ({ id: f.id, fileName: f.file_name })),
+                    sport:    sportFiles.map(f    => ({ id: f.id, fileName: f.file_name })),
                     cultural: culturalFiles.map(f => ({ id: f.id, fileName: f.file_name })),
+                    academic: academicFiles.map(f => ({ id: f.id, fileName: f.file_name })),
                 },
             },
         });
@@ -218,7 +226,7 @@ function serveFile(req, res) {
 const EDITABLE_FIELDS = {
     sports:      ['sports_score', 'sports_verified_score'],
     cultural:    ['cultural_score', 'cultural_verified_score'],
-    trailblazer: ['academic_score', 'sports_score', 'cultural_score', 'sports_verified_score', 'cultural_verified_score'],
+    trailblazer: ['academic_score', 'sports_score', 'cultural_score', 'sports_verified_score', 'cultural_verified_score', 'academic_verified_score'],
 };
 
 async function updateApplicant(req, res) {

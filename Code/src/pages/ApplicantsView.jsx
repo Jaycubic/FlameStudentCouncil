@@ -132,11 +132,12 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
   }, [isOpen, record]);
 
   const resetForm = (p) => setForm({
-    academic_score:          p?.academic_score          ?? '',
-    sports_score:            p?.sports_score            ?? '',
-    cultural_score:          p?.cultural_score          ?? '',
-    sports_verified_score:   p?.sports_verified_score   ?? '',
-    cultural_verified_score: p?.cultural_verified_score ?? '',
+    academic_score:           p?.academic_score           ?? '',
+    sports_score:             p?.sports_score             ?? '',
+    cultural_score:           p?.cultural_score           ?? '',
+    sports_verified_score:    p?.sports_verified_score    ?? '',
+    cultural_verified_score:  p?.cultural_verified_score  ?? '',
+    academic_verified_score:  p?.academic_verified_score  ?? '',
   });
 
   const handleChange = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -270,6 +271,12 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                       isEditing={isEditing} form={form} onChange={handleChange}
                       color={!isEditing && profile.cultural_verified_score ? 'green.500' : undefined} />
                   )}
+                  {showAcademicScore && (
+                    <EditableField label="Verified Academic"
+                      value={profile.academic_verified_score} fieldKey="academic_verified_score"
+                      isEditing={isEditing} form={form} onChange={handleChange}
+                      color={!isEditing && profile.academic_verified_score ? 'green.500' : undefined} />
+                  )}
                 </SimpleGrid>
               </Box>
 
@@ -296,14 +303,22 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                       </Tag>
                     </Link>
                   )}
-                  {!profile.sheets?.sports && !profile.sheets?.cultural && (
+                  {profile.sheets?.academic && (
+                    <Link href={profile.sheets.academic} isExternal>
+                      <Tag colorScheme="purple" borderRadius="full" cursor="pointer" size="sm">
+                        <TableCellsIcon style={{ width: 12, height: 12, marginRight: 4 }} />
+                        Academic Sheet
+                      </Tag>
+                    </Link>
+                  )}
+                  {!profile.sheets?.sports && !profile.sheets?.cultural && !profile.sheets?.academic && (
                     <Text fontSize="12px" color={subColor}>No sheets linked</Text>
                   )}
                 </HStack>
               </Box>
 
               {/* ── Attachments ─────────────────────────────────────────────── */}
-              {((profile.attachments?.sport?.length > 0) || (profile.attachments?.cultural?.length > 0)) && (
+              {((profile.attachments?.sport?.length > 0) || (profile.attachments?.cultural?.length > 0) || (profile.attachments?.academic?.length > 0)) && (
                 <>
                   <Divider borderColor={divColor} />
                   <Box>
@@ -323,6 +338,14 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                           <HStack>
                             <DocumentIcon style={{ width: 14, height: 14, color: '#EC4899' }} />
                             <Text fontSize="12px" color="pink.500">{f.fileName}</Text>
+                          </HStack>
+                        </Link>
+                      ))}
+                      {profile.attachments?.academic?.map(f => (
+                        <Link key={f.id} href={applicantsService.getFileUrl('academic', f.fileName)} isExternal>
+                          <HStack>
+                            <DocumentIcon style={{ width: 14, height: 14, color: '#7C3AED' }} />
+                            <Text fontSize="12px" color="purple.500">{f.fileName}</Text>
                           </HStack>
                         </Link>
                       ))}
@@ -460,10 +483,12 @@ function ApplicantsView() {
     } finally { setSyncUpLoading(false); }
   };
 
-  const showSports      = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
-  const showCultural    = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
-  const showVerSports   = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
-  const showVerCultural = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
+  const showSports            = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
+  const showCultural          = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
+  const showVerSports         = awardTab === 'all' || awardTab === 'sports'      || awardTab === 'trailblazer';
+  const showVerCultural       = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
+  const showAcademic          = awardTab === 'trailblazer';
+  const showVerAcademic       = awardTab === 'trailblazer';
 
   const ThCell = ({ children, field, sortable, minW = 'auto' }) => (
     <Th color="white" px={2} py={2} minW={minW}
@@ -638,16 +663,18 @@ function ApplicantsView() {
               }}
               fixedHeaderContent={() => (
                 <Tr backgroundImage={GRADIENT}>
-                  <ThCell minW="160px">Student</ThCell>
-                  <ThCell minW="60px">Gender</ThCell>
-                  <ThCell minW="75px">Batch</ThCell>
-                  <ThCell minW="90px">Award</ThCell>
-                  {showSports      && <ThCell field="sports_score"            sortable minW="70px">Sports</ThCell>}
-                  {showCultural    && <ThCell field="cultural_score"          sortable minW="72px">Cultural</ThCell>}
-                  {showVerSports   && <ThCell field="sports_verified_score"   sortable minW="72px">Ver. Sports</ThCell>}
-                  {showVerCultural && <ThCell field="cultural_verified_score" sortable minW="78px">Ver. Cultural</ThCell>}
-                  <ThCell field="submission_date" sortable minW="80px">Submitted</ThCell>
-                  <ThCell minW="90px">Action</ThCell>
+                  <ThCell minW="150px">Student</ThCell>
+                  <ThCell minW="55px">Gender</ThCell>
+                  <ThCell minW="70px">Batch</ThCell>
+                  <ThCell minW="80px">Award</ThCell>
+                  {showSports      && <ThCell field="sports_score"            sortable minW="62px">Sports</ThCell>}
+                  {showCultural    && <ThCell field="cultural_score"          sortable minW="65px">Cultural</ThCell>}
+                  {showAcademic    && <ThCell field="academic_score"          sortable minW="65px">Academic</ThCell>}
+                  {showVerSports   && <ThCell field="sports_verified_score"   sortable minW="66px">Ver. Sports</ThCell>}
+                  {showVerCultural && <ThCell field="cultural_verified_score" sortable minW="70px">Ver. Cultural</ThCell>}
+                  {showVerAcademic && <ThCell field="academic_verified_score" sortable minW="70px">Ver. Academic</ThCell>}
+                  <ThCell field="submission_date" sortable minW="75px">Submitted</ThCell>
+                  <ThCell minW="80px">Action</ThCell>
                 </Tr>
               )}
               itemContent={(_, record) => {
@@ -672,8 +699,10 @@ function ApplicantsView() {
                     </Td>
                     {showSports      && <TdCell>{record.sports_score}</TdCell>}
                     {showCultural    && <TdCell>{record.cultural_score}</TdCell>}
-                    {showVerSports   && <TdCell color={record.sports_verified_score ? 'green.500' : subColor}>{record.sports_verified_score}</TdCell>}
+                    {showAcademic    && <TdCell>{record.academic_score}</TdCell>}
+                    {showVerSports   && <TdCell color={record.sports_verified_score   ? 'green.500' : subColor}>{record.sports_verified_score}</TdCell>}
                     {showVerCultural && <TdCell color={record.cultural_verified_score ? 'green.500' : subColor}>{record.cultural_verified_score}</TdCell>}
+                    {showVerAcademic && <TdCell color={record.academic_verified_score ? 'green.500' : subColor}>{record.academic_verified_score}</TdCell>}
                     <TdCell>
                       {record.submission_date
                         ? new Date(record.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
