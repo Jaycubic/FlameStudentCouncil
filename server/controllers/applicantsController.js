@@ -10,7 +10,7 @@ const ATTACHMENT_DIR = '/opt/View/FlameAwards/server/Attachments';
 const PHOTO_DIR      = '/opt/View/StudentTrackingSystem/server/Photos';
 const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
 const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
-const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','academic_score','submission_date','sports_verified_score','cultural_verified_score','academic_verified_score','status','photo'];
+const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','academic_score','submission_date','sports_verified_score','cultural_verified_score','academic_verified_score','total_verified_score','status','photo'];
 
 function buildWhere(search, gender, batch) {
     const where = {};
@@ -48,7 +48,17 @@ function tagCultural(rows) {
     }));
 }
 function tagTrailblazer(rows) {
-    return rows.map(r => ({ ...r.toJSON(), award_type: 'Trailblazer Award' }));
+    return rows.map(r => {
+        const obj = { ...r.toJSON(), award_type: 'Trailblazer Award' };
+        // Real-time total: sum of whichever verified scores are non-null
+        const vals = [
+            obj.sports_verified_score,
+            obj.cultural_verified_score,
+            obj.academic_verified_score,
+        ].map(v => parseFloat(v)).filter(n => !isNaN(n));
+        obj.total_verified_score = vals.length > 0 ? String(vals.reduce((a, b) => a + b, 0)) : null;
+        return obj;
+    });
 }
 
 function sortRows(rows, sortField, sortDir) {
@@ -226,7 +236,7 @@ function serveFile(req, res) {
 const EDITABLE_FIELDS = {
     sports:      ['sports_score', 'sports_verified_score'],
     cultural:    ['cultural_score', 'cultural_verified_score'],
-    trailblazer: ['academic_score', 'sports_score', 'cultural_score', 'sports_verified_score', 'cultural_verified_score', 'academic_verified_score'],
+    trailblazer: ['academic_score', 'sports_score', 'cultural_score', 'sports_verified_score', 'cultural_verified_score', 'academic_verified_score', 'total_verified_score'],
 };
 
 async function updateApplicant(req, res) {

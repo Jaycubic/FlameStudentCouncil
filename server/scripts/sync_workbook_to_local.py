@@ -23,6 +23,7 @@ SCOPES = [
 SYNCABLE_FIELDS = {
     'academic_score', 'sports_score', 'cultural_score',
     'sports_verified_score', 'cultural_verified_score',
+    'academic_verified_score', 'total_verified_score',
 }
 
 def build_credentials(access_token, refresh_token):

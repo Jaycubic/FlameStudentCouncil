@@ -489,6 +489,7 @@ function ApplicantsView() {
   const showVerCultural       = awardTab === 'all' || awardTab === 'cultural'    || awardTab === 'trailblazer';
   const showAcademic          = awardTab === 'all' || awardTab === 'trailblazer';
   const showVerAcademic       = awardTab === 'all' || awardTab === 'trailblazer';
+  const showTotal             = awardTab === 'all' || awardTab === 'trailblazer';
 
   const ThCell = ({ children, field, sortable, minW = 'auto' }) => (
     <Th color="white" px={2} py={2} minW={minW}
@@ -663,18 +664,19 @@ function ApplicantsView() {
               }}
               fixedHeaderContent={() => (
                 <Tr backgroundImage={GRADIENT}>
-                  <ThCell minW="150px">Student</ThCell>
-                  <ThCell minW="55px">Gender</ThCell>
-                  <ThCell minW="70px">Batch</ThCell>
-                  <ThCell minW="80px">Award</ThCell>
-                  {showSports      && <ThCell field="sports_score"            sortable minW="62px">Sports</ThCell>}
-                  {showCultural    && <ThCell field="cultural_score"          sortable minW="65px">Cultural</ThCell>}
-                  {showAcademic    && <ThCell field="academic_score"          sortable minW="65px">Academic</ThCell>}
-                  {showVerSports   && <ThCell field="sports_verified_score"   sortable minW="66px">Ver. Sports</ThCell>}
-                  {showVerCultural && <ThCell field="cultural_verified_score" sortable minW="70px">Ver. Cultural</ThCell>}
-                  {showVerAcademic && <ThCell field="academic_verified_score" sortable minW="70px">Ver. Academic</ThCell>}
-                  <ThCell field="submission_date" sortable minW="75px">Submitted</ThCell>
-                  <ThCell minW="80px">Action</ThCell>
+                  <ThCell minW="140px">Student</ThCell>
+                  <ThCell minW="50px">Gender</ThCell>
+                  <ThCell minW="65px">Batch</ThCell>
+                  <ThCell minW="75px">Award</ThCell>
+                  {showSports      && <ThCell field="sports_score"            sortable minW="58px">Sports</ThCell>}
+                  {showCultural    && <ThCell field="cultural_score"          sortable minW="60px">Cultural</ThCell>}
+                  {showAcademic    && <ThCell field="academic_score"          sortable minW="60px">Academic</ThCell>}
+                  {showVerSports   && <ThCell field="sports_verified_score"   sortable minW="60px">Ver. Sports</ThCell>}
+                  {showVerCultural && <ThCell field="cultural_verified_score" sortable minW="64px">Ver. Cultural</ThCell>}
+                  {showVerAcademic && <ThCell field="academic_verified_score" sortable minW="64px">Ver. Academic</ThCell>}
+                  {showTotal       && <ThCell field="total_verified_score"    sortable minW="60px">Total</ThCell>}
+                  <ThCell field="submission_date" sortable minW="72px">Submitted</ThCell>
+                  <ThCell minW="78px">Action</ThCell>
                 </Tr>
               )}
               itemContent={(_, record) => {
@@ -703,6 +705,7 @@ function ApplicantsView() {
                     {showVerSports   && <TdCell color={record.sports_verified_score   ? 'green.500' : subColor}>{record.sports_verified_score}</TdCell>}
                     {showVerCultural && <TdCell color={record.cultural_verified_score ? 'green.500' : subColor}>{record.cultural_verified_score}</TdCell>}
                     {showVerAcademic && <TdCell color={record.academic_verified_score ? 'green.500' : subColor}>{record.academic_verified_score}</TdCell>}
+                    {showTotal       && <TdCell color={record.total_verified_score    ? 'orange.500' : subColor}><b>{record.total_verified_score}</b></TdCell>}
                     <TdCell>
                       {record.submission_date
                         ? new Date(record.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })

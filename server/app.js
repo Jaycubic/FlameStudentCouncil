@@ -86,6 +86,7 @@ app.use('/api/sheets', require('./routes/sheetRoutes.js'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes.js'));
 app.use('/api/applicants', require('./routes/applicantsRoutes.js'));
 app.use('/api/awards-workbook', require('./routes/awardsWorkbookRoutes.js'));
+app.use('/api/nominations', require('./routes/nominationRoutes.js'));
 
 
 // Start BullMQ sheet worker (runs in-process)

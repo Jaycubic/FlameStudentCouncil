@@ -44,7 +44,7 @@ PROTECTED_COLS = ['student_id', 'name', 'email']   # never allow edits via sync
 # Column definitions per tab
 ALL_COLS     = ['student_id','name','email','gender','batch','mobile_number',
                 'academic_score','sports_score','cultural_score',
-                'sports_verified_score','cultural_verified_score','academic_verified_score',
+                'sports_verified_score','cultural_verified_score','academic_verified_score','total_verified_score',
                 'submission_date','Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link']
 SPORTS_COLS  = ['student_id','name','email','gender','batch','mobile_number',
                 'sports_score','sports_verified_score',
@@ -54,7 +54,7 @@ CULTURAL_COLS= ['student_id','name','email','gender','batch','mobile_number',
                 'submission_date','Cultural Sheet Link']
 TRAIL_COLS   = ['student_id','name','email','gender','batch','mobile_number',
                 'academic_score','sports_score','cultural_score',
-                'sports_verified_score','cultural_verified_score','academic_verified_score',
+                'sports_verified_score','cultural_verified_score','academic_verified_score','total_verified_score',
                 'submission_date','Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link']
 
 HEADER_FILL = PatternFill("solid", fgColor="1E3A8A")

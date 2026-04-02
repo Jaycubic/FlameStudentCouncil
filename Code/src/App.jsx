@@ -21,6 +21,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const Settings = lazy(() => import('./pages/Settings'))
 const TimeManagement = lazy(() => import('./pages/TimeManagement'))
 const ApplicantsView = lazy(() => import('./pages/ApplicantsView'))
+const NominationView = lazy(() => import('./pages/NominationView'))
 
 // Theme configuration
 const theme = extendTheme({
@@ -90,6 +91,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/time-management" element={<TimeManagement />} />
                 <Route path="/applicants" element={<ApplicantsView />} />
+                <Route path="/nominations" element={<NominationView />} />
                 <Route path="/" element={<Dashboard />} />
               </Route>
 

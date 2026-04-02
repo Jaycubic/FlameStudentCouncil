@@ -39,6 +39,7 @@ import {
   PencilSquareIcon,
   DocumentTextIcon,
   TableCellsIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/outline'
 import { authService } from '../../services/authService'
 import { useState, useRef } from 'react'
@@ -181,11 +182,12 @@ function Sidebar() {
   const borderColor = useColorModeValue('blue.800/30', 'pink.600/30')
 
   const allNavigation = [
-    { name: 'Dashboard',   href: '/',            icon: HomeIcon,           roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
-    { name: 'Applicants',  href: '/applicants',  icon: TableCellsIcon,     roles: ['admin'] },
-    { name: 'Time & Title',href: '/time-management', icon: CalendarIcon,   roles: ['admin'] },
-    { name: 'Award Form',  href: '/award-form',  icon: IdentificationIcon, roles: ['Student'] },
-    { name: 'Settings',    href: '/settings',    icon: Cog6ToothIcon,      roles: ['admin'] },
+    { name: 'Dashboard',    href: '/',             icon: HomeIcon,           roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
+    { name: 'Applicants',   href: '/applicants',   icon: TableCellsIcon,     roles: ['admin'] },
+    { name: 'Nominations',  href: '/nominations',  icon: TrophyIcon,         roles: ['admin'] },
+    { name: 'Time & Title', href: '/time-management', icon: CalendarIcon,    roles: ['admin'] },
+    { name: 'Award Form',   href: '/award-form',   icon: IdentificationIcon, roles: ['Student'] },
+    { name: 'Settings',     href: '/settings',     icon: Cog6ToothIcon,      roles: ['admin'] },
   ]
 
   const mainNavigation = allNavigation.filter(item => item.roles.includes(user?.role))

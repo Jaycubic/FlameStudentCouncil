@@ -28,6 +28,7 @@ const SportsUserSheet = require('./SportsUserSheet');
 const PhotoDriveUpload = require('./PhotoDriveUpload');
 const AwardsWorkbook      = require('./AwardsWorkbook');
 const AcademicUserSheet   = require('./AcademicUserSheet');
+const NominatedStudent    = require('./NominatedStudent');
 
 const models = {
   Organization,
@@ -59,6 +60,7 @@ const models = {
   PhotoDriveUpload,
   AwardsWorkbook,
   AcademicUserSheet,
+  NominatedStudent,
 };
 
 Object.values(models).forEach(model => {
