@@ -126,22 +126,22 @@ function Header() {
 
   if (isLoading) {
     return (
-      <Box bg="transparent" px={{ base: 3, md: 4, lg: 6 }} py={{ base: 2, md: 3 }}>
+      <Box bg="transparent" px={{ base: 3, md: 4, lg: 6 }} py={{ base: 1, md: 1.5 }}>
         <Flex
-          h={{ base: 14, md: 16 }}
+          h={{ base: 10, md: 12 }}
           alignItems="center"
           justifyContent="space-between"
           maxW="container.xl"
           mx="auto"
         >
           <Box>
-            <Skeleton height="24px" width="120px" mb={1} />
-            <Skeleton height="16px" width="200px" />
+            <Skeleton height="20px" width="100px" mb={1} />
+            <Skeleton height="12px" width="160px" />
           </Box>
           <HStack spacing={3}>
-            <Skeleton height="40px" width="40px" borderRadius="full" />
-            <Skeleton height="40px" width="40px" borderRadius="full" />
-            <Skeleton height="40px" width="40px" borderRadius="full" />
+            <Skeleton height="32px" width="32px" borderRadius="full" />
+            <Skeleton height="32px" width="32px" borderRadius="full" />
+            <Skeleton height="32px" width="32px" borderRadius="full" />
           </HStack>
         </Flex>
       </Box>
@@ -175,9 +175,9 @@ function Header() {
   );
 
   return (
-    <Box bg="transparent" px={{ base: 3, md: 4, lg: 6 }} py={{ base: 2, md: 3 }}>
+    <Box bg="transparent" px={{ base: 3, md: 4, lg: 6 }} py={{ base: 1, md: 1.5 }}>
       <Flex
-        h={{ base: 14, md: 16 }}
+        h={{ base: 10, md: 12 }}
         alignItems="center"
         justifyContent="space-between"
         maxW="container.xl"
@@ -185,18 +185,18 @@ function Header() {
       >
         <Box>
           <Text
-            fontSize={{ base: "lg", md: "xl", lg: "2xl" }}
+            fontSize={{ base: "md", md: "lg" }}
             fontWeight="bold"
-            color={useColorModeValue("gray.800", "white")} // Adjusted to white in dark mode
-            lineHeight="1.2"
+            color={useColorModeValue("gray.800", "white")}
+            lineHeight="1"
           >
             FLAME Awards
           </Text>
           <Text
-            fontSize={{ base: "xs", md: "sm" }}
+            fontSize={{ base: "9px", md: "11px" }}
             fontWeight="medium"
-            color={useColorModeValue("gray.600", "whiteAlpha.800")} // Adjusted to whiteAlpha.800 in dark mode
-            mt={0.5}
+            color={useColorModeValue("gray.600", "whiteAlpha.800")}
+            mt={0}
           >
             Web-based Awarding System
           </Text>
@@ -207,18 +207,18 @@ function Header() {
           backdropFilter="blur(20px)"
           border="1px solid"
           borderColor={rightContainerBorder}
-          borderRadius={{ base: "full", md: "2xl" }}
-          px={{ base: 2, md: 3, lg: 4 }}
-          py={{ base: 1, md: 2 }}
-          boxShadow="md"
+          borderRadius="full"
+          px={{ base: 1.5, md: 2 }}
+          py={1}
+          boxShadow="sm"
         >
           <HStack spacing={{ base: 1, md: 3, lg: 4 }}>
             <Tooltip label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}>
               <IconButton
-                size={{ base: 'sm', md: 'md' }}
+                size="xs"
                 variant="ghost"
                 bg="transparent"
-                icon={colorMode === 'light' ? <MoonIcon className="h-4 w-4 md:h-5 md:w-5" /> : <SunIcon className="h-4 w-4 md:h-5 md:w-5" />}
+                icon={colorMode === 'light' ? <MoonIcon className="h-3.5 w-3.5" /> : <SunIcon className="h-3.5 w-3.5" />}
                 onClick={toggleColorMode}
                 aria-label="Toggle color mode"
                 color={iconColor}
@@ -233,18 +233,18 @@ function Header() {
                 align="center"
                 cursor="pointer"
                 bg="transparent"
-                p={{ base: 1, md: 2 }}
-                rounded="lg"
+                p={1}
+                rounded="full"
                 _hover={{ bg: hoverBg }}
                 transition="all 0.2s"
               >
-                <Flex align="center" minW={{ base: "auto", md: "180px", lg: "200px" }}>
-                  <Box w={{ base: "6", md: "7", lg: "8" }} h={{ base: "6", md: "7", lg: "8" }} rounded="lg" bg={hoverBg} display="flex" alignItems="center" justifyContent="center">
-                    <Icon as={UserIcon} w={{ base: "4", md: "5", lg: "6" }} h={{ base: "4", md: "5", lg: "6" }} color={iconColor} />
+                <Flex align="center">
+                  <Box w="6" h="6" rounded="full" bg={hoverBg} display="flex" alignItems="center" justifyContent="center">
+                    <Icon as={UserIcon} w="4" h="4" color={iconColor} />
                   </Box>
-                  <Box ml={{ base: 1, md: 2, lg: 3 }} flex="1" display={{ base: 'none', md: 'block' }}>
-                    <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" color="white" noOfLines={1}>{user?.username}</Text>
-                    <Text fontSize={{ base: "2xs", md: "xs" }} color="whiteAlpha.800" noOfLines={1}>{user?.email}</Text>
+                  <Box ml={2} display={{ base: 'none', md: 'block' }}>
+                    <Text fontSize="xs" fontWeight="bold" color="white" noOfLines={1} lineHeight="1">{user?.username}</Text>
+                    <Text fontSize="10px" color="whiteAlpha.800" noOfLines={1}>{user?.email}</Text>
                   </Box>
                 </Flex>
               </MenuButton>
