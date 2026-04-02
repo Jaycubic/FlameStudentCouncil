@@ -15,6 +15,25 @@ class FormProcessingService {
         return deviceId;
     }
 
+    async handleResponse(response) {
+        const contentType = response.headers.get('Content-Type');
+        const isJson = contentType && contentType.includes('application/json');
+
+        if (!response.ok) {
+            if (isJson) {
+                const data = await response.json();
+                throw new Error(data.message || `Error ${response.status}: Action failed`);
+            } else {
+                if (response.status === 502 || response.status === 504) {
+                    throw new Error('The server is temporarily busy or unreachable. Please try again in a few moments.');
+                }
+                throw new Error(`Server error (${response.status}). Please try again later.`);
+            }
+        }
+
+        return isJson ? response.json() : response;
+    }
+
     async getPrefillData() {
         try {
             const deviceId = await this.getDeviceId();
@@ -24,9 +43,11 @@ class FormProcessingService {
                 },
                 credentials: 'include'
             });
-            if (!response.ok) throw new Error('Failed to fetch prefill data');
-            return response.json();
+            return await this.handleResponse(response);
         } catch (error) {
+            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                throw new Error('Network Issue: Unable to reach the server. Please check your internet connection.');
+            }
             console.error('Prefill fetch error:', error);
             throw error;
         }
@@ -41,9 +62,11 @@ class FormProcessingService {
                 },
                 credentials: 'include'
             });
-            if (!response.ok) throw new Error('Failed to fetch application status');
-            return response.json();
+            return await this.handleResponse(response);
         } catch (error) {
+            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                throw new Error('Network Issue: Server unreachable.');
+            }
             console.error('Status fetch error:', error);
             throw error;
         }
@@ -53,19 +76,17 @@ class FormProcessingService {
             const deviceId = await this.getDeviceId();
             const formData = new FormData();
             formData.append('photo', file);
-            // studentId goes in the URL as a query param — NOT body.
-            // multer's filename() fires before body is parsed, so req.body.studentId
-            // would always be undefined. req.query is always available.
             const response = await fetch(`/api/photos/upload?studentId=${encodeURIComponent(studentId)}`, {
                 method: 'POST',
                 headers: { 'x-device-id': deviceId },
                 credentials: 'include',
                 body: formData,
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || 'Upload failed');
-            return data;
+            return await this.handleResponse(response);
         } catch (error) {
+            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                throw new Error('Network Issue: Photo upload failed. Check your connection.');
+            }
             console.error('Photo upload error:', error);
             throw error;
         }

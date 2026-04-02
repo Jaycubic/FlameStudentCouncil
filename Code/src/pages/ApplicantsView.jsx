@@ -29,16 +29,16 @@ import PageHeader from '../components/layout/PageHeader';
 import { applicantsService } from '../services/applicantsService';
 
 const AWARD_TABS = [
-  { key: 'all',         label: 'All',               color: 'purple' },
-  { key: 'sports',      label: 'Sports Awards',      color: 'blue'   },
-  { key: 'cultural',    label: 'Cultural Awards',    color: 'pink'   },
-  { key: 'trailblazer', label: 'Trailblazer Awards', color: 'orange' },
+  { key: 'all',         label: 'All',                        color: 'purple' },
+  { key: 'sports',      label: 'Sports Person Award',        color: 'blue'   },
+  { key: 'cultural',    label: 'Co-curricular Person Award', color: 'pink'   },
+  { key: 'trailblazer', label: 'Trailblazer Awards',         color: 'orange' },
 ];
 
 const AWARD_BADGE = {
-  'Sports Award':      { colorScheme: 'blue',   label: 'Sports',      awardKey: 'sports'      },
-  'Cultural Award':    { colorScheme: 'pink',   label: 'Cultural',    awardKey: 'cultural'    },
-  'Trailblazer Award': { colorScheme: 'orange', label: 'Trailblazer', awardKey: 'trailblazer' },
+  'Sports Person Award':        { colorScheme: 'blue',   label: 'Sports',      awardKey: 'sports'      },
+  'Co-curricular Person Award': { colorScheme: 'pink',   label: 'Co-curricular', awardKey: 'cultural'    },
+  'Trailblazer Award':          { colorScheme: 'orange', label: 'Trailblazer', awardKey: 'trailblazer' },
 };
 
 const GRADIENT = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';

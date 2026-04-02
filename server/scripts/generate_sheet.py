@@ -93,6 +93,7 @@ def main():
     master_access_token   = sys.argv[6]
     master_refresh_token  = sys.argv[7]
     folder_id             = sys.argv[8]  # Private master-only folder
+    student_id            = sys.argv[9] if len(sys.argv) > 9 else "Unknown"
 
     # ── Build both credential objects ─────────────────────────────────────────
     try:
@@ -127,8 +128,15 @@ def main():
         # No parent = no inherited domain folder permissions at creation time.
 
         # Step 1 — Upload (student = owner, lands in student's My Drive root)
+        name_map = {
+            'sports': 'Sports Matrix',
+            'cultural': 'Socio-Cultural Matrix',
+            'academic': 'Academic Matrix'
+        }
+        prefix = name_map.get(sheet_type, sheet_type.capitalize())
+        
         file_metadata = {
-            'name': f"{sheet_type.capitalize()} Sheet - {student_email}",
+            'name': f"{prefix} - {student_id}",
             'mimeType': 'application/vnd.google-apps.spreadsheet'
             # Intentionally NO parents key here
         }

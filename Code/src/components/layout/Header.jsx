@@ -38,11 +38,10 @@ import {
   useToast,
   useDisclosure,
 } from '@chakra-ui/react'
-import { BellIcon, MoonIcon, SunIcon, UserIcon, ArrowLeftOnRectangleIcon, KeyIcon } from '@heroicons/react/24/outline'
+import { MoonIcon, SunIcon, UserIcon, ArrowLeftOnRectangleIcon, KeyIcon } from '@heroicons/react/24/outline'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../../services/authService'
 import { userService } from '../../services/userService'
-import notificationService from '../../services/notificationService'
 
 function Header() {
   const navigate = useNavigate()
@@ -60,9 +59,6 @@ function Header() {
     'linear(to-r, purple.500, pink.300)'
   )
 
-  const notificationBg = useColorModeValue('whiteAlpha.900', 'gray.800')
-  const unreadBg = useColorModeValue('blue.50', 'gray.700')
-  const hoverBgColor = useColorModeValue('blue.100', 'gray.700')
 
   const menuBg = useColorModeValue('white', 'gray.800')
   const menuBorderColor = useColorModeValue('gray.200', 'gray.700')
@@ -70,10 +66,8 @@ function Header() {
   const menuItemHoverBg = useColorModeValue('gray.50', 'gray.700')
   const menuTextColor = useColorModeValue('gray.700', 'gray.200')
   const iconBg = useColorModeValue('blue.50', 'whiteAlpha.100')
-  const markAllColor = useColorModeValue('blue.500', 'purple.500')
 
   const [isLoading, setIsLoading] = useState(true);
-  const [notifications, setNotifications] = useState([])
 
   // Password Update Modal State
   const { isOpen: isPasswordModalOpen, onOpen: onPasswordModalOpen, onClose: onPasswordModalClose } = useDisclosure();
@@ -123,18 +117,8 @@ function Header() {
     }
   };
 
-  const fetchNotifications = async () => {
-    try {
-      const data = await notificationService.getNotifications();
-      setNotifications(data);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  };
-
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchNotifications();
       setIsLoading(false);
     }, 1000);
     return () => clearTimeout(timer);
@@ -169,36 +153,6 @@ function Header() {
     navigate('/login')
   }
 
-  const unreadCount = notifications.filter(n => !n.isRead).length
-
-  const handleNotificationClick = async (id) => {
-    try {
-      await notificationService.markNotificationAsRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      const activityIds = notifications.map(n => n.id);
-      await notificationService.markAllAsRead(activityIds);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    }
-  };
-
-  const clearNotifications = async () => {
-    try {
-      const activityIds = notifications.map(n => n.id);
-      await notificationService.clearAll(activityIds);
-      setNotifications([]);
-    } catch (error) {
-      console.error('Error clearing notifications:', error);
-    }
-  };
 
   const endlessRiverGradient = useColorModeValue(
     'linear-gradient(135deg, #1e40af 0%, #2563eb 100%, #38bdf8 50%)',
@@ -272,78 +226,6 @@ function Header() {
               />
             </Tooltip>
 
-            {/* Notification feature disabled temporarily 
-            <Box position="relative">
-              <Popover>
-                <PopoverTrigger>
-                  <Box position="relative">
-                    <IconButton
-                      size={{ base: 'sm', md: 'md' }}
-                      variant="ghost"
-                      bg="transparent"
-                      icon={<BellIcon className="h-5 w-5 md:h-6 md:w-6" />}
-                      aria-label="Notifications"
-                      color={iconColor}
-                      _hover={{ bg: hoverBg }}
-                      onClick={fetchNotifications}
-                    />
-                    {unreadCount > 0 && (
-                      <Circle size={{ base: "4", md: "5" }} bg="red.500" color="white" position="absolute" top={-1} right={-1} fontSize="xs" fontWeight="bold">
-                        {unreadCount}
-                      </Circle>
-                    )}
-                  </Box>
-                </PopoverTrigger>
-                <Portal>
-                  <PopoverContent
-                    w={{ base: "300px", md: "350px" }}
-                    bg={notificationBg}
-                    border="1px solid"
-                    borderColor={rightContainerBorder}
-                    _focus={{ boxShadow: 'none' }}
-                    zIndex="9999"
-                  >
-                    <PopoverArrow />
-                    <PopoverHeader borderBottomWidth="1px" py={4}>
-                      <Flex justify="space-between" align="center">
-                        <Text fontWeight="medium">Notifications</Text>
-                        <HStack spacing={2}>
-                          <Text fontSize="sm" color={markAllColor} cursor="pointer" onClick={markAllAsRead} _hover={{ textDecoration: 'underline' }}>Mark all as read</Text>
-                          <Text fontSize="sm" color="red.500" cursor="pointer" onClick={clearNotifications} _hover={{ textDecoration: 'underline' }}>Clear all</Text>
-                        </HStack>
-                      </Flex>
-                    </PopoverHeader>
-                    <PopoverBody p={0}>
-                      <Stack spacing={0} maxH="400px" overflowY="auto">
-                        {notifications.length === 0 ? (
-                          <Box p={4} textAlign="center">
-                            <Text color="gray.500">No notifications</Text>
-                          </Box>
-                        ) : (
-                          notifications.map(notification => (
-                            <Box
-                              key={notification.id}
-                              p={4}
-                              bg={notification.isRead ? 'transparent' : unreadBg}
-                              _hover={{ bg: hoverBgColor }}
-                              cursor="pointer"
-                              onClick={() => handleNotificationClick(notification.id)}
-                              borderBottomWidth="1px"
-                              borderColor="inherit"
-                            >
-                              <Text fontWeight="medium" fontSize="sm">{notification.title}</Text>
-                              <Text fontSize="sm" color="gray.500" mt={1}>{notification.description}</Text>
-                              <Text fontSize="xs" color="gray.400" mt={1}>{new Date(notification.time).toLocaleString()}</Text>
-                            </Box>
-                          ))
-                        )}
-                      </Stack>
-                    </PopoverBody>
-                  </PopoverContent>
-                </Portal>
-              </Popover>
-            </Box>
-            */}
 
             <Menu>
               <MenuButton

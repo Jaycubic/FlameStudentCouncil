@@ -13,6 +13,29 @@ class FormSubmissionService {
     return deviceId;
   }
 
+  async handleResponse(response) {
+    const contentType = response.headers.get('Content-Type');
+    const isJson = contentType && contentType.includes('application/json');
+
+    if (!response.ok) {
+      if (isJson) {
+        const data = await response.json();
+        throw new Error(data.message || `Error ${response.status}: Submission failed`);
+      } else {
+        // Handle non-JSON errors (like Nginx 502/504 HTML pages)
+        if (response.status === 502 || response.status === 504) {
+          throw new Error('The server is temporarily busy or unreachable. Please wait a moment and try again.');
+        } else if (response.status === 413) {
+          throw new Error('The files you are trying to upload are too large.');
+        } else {
+          throw new Error(`Server returned an error (${response.status}). Please try again later.`);
+        }
+      }
+    }
+
+    return isJson ? response.json() : response;
+  }
+
   async create(formData) {
     try {
       const deviceId = await this.getDeviceId();
@@ -25,13 +48,11 @@ class FormSubmissionService {
         body: JSON.stringify(formData),
         credentials: 'include',
       });
-      const data = await response.json();
-      if (response.ok) {
-        return data;
-      } else {
-        throw new Error(data.message || 'Submission failed');
-      }
+      return await this.handleResponse(response);
     } catch (error) {
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        throw new Error('Network issue: Please check your internet connection and try again.');
+      }
       throw error;
     }
   }
@@ -45,10 +66,11 @@ class FormSubmissionService {
         body: formData, // No Content-Type header needed for FormData
         credentials: 'include'
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Submission failed');
-      return data;
+      return await this.handleResponse(response);
     } catch (error) {
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        throw new Error('Network issue: Please check your internet connection and try again.');
+      }
       throw error;
     }
   }

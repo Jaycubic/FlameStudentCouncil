@@ -228,7 +228,13 @@ const sheetController = {
                 });
             }
 
-            // ── 2. Fetch tokens ──────────────────────────────────────────────
+            // ── 2. Fetch student metadata & tokens ──────────────────────────
+            const student = await StudentData.findOne({ where: { email_id: userEmail } });
+            if (!student?.student_cvue_no) {
+                return res.status(404).json({ success: false, message: 'Student registration data not found.' });
+            }
+            const studentId = student.student_cvue_no.toString();
+
             const studentUser = await User.findOne({ where: { email: userEmail } });
             if (!studentUser?.access_token) {
                 return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
@@ -244,7 +250,8 @@ const sheetController = {
                 studentUser.access_token, studentUser.refresh_token,
                 MASTER_EMAIL,
                 masterUser.access_token, masterUser.refresh_token,
-                FOLDER_ID
+                FOLDER_ID,
+                studentId
             ];
 
             // ── 3. Hybrid: try semaphore, fallback to queue ──────────────────
@@ -394,8 +401,9 @@ const sheetController = {
     },
 
     /**
-     * PUT /api/admin/template/:type
-     * Update the local template from master Drive. Admin only.
+     * POST /api/sheets/update-template/:type
+     * Download the master workbook template from Drive to local server.
+     * Drive file ID is read from env: SPORTS_TEMPLATE_ID / CULTURAL_TEMPLATE_ID / ACADEMIC_TEMPLATE_ID
      */
     async updateTemplate(req, res) {
         try {
@@ -425,7 +433,7 @@ const sheetController = {
             }
 
             if (result.success) {
-                return res.status(200).json({ success: true, message: 'Template updated successfully.' });
+                return res.status(200).json({ success: true, message: result.message || 'Template updated successfully.' });
             } else {
                 return res.status(500).json({ success: false, message: 'Drive error: ' + result.error });
             }

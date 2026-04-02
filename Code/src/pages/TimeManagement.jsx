@@ -284,7 +284,7 @@ function TimeManagement() {
                                                 <VStack align="stretch" spacing={4}>
                                                     <HStack>
                                                         <Box w="10px" h="10px" borderRadius="full" bg="green.400" />
-                                                        <Text fontWeight="bold" fontSize="lg">Sports Master Workbook</Text>
+                                                        <Text fontWeight="bold" fontSize="lg">Sports Master Workbook Award</Text>
                                                     </HStack>
                                                     <Divider />
                                                     <Button
@@ -317,7 +317,7 @@ function TimeManagement() {
                                                 <VStack align="stretch" spacing={4}>
                                                     <HStack>
                                                         <Box w="10px" h="10px" borderRadius="full" bg="pink.400" />
-                                                        <Text fontWeight="bold" fontSize="lg">Cultural Master Workbook</Text>
+                                                        <Text fontWeight="bold" fontSize="lg">Co-curricular Master Workbook Award</Text>
                                                     </HStack>
                                                     <Divider />
                                                     <Button
