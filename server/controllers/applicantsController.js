@@ -5,6 +5,7 @@ const { TrailblazerAward, SportsPersonAward, CulturalPersonAward,
         SportsUserSheet, CulturalUserSheet, AcademicUserSheet,
         SportAttachment, CulturalAttachment, academicAttachment } = require('../models');
 const { Op } = require('sequelize');
+const { syncVerifiedScores } = require('../services/scoresSyncService');
 
 const ATTACHMENT_DIR = '/opt/View/FlameAwards/server/Attachments';
 const PHOTO_DIR      = '/opt/View/StudentTrackingSystem/server/Photos';
@@ -262,6 +263,12 @@ async function updateApplicant(req, res) {
         }
 
         await record.update(updates);
+
+        // ── Background score propagation ────────────────────────────────────
+        // Fires after response is sent — non-blocking, non-fatal.
+        // If this student has sibling award records, the same verified score
+        // is automatically mirrored so admins never have to enter it twice.
+        setImmediate(() => syncVerifiedScores(record.email, awardType, updates));
 
         return res.json({ success: true, data: record.toJSON() });
     } catch (err) {

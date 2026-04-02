@@ -21,6 +21,8 @@ const { spawn } = require('child_process');
 const { revokeStudentAccess } = require('./sheetController');
 const { emitDashboardUpdate } = require('./dashboardController');
 const log = require('../utils/logger').child({ module: 'FormSubmissionController' });
+// Auto-sync verified scores across award tables when a student submits a new award
+// (backfill from sibling tables runs in the setImmediate block below)
 
 const MASTER_EMAIL      = 'student.awards@flame.edu.in';
 const SCORE_SCRIPT_PATH = path.join(__dirname, '../scripts/read_sheet_score.py');
@@ -344,9 +346,52 @@ const formController = {
       });
 
       // ── 6. Background tasks after response is flushed ─────────────────────
-      setImmediate(() => {
+      setImmediate(async () => {
         triggerSheetRevocation(email, selected_role);
         emitDashboardUpdate();   // push fresh award counts to admin dashboard
+
+        // ── Back-fill verified scores from sibling tables ──────────────────
+        // If this student already had a score verified in another award table,
+        // copy it into this newly submitted record automatically.
+        try {
+          const roleTypeMap = {
+            sports_person:   'sports',
+            cultural_person: 'cultural',
+            trailblazer:     'trailblazer',
+          };
+          const awardType = roleTypeMap[selected_role];
+
+          if (awardType === 'trailblazer') {
+            // Pull sports_verified_score from SportsPersonAward if that record exists
+            const [sportsRec, culturalRec] = await Promise.all([
+              SportsPersonAward.findOne({ where: { email } }),
+              CulturalPersonAward.findOne({ where: { email } }),
+            ]);
+            const backfill = {};
+            if (sportsRec?.sports_verified_score)   backfill.sports_verified_score   = sportsRec.sports_verified_score;
+            if (culturalRec?.cultural_verified_score) backfill.cultural_verified_score = culturalRec.cultural_verified_score;
+            if (Object.keys(backfill).length > 0) {
+              await submission.update(backfill);
+              console.log(`[ScoresSync] Backfilled trailblazer record for ${email}:`, backfill);
+            }
+          } else if (awardType === 'sports') {
+            // Pull sports_verified_score from TrailblazerAward if that record exists
+            const trailRec = await TrailblazerAward.findOne({ where: { email } });
+            if (trailRec?.sports_verified_score) {
+              await submission.update({ sports_verified_score: trailRec.sports_verified_score });
+              console.log(`[ScoresSync] Backfilled sports record for ${email}: sports_verified_score =`, trailRec.sports_verified_score);
+            }
+          } else if (awardType === 'cultural') {
+            // Pull cultural_verified_score from TrailblazerAward if that record exists
+            const trailRec = await TrailblazerAward.findOne({ where: { email } });
+            if (trailRec?.cultural_verified_score) {
+              await submission.update({ cultural_verified_score: trailRec.cultural_verified_score });
+              console.log(`[ScoresSync] Backfilled cultural record for ${email}: cultural_verified_score =`, trailRec.cultural_verified_score);
+            }
+          }
+        } catch (syncErr) {
+          console.error('[ScoresSync] Backfill error on submission:', syncErr.message);
+        }
       });
 
     } catch (error) {

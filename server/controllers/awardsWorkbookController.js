@@ -8,6 +8,7 @@ const {
     AwardsWorkbook, User,
 } = require('../models');
 const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
+const { syncVerifiedScores } = require('../services/scoresSyncService');
 
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
 const FOLDER_ID    = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
@@ -19,6 +20,7 @@ const IMMUTABLE = new Set(['student_id', 'email', 'name']);
 const CLOUD_SYNCABLE = [
     'academic_score', 'sports_score', 'cultural_score',
     'sports_verified_score', 'cultural_verified_score',
+    'academic_verified_score', 'total_verified_score',
 ];
 
 // ─── Python runner ────────────────────────────────────────────────────────────
@@ -84,6 +86,8 @@ async function collectAllData() {
         cultural_score:           r.cultural_score || '',
         sports_verified_score:    r.sports_verified_score || '',
         cultural_verified_score:  r.cultural_verified_score || '',
+        academic_verified_score:  r.academic_verified_score || '',
+        total_verified_score:     r.total_verified_score || '',
         submission_date:          r.submission_date ? new Date(r.submission_date).toISOString().split('T')[0] : '',
         'Sports Sheet Link':      sportsSheetMap[r.email]   || '',
         'Cultural Sheet Link':    culturalSheetMap[r.email] || '',
@@ -212,8 +216,12 @@ async function syncFromCloud(req, res) {
         const rows = result.rows || [];
         let updated = 0, skipped = 0;
 
-        // Lookup all three models by student_id
-        const MODEL_LIST = [SportsPersonAward, CulturalPersonAward, TrailblazerAward];
+        // MODEL_LIST maps each model to its awardType key for score propagation
+        const MODEL_LIST = [
+            { Model: SportsPersonAward,   type: 'sports' },
+            { Model: CulturalPersonAward, type: 'cultural' },
+            { Model: TrailblazerAward,    type: 'trailblazer' },
+        ];
 
         for (const cloudRow of rows) {
             const sid = cloudRow.student_id?.trim();
@@ -228,15 +236,23 @@ async function syncFromCloud(req, res) {
             }
             if (Object.keys(updates).length === 0) { skipped++; continue; }
 
-            // Try each model — student_id is unique within each table
+            // Update EVERY table that has this student, then propagate scores
             let found = false;
-            for (const Model of MODEL_LIST) {
+            for (const { Model, type } of MODEL_LIST) {
                 const record = await Model.findOne({ where: { student_id: sid } });
                 if (record) {
-                    await record.update(updates);
-                    updated++;
-                    found = true;
-                    break;
+                    // Only apply fields that are relevant to this model
+                    const relevant = {};
+                    for (const [k, v] of Object.entries(updates)) {
+                        if (record.rawAttributes && record.rawAttributes[k]) relevant[k] = v;
+                    }
+                    if (Object.keys(relevant).length > 0) {
+                        await record.update(relevant);
+                        // Propagate cross-table in background
+                        setImmediate(() => syncVerifiedScores(record.email, type, relevant));
+                        updated++;
+                        found = true;
+                    }
                 }
             }
             if (!found) skipped++;
