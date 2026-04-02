@@ -1,5 +1,110 @@
-// services/authService.js 
+// services/authService.js
 import { load } from '@fingerprintjs/fingerprintjs';
+
+// ─── Session-expired overlay (framework-free, works outside React) ────────────
+const showSessionExpiredOverlay = () => {
+  // Don't double-show
+  if (document.getElementById('session-expired-overlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'session-expired-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      background: white;
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 420px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    ">
+      <div style="
+        width: 64px; height: 64px;
+        background: #FFF3CD;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 28px;
+      ">⏱️</div>
+      <h2 style="margin: 0 0 10px; font-size: 22px; font-weight: 800; color: #1a202c;">
+        Session Expired
+      </h2>
+      <p style="margin: 0 0 28px; color: #718096; font-size: 15px; line-height: 1.6;">
+        Your session has timed out for security reasons.<br/>
+        Please log in again to continue.
+      </p>
+      <button id="session-expired-btn" style="
+        background: #3B82F6;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 14px 32px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+        transition: background 0.2s;
+      ">
+        Back to Login
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('session-expired-btn').addEventListener('click', () => {
+    overlay.remove();
+    authService.logout();
+    window.location.href = '/login';
+  });
+
+  // Auto-redirect after 5 seconds
+  setTimeout(() => {
+    overlay.remove();
+    authService.logout();
+    window.location.href = '/login';
+  }, 5000);
+};
+
+// ─── Global fetch interceptor — catches 401 from ALL services automatically ──
+const _originalFetch = window.fetch.bind(window);
+
+window.fetch = async (...args) => {
+  const response = await _originalFetch(...args);
+
+  if (response.status === 401) {
+    // Clone before reading — response body can only be consumed once
+    const cloned = response.clone();
+    try {
+      const data = await cloned.json();
+      const isAuthEndpoint =
+        typeof args[0] === 'string' && args[0].includes('/api/auth/');
+
+      // Only intercept session-expired 401s, not login failures
+      if (!isAuthEndpoint) {
+        showSessionExpiredOverlay();
+      }
+    } catch {
+      showSessionExpiredOverlay();
+    }
+  }
+
+  return response;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class AuthService {
   async getDeviceId() {
@@ -16,7 +121,7 @@ class AuthService {
   async login(email, password) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/login', {
+      const response = await _originalFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, deviceId }),
@@ -38,31 +143,24 @@ class AuthService {
           throw new Error('Login failed: No token received');
         }
       } else {
-        if (data.message === 'Invalid email') {
-          throw new Error('Invalid email');
-        } else if (data.message === 'Invalid password') {
-          throw new Error('Invalid password');
-        } else if (data.message === 'Email is required') {
-          throw new Error('Email is required');
-        } else if (data.message === 'Password is required for admin login') {
-          throw new Error('Password is required for admin login');
-        } else {
-          throw new Error(data.message || 'Login failed');
-        }
+        if (data.message === 'Invalid email') throw new Error('Invalid email');
+        else if (data.message === 'Invalid password') throw new Error('Invalid password');
+        else if (data.message === 'Email is required') throw new Error('Email is required');
+        else if (data.message === 'Password is required for admin login') throw new Error('Password is required for admin login');
+        else throw new Error(data.message || 'Login failed');
       }
     } catch (error) {
       if (error.message === 'Failed to fetch') {
         throw new Error('Network error, please check your connection');
-      } else {
-        throw error;
       }
+      throw error;
     }
   }
 
   async verifyCode(userId, code) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/verify-code', {
+      const response = await _originalFetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code, deviceId }),
@@ -83,7 +181,7 @@ class AuthService {
   async verify2FA(userId, code) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/verify-2fa', {
+      const response = await _originalFetch('/api/auth/verify-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code, deviceId }),
@@ -104,7 +202,7 @@ class AuthService {
   async resendVerificationCode(userId) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/resend-verification-code', {
+      const response = await _originalFetch('/api/auth/resend-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, deviceId }),
@@ -117,11 +215,10 @@ class AuthService {
     }
   }
 
-  // Fast-login for returning students — skips Google OAuth redirect if refresh token is valid
   async googleFastLogin(email) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/fastlogin', {
+      const response = await _originalFetch('/api/auth/fastlogin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, deviceId }),
@@ -129,7 +226,6 @@ class AuthService {
       });
       const data = await response.json();
       if (response.ok && data.message === 'success') {
-        // Save email for future fast-logins
         localStorage.setItem('lastGoogleEmail', email);
         localStorage.setItem('expiresAt', data.expiresAt);
         localStorage.setItem('user', JSON.stringify(data.user));
@@ -143,7 +239,6 @@ class AuthService {
 
   async googleSignIn(email) {
     try {
-      // Use typed email, OR the stored email from a previous OAuth login
       const effectiveEmail = email || localStorage.getItem('lastGoogleEmail');
 
       if (effectiveEmail) {
@@ -154,10 +249,10 @@ class AuthService {
       }
 
       const deviceId = await this.getDeviceId();
-      const response = await fetch(`/api/auth/google?deviceId=${encodeURIComponent(deviceId)}`, {
-        method: 'GET',
-        credentials: 'include',
-      });
+      const response = await _originalFetch(
+        `/api/auth/google?deviceId=${encodeURIComponent(deviceId)}`,
+        { method: 'GET', credentials: 'include' }
+      );
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to initiate Google Sign-In');
@@ -171,16 +266,14 @@ class AuthService {
 
   async initiateGoogleSignIn(email) {
     try {
-      const response = await fetch('/api/auth/initiate-google-signin', {
+      const response = await _originalFetch('/api/auth/initiate-google-signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
         credentials: 'include',
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to initiate Google Sign-In');
-      }
+      if (!response.ok) throw new Error(data.message || 'Failed to initiate Google Sign-In');
       return data;
     } catch (error) {
       throw error;
@@ -190,16 +283,14 @@ class AuthService {
   async verifyGoogleSignInCode(userId, code) {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/verify-google-signin-code', {
+      const response = await _originalFetch('/api/auth/verify-google-signin-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, code, deviceId }),
         credentials: 'include',
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to verify code');
-      }
+      if (!response.ok) throw new Error(data.message || 'Failed to verify code');
       if (data.message === 'redirect') {
         return data;
       } else if (data.message === 'success') {
@@ -218,18 +309,16 @@ class AuthService {
   async refresh() {
     try {
       const deviceId = await this.getDeviceId();
-      const response = await fetch('/api/auth/refresh', {
+      const response = await _originalFetch('/api/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-device-id': deviceId
+          'x-device-id': deviceId,
         },
         credentials: 'include',
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Refresh failed');
-      }
+      if (!response.ok) throw new Error(data.message || 'Refresh failed');
       localStorage.setItem('expiresAt', data.expiresAt);
       localStorage.setItem('user', JSON.stringify(data.user));
       this.setAutoLogout();
@@ -242,6 +331,8 @@ class AuthService {
   logout() {
     localStorage.removeItem('user');
     localStorage.removeItem('expiresAt');
+    localStorage.removeItem('awardForm_role');
+    localStorage.removeItem('awardForm_agreed');
   }
 
   getCurrentUser() {
@@ -277,17 +368,22 @@ class AuthService {
       const timeLeft = (exp - now) * 1000;
       if (timeLeft > 0) {
         setTimeout(() => {
-          this.logout();
+          // Show overlay instead of silently logging out
+          showSessionExpiredOverlay();
         }, timeLeft);
       }
     }
   }
 
   async init() {
-    await this.getDeviceId(); // Ensure deviceId is generated
+    await this.getDeviceId();
     if (this.isTokenExpired()) {
-      if (localStorage.getItem('deviceId')) { // Check if we have deviceId instead of refreshToken
-        await this.refresh().catch(() => this.logout());
+      if (localStorage.getItem('deviceId')) {
+        await this.refresh().catch(() => {
+          this.logout();
+          // Don't show overlay on initial load — just redirect cleanly
+          window.location.href = '/login';
+        });
       } else {
         this.logout();
       }
