@@ -3,7 +3,6 @@ import { load } from '@fingerprintjs/fingerprintjs';
 
 // ─── Session-expired overlay (framework-free, works outside React) ────────────
 const showSessionExpiredOverlay = () => {
-  // Don't double-show
   if (document.getElementById('session-expired-overlay')) return;
 
   const overlay = document.createElement('div');
@@ -72,9 +71,11 @@ const showSessionExpiredOverlay = () => {
 
   // Auto-redirect after 5 seconds
   setTimeout(() => {
-    overlay.remove();
-    authService.logout();
-    window.location.href = '/login';
+    if (document.getElementById('session-expired-overlay')) {
+      overlay.remove();
+      authService.logout();
+      window.location.href = '/login';
+    }
   }, 5000);
 };
 
@@ -85,19 +86,21 @@ window.fetch = async (...args) => {
   const response = await _originalFetch(...args);
 
   if (response.status === 401) {
-    // Clone before reading — response body can only be consumed once
     const cloned = response.clone();
     try {
-      const data = await cloned.json();
+      await cloned.json(); // consume clone — we only need the status
       const isAuthEndpoint =
         typeof args[0] === 'string' && args[0].includes('/api/auth/');
 
-      // Only intercept session-expired 401s, not login failures
-      if (!isAuthEndpoint) {
+      // Only intercept session-expired 401s from protected endpoints,
+      // never from login/verify flows — and never while already on /login
+      if (!isAuthEndpoint && window.location.pathname !== '/login') {
         showSessionExpiredOverlay();
       }
     } catch {
-      showSessionExpiredOverlay();
+      if (window.location.pathname !== '/login') {
+        showSessionExpiredOverlay();
+      }
     }
   }
 
@@ -368,8 +371,10 @@ class AuthService {
       const timeLeft = (exp - now) * 1000;
       if (timeLeft > 0) {
         setTimeout(() => {
-          // Show overlay instead of silently logging out
-          showSessionExpiredOverlay();
+          // Only show overlay if not already on login page
+          if (window.location.pathname !== '/login') {
+            showSessionExpiredOverlay();
+          }
         }, timeLeft);
       }
     }
@@ -381,8 +386,10 @@ class AuthService {
       if (localStorage.getItem('deviceId')) {
         await this.refresh().catch(() => {
           this.logout();
-          // Don't show overlay on initial load — just redirect cleanly
-          window.location.href = '/login';
+          // ← THE FIX: never redirect if already on /login — this was the infinite loop
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         });
       } else {
         this.logout();
