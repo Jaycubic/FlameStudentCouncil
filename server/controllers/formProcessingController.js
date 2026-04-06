@@ -2,6 +2,7 @@
 const { StudentData, TrailblazerAward, SportsPersonAward, CulturalPersonAward, TimeSettings } = require('../models');
 const path = require('path');
 const fs = require('fs');
+const { refreshCgpaInBackground } = require('../services/cgpaLookupService');
 
 const PHOTO_DIR = '/opt/View/StudentTrackingSystem/server/Photos';
 
@@ -64,6 +65,16 @@ const formProcessingController = {
                 photoExists,
                 filledRoles
             });
+
+            // Fire-and-forget CGPA refresh — runs after response is sent,
+            // keeps app.student_cgpa_cache fresh without adding any latency.
+            if (studentId && student.batch) {
+                refreshCgpaInBackground(
+                    studentId,
+                    student.email_id || email,
+                    student.batch
+                );
+            }
 
         } catch (error) {
             console.error('Prefill error:', error);

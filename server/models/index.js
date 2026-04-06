@@ -29,6 +29,7 @@ const PhotoDriveUpload = require('./PhotoDriveUpload');
 const AwardsWorkbook      = require('./AwardsWorkbook');
 const AcademicUserSheet   = require('./AcademicUserSheet');
 const NominatedStudent    = require('./NominatedStudent');
+const StudentCgpaCache    = require('./StudentCgpaCache');
 
 const models = {
   Organization,
@@ -61,6 +62,7 @@ const models = {
   AwardsWorkbook,
   AcademicUserSheet,
   NominatedStudent,
+  StudentCgpaCache,
 };
 
 Object.values(models).forEach(model => {

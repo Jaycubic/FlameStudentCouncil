@@ -103,6 +103,24 @@ const SHEET_MODEL_MAP = {
   academic: AcademicUserSheet
 };
 
+// ─── Score scaling (weighted_scaled_scores.md) ───────────────────────────────
+// Piecewise formula:
+//   x ≤ 150  →  y = x / 15
+//   x > 150  →  y = min(10 + 0.05 * (x - 150), 12)
+// w = 0.05, y_max = 12
+// Returns a 2-dp string to match the VARCHAR column type, or null for bad input.
+
+function scaleScore(raw) {
+  const x = parseFloat(raw);
+  if (isNaN(x) || x < 0) return null;
+  const W = 0.05;
+  const Y_MAX = 12;
+  const y = x <= 150
+    ? x / 15
+    : Math.min(10 + W * (x - 150), Y_MAX);
+  return parseFloat(y.toFixed(2)).toString();
+}
+
 // ─── Read B1 score from a student sheet ───────────────────────────────────────
 // Runs read_sheet_score.py synchronously (awaited before DB write).
 // Returns the computed numeric value of B1, or null on any failure.
@@ -147,14 +165,35 @@ function runScoreScript(sheetId, masterUser) {
 /**
  * Reads sports_score and/or cultural_score from the student's sheets
  * depending on the selected_role. Returns { sports_score, cultural_score }.
- * Both default to null if sheet not found or read fails.
+ *
+ * For Trailblazer with pre-filled sections (already submitted as sibling award),
+ * scores are sourced directly from the sibling DB record instead of running
+ * the slow sheet script — instant and no Drive API call needed.
  */
-async function readScoresForSubmission(email, selectedRole, masterUser) {
+async function readScoresForSubmission(email, selectedRole, masterUser, opts = {}) {
+  const { alreadySubmittedSports = false, alreadySubmittedCultural = false } = opts;
   const scores = { sports_score: null, cultural_score: null, academic_score: null };
 
   try {
-    const needsSports   = selectedRole === 'sports_person'   || selectedRole === 'trailblazer';
-    const needsCultural = selectedRole === 'cultural_person' || selectedRole === 'trailblazer';
+    // ─ DB carry-over for pre-filled Trailblazer sections ────────────────────────
+    if (selectedRole === 'trailblazer' && alreadySubmittedSports) {
+      const sportsRec = await SportsPersonAward.findOne({ where: { email } });
+      if (sportsRec?.sports_score) {
+        scores.sports_score = String(sportsRec.sports_score);
+        log.info({ email, sports_score: scores.sports_score }, '[ScoreRead] Carried sports_score from SportsPersonAward DB');
+      }
+    }
+    if (selectedRole === 'trailblazer' && alreadySubmittedCultural) {
+      const culturalRec = await CulturalPersonAward.findOne({ where: { email } });
+      if (culturalRec?.cultural_score) {
+        scores.cultural_score = String(culturalRec.cultural_score);
+        log.info({ email, cultural_score: scores.cultural_score }, '[ScoreRead] Carried cultural_score from CulturalPersonAward DB');
+      }
+    }
+
+    // ─ Sheet reads for sections actually shown in this session ────────────────
+    const needsSports   = !alreadySubmittedSports   && (selectedRole === 'sports_person' || selectedRole === 'trailblazer');
+    const needsCultural = !alreadySubmittedCultural && (selectedRole === 'cultural_person' || selectedRole === 'trailblazer');
     const needsAcademic = selectedRole === 'trailblazer';
 
     const [sportsSheet, culturalSheet, academicSheet] = await Promise.all([
@@ -169,11 +208,11 @@ async function readScoresForSubmission(email, selectedRole, masterUser) {
       academicSheet?.user_sheet_id ? runScoreScript(academicSheet.user_sheet_id, masterUser) : null
     ]);
 
-    if (needsSports)   scores.sports_score   = sportsScore;
-    if (needsCultural) scores.cultural_score = culturalScore;
-    if (needsAcademic) scores.academic_score = academicScore;
+    if (needsSports   && sportsScore   !== null) scores.sports_score   = sportsScore;
+    if (needsCultural && culturalScore !== null) scores.cultural_score = culturalScore;
+    if (needsAcademic && academicScore !== null) scores.academic_score = academicScore;
 
-    log.info({ email, selectedRole, sportsScore, culturalScore, academicScore }, '[ScoreRead] Scores resolved');
+    log.info({ email, selectedRole, ...scores }, '[ScoreRead] Scores resolved');
   } catch (err) {
     log.error({ err: err.message }, '[ScoreRead] Unexpected error — scores set to null');
   }
@@ -183,25 +222,43 @@ async function readScoresForSubmission(email, selectedRole, masterUser) {
 
 
 /**
- * Silently removes student Drive permissions for all sheets tied to their role.
- * The file itself stays in master's private folder — only the student's
- * explicit permission entry is deleted.
+ * Silently removes student Drive permissions for all sheets tied to their role
+ * that were actually opened/generated in this session.
+ *
+ * For Trailblazer with pre-filled sections, we skip the sheet types that were
+ * never opened (the sibling award already revoked them at its own submission time).
  *
  * @param {string} studentEmail
  * @param {string} selectedRole  - 'sports_person' | 'cultural_person' | 'trailblazer'
+ * @param {object} opts          - { alreadySubmittedSports, alreadySubmittedCultural }
  */
-async function triggerSheetRevocation(studentEmail, selectedRole) {
+async function triggerSheetRevocation(studentEmail, selectedRole, opts = {}) {
   try {
+    const { alreadySubmittedSports = false, alreadySubmittedCultural = false } = opts;
     console.log(`[Revoke] Starting revocation for ${studentEmail}, role=${selectedRole}`);
 
-    const sheetTypes = ROLE_TO_SHEET_TYPES[selectedRole];
-    if (!sheetTypes) {
+    let sheetTypes = [...(ROLE_TO_SHEET_TYPES[selectedRole] || [])];
+    if (!sheetTypes.length) {
       log.warn({ role: selectedRole }, 'Unknown role — nothing to revoke.');
       return;
     }
 
-    const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+    // For Trailblazer: strip sheet types for sections that were pre-filled from
+    // sibling awards. Those sheets were either never opened in this session OR
+    // already had their permissions revoked when the sibling award was submitted.
+    if (selectedRole === 'trailblazer') {
+      sheetTypes = sheetTypes.filter(type => {
+        if (type === 'sports'   && alreadySubmittedSports)   { log.info({ studentEmail, type }, '[Revoke] Skipping sports sheet — pre-filled from sibling award'); return false; }
+        if (type === 'cultural' && alreadySubmittedCultural) { log.info({ studentEmail, type }, '[Revoke] Skipping cultural sheet — pre-filled from sibling award'); return false; }
+        return true;
+      });
+      if (sheetTypes.length === 0) {
+        log.info({ studentEmail }, '[Revoke] All sheet types were pre-filled — nothing to revoke this session');
+        return;
+      }
+    }
 
+    const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
     if (!masterUser || !masterUser.access_token) {
       log.error({ studentEmail }, 'Revocation failed: Master account not found or has no access_token');
       return;
@@ -256,8 +313,14 @@ const formController = {
         name, studentId, mobileNumber, gender, batch, email,
         academicLevel, academic_score, sportsScore, culturalScore,
         notOnProbation, trueStatement, sop, communityService,
-        selected_role
+        selected_role,
+        already_submitted_sports,
+        already_submitted_cultural
       } = req.body;
+
+      // Parse the pre-fill flags sent by the frontend
+      const alreadySubmittedSports   = already_submitted_sports   === 'true';
+      const alreadySubmittedCultural = already_submitted_cultural === 'true';
 
       if (!gender) {
         return res.status(400).json({ message: 'Gender is mandatory.' });
@@ -300,8 +363,11 @@ const formController = {
       // final stored score is always the actual sheet value, not a client guess.
       const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
       if (masterUser?.access_token) {
-        const scores = await readScoresForSubmission(email, selected_role, masterUser);
-        // Overwrite whatever the client sent — sheet is the source of truth
+        const scores = await readScoresForSubmission(email, selected_role, masterUser, {
+          alreadySubmittedSports,
+          alreadySubmittedCultural
+        });
+        // Overwrite whatever the client sent — sheet/DB is the source of truth
         if (scores.sports_score   !== null) submissionData.sports_score   = scores.sports_score;
         if (scores.cultural_score !== null) submissionData.cultural_score = scores.cultural_score;
         if (scores.academic_score !== null) submissionData.academic_score = scores.academic_score;
@@ -309,6 +375,31 @@ const formController = {
         log.warn({ email }, '[ScoreRead] Master tokens unavailable — scores stored as null');
       }
 
+      // ── 2c. Auto-scale raw scores → verified scores ───────────────────────
+      // Formula from weighted_scaled_scores.md (w = 0.05, y_max = 12):
+      //   x ≤ 150  →  y = x / 15
+      //   x > 150  →  y = min(10 + 0.05*(x-150), 12)
+      // These are written at submission time so admins have a sensible starting
+      // value. Admin edits in the workbook will still override these values.
+      if (submissionData.sports_score   != null) submissionData.sports_verified_score   = scaleScore(submissionData.sports_score);
+      if (submissionData.cultural_score != null) submissionData.cultural_verified_score = scaleScore(submissionData.cultural_score);
+      if (submissionData.academic_score != null) submissionData.academic_verified_score = scaleScore(submissionData.academic_score);
+
+      // For Trailblazer: sum the three verified scores into total_verified_score
+      if (selected_role === 'trailblazer') {
+        const sv = parseFloat(submissionData.sports_verified_score)   || 0;
+        const cv = parseFloat(submissionData.cultural_verified_score) || 0;
+        const av = parseFloat(submissionData.academic_verified_score) || 0;
+        if (sv || cv || av) {
+          submissionData.total_verified_score = parseFloat((sv + cv + av).toFixed(2)).toString();
+          log.info({ email, sv, cv, av, total: submissionData.total_verified_score }, '[ScoreScale] Trailblazer total_verified_score computed');
+        }
+      }
+      log.info({
+        email, role: selected_role,
+        raw:   { sports: submissionData.sports_score, cultural: submissionData.cultural_score, academic: submissionData.academic_score },
+        scaled: { sports: submissionData.sports_verified_score, cultural: submissionData.cultural_verified_score, academic: submissionData.academic_verified_score }
+      }, '[ScoreScale] Verified scores written to submissionData');
 
       // ── 3. Upsert submission ───────────────────────────────────────────────
       let submission = await AwardModel.findOne({ where: { email } });
@@ -347,7 +438,7 @@ const formController = {
 
       // ── 6. Background tasks after response is flushed ─────────────────────
       setImmediate(async () => {
-        triggerSheetRevocation(email, selected_role);
+        triggerSheetRevocation(email, selected_role, { alreadySubmittedSports, alreadySubmittedCultural });
         emitDashboardUpdate();   // push fresh award counts to admin dashboard
 
         // ── Back-fill verified scores from sibling tables ──────────────────
@@ -375,18 +466,50 @@ const formController = {
               console.log(`[ScoresSync] Backfilled trailblazer record for ${email}:`, backfill);
             }
           } else if (awardType === 'sports') {
-            // Pull sports_verified_score from TrailblazerAward if that record exists
+            // Fetch Trailblazer record (may not exist if student never applied for it)
             const trailRec = await TrailblazerAward.findOne({ where: { email } });
-            if (trailRec?.sports_verified_score) {
-              await submission.update({ sports_verified_score: trailRec.sports_verified_score });
-              console.log(`[ScoresSync] Backfilled sports record for ${email}: sports_verified_score =`, trailRec.sports_verified_score);
+            if (trailRec) {
+              // ① Carry admin-overridden verified score DOWN to the new sports submission
+              if (trailRec.sports_verified_score) {
+                await submission.update({ sports_verified_score: trailRec.sports_verified_score });
+                console.log(`[ScoresSync] Backfilled sports record for ${email}: sports_verified_score =`, trailRec.sports_verified_score);
+              }
+              // ② Push fresh raw + scaled scores UP to TrailblazerAward, then recompute total
+              if (submission.sports_score !== null && submission.sports_score !== undefined) {
+                const newSportsVerified = scaleScore(submission.sports_score);
+                const trailUpdate = { sports_score: submission.sports_score };
+                if (newSportsVerified !== null) trailUpdate.sports_verified_score = newSportsVerified;
+                // Recompute total: new sports + existing cultural + existing academic
+                const sv = parseFloat(newSportsVerified)                    || 0;
+                const cv = parseFloat(trailRec.cultural_verified_score)     || 0;
+                const av = parseFloat(trailRec.academic_verified_score)     || 0;
+                if (sv || cv || av) trailUpdate.total_verified_score = parseFloat((sv + cv + av).toFixed(2)).toString();
+                await trailRec.update(trailUpdate);
+                console.log(`[ScoresSync] Synced TrailblazerAward for ${email}:`, trailUpdate);
+              }
             }
           } else if (awardType === 'cultural') {
-            // Pull cultural_verified_score from TrailblazerAward if that record exists
+            // Fetch Trailblazer record (may not exist if student never applied for it)
             const trailRec = await TrailblazerAward.findOne({ where: { email } });
-            if (trailRec?.cultural_verified_score) {
-              await submission.update({ cultural_verified_score: trailRec.cultural_verified_score });
-              console.log(`[ScoresSync] Backfilled cultural record for ${email}: cultural_verified_score =`, trailRec.cultural_verified_score);
+            if (trailRec) {
+              // ① Carry admin-overridden verified score DOWN to the new cultural submission
+              if (trailRec.cultural_verified_score) {
+                await submission.update({ cultural_verified_score: trailRec.cultural_verified_score });
+                console.log(`[ScoresSync] Backfilled cultural record for ${email}: cultural_verified_score =`, trailRec.cultural_verified_score);
+              }
+              // ② Push fresh raw + scaled scores UP to TrailblazerAward, then recompute total
+              if (submission.cultural_score !== null && submission.cultural_score !== undefined) {
+                const newCulturalVerified = scaleScore(submission.cultural_score);
+                const trailUpdate = { cultural_score: submission.cultural_score };
+                if (newCulturalVerified !== null) trailUpdate.cultural_verified_score = newCulturalVerified;
+                // Recompute total: existing sports + new cultural + existing academic
+                const sv = parseFloat(trailRec.sports_verified_score)       || 0;
+                const cv = parseFloat(newCulturalVerified)                  || 0;
+                const av = parseFloat(trailRec.academic_verified_score)     || 0;
+                if (sv || cv || av) trailUpdate.total_verified_score = parseFloat((sv + cv + av).toFixed(2)).toString();
+                await trailRec.update(trailUpdate);
+                console.log(`[ScoresSync] Synced TrailblazerAward for ${email}:`, trailUpdate);
+              }
             }
           }
         } catch (syncErr) {

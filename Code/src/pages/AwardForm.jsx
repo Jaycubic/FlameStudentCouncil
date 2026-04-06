@@ -110,6 +110,13 @@ function ApplicationFormDashboard() {
         cultural_person: 'Co-curricular Person Award',
     };
 
+    // ── Trailblazer smart section hiding ──────────────────────────────────────
+    // When a student has already submitted a sibling award, that section is
+    // completely removed from the Trailblazer form — the backend will carry
+    // the score over automatically from the sibling record.
+    const trailblazerHidesSports   = selectedRole === 'trailblazer' && filledRoles.includes('Sports Person Award');
+    const trailblazerHidesCultural = selectedRole === 'trailblazer' && filledRoles.includes('Co-curricular Person Award');
+
     const fetchStatusAndPrefill = async () => {
         try {
             const timeRes = await timeSettingsService.getSettings();
@@ -337,6 +344,10 @@ function ApplicationFormDashboard() {
 
         const data = new FormData();
         data.append('selected_role', selectedRole);
+        // Tell the backend which sections were pre-filled so it can source scores
+        // from sibling DB records and skip revocation for those sheets
+        data.append('already_submitted_sports',   trailblazerHidesSports   ? 'true' : 'false');
+        data.append('already_submitted_cultural', trailblazerHidesCultural ? 'true' : 'false');
         Object.keys(formData).forEach(key => {
             if (key !== 'photoUrl') data.append(key, formData[key]);
         });
@@ -715,8 +726,25 @@ function ApplicationFormDashboard() {
                             )}
 
                             <VStack spacing={10} align="stretch" opacity={photoExists ? 1 : 0.45} pointerEvents={photoExists ? 'auto' : 'none'}>
-                                {/* Sport Section */}
-                                {(selectedRole === 'trailblazer' || selectedRole === 'sports_person') && (
+
+                                {/* Carry-over info banner — shown when Trailblazer hides pre-filled sections */}
+                                {(trailblazerHidesSports || trailblazerHidesCultural) && (
+                                    <Alert status="info" borderRadius="xl" variant="left-accent">
+                                        <AlertIcon />
+                                        <VStack align="start" spacing={1}>
+                                            <Text fontWeight="bold" fontSize="sm">Score carry-over active</Text>
+                                            {trailblazerHidesSports && (
+                                                <Text fontSize="xs">🏅 Your <b>Sports</b> score will be carried over automatically from your Sports Person Award submission.</Text>
+                                            )}
+                                            {trailblazerHidesCultural && (
+                                                <Text fontSize="xs">🎭 Your <b>Co-curricular</b> score will be carried over automatically from your Co-curricular Person Award submission.</Text>
+                                            )}
+                                        </VStack>
+                                    </Alert>
+                                )}
+
+                                {/* Sport Section — hidden when already submitted as standalone Sports Person Award */}
+                                {((selectedRole === 'trailblazer' && !trailblazerHidesSports) || selectedRole === 'sports_person') && (
                                     <Section title="Sports & Athletics Achievements">
                                         <VStack spacing={0} align="stretch">
                                             <HStack spacing={4} align="start">
@@ -798,8 +826,8 @@ function ApplicationFormDashboard() {
                                     </Section>
                                 )}
 
-                                {/* Cultural/Co-curricular Section */}
-                                {(selectedRole === 'trailblazer' || selectedRole === 'cultural_person') && (
+                                {/* Cultural Section — hidden when already submitted as standalone Co-curricular Person Award */}
+                                {((selectedRole === 'trailblazer' && !trailblazerHidesCultural) || selectedRole === 'cultural_person') && (
                                     <Section title="Co-curricular Excellence">
                                         <VStack spacing={0} align="stretch">
                                             <HStack spacing={4} align="start">
