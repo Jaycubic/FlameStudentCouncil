@@ -83,15 +83,42 @@ async function collectAllData() {
             ...trailblazerRows.map(r => r.student_id).filter(Boolean),
         ])
     ];
+
+    // ── DEBUG: show exactly what IDs we're querying with ─────────────────────
+    log.info({
+        allStudentIds,
+        // JSON.stringify shows hidden chars (spaces show as \u0020)
+        allStudentIdsJSON: JSON.stringify(allStudentIds),
+        count: allStudentIds.length,
+    }, '[Workbook][DEBUG] Student IDs used for PhotoDriveUpload lookup');
+
     const photoRecords = allStudentIds.length > 0
         ? await PhotoDriveUpload.findAll({
             where: { student_id: { [Op.in]: allStudentIds } },
             attributes: ['student_id', 'drive_file_id'],
           })
         : [];
+
+    // ── DEBUG: show raw DB rows returned ─────────────────────────────────────
+    log.info({
+        rowCount: photoRecords.length,
+        rows: photoRecords.map(p => ({
+            student_id:     p.student_id,
+            student_id_len: p.student_id?.length,
+            student_id_JSON:JSON.stringify(p.student_id),
+            drive_file_id:  p.drive_file_id,
+        })),
+    }, '[Workbook][DEBUG] Raw PhotoDriveUpload rows from DB');
+
     const photoMap = Object.fromEntries(
         photoRecords.map(p => [p.student_id.toString().trim(), p.drive_file_id])
     );
+
+    // ── DEBUG: show final photoMap keys ──────────────────────────────────────
+    log.info({
+        photoMapKeys: Object.keys(photoMap),
+        photoMapKeysJSON: JSON.stringify(Object.keys(photoMap)),
+    }, '[Workbook][DEBUG] Final photoMap keys (trimmed)');
 
     const AWARD_MERGE_KEY = {
         'Sports Award':      'sport',
