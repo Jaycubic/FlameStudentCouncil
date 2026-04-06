@@ -89,7 +89,9 @@ async function collectAllData() {
             attributes: ['student_id', 'drive_file_id'],
           })
         : [];
-    const photoMap = Object.fromEntries(photoRecords.map(p => [p.student_id, p.drive_file_id]));
+    const photoMap = Object.fromEntries(
+        photoRecords.map(p => [p.student_id.toString().trim(), p.drive_file_id])
+    );
 
     const AWARD_MERGE_KEY = {
         'Sports Award':      'sport',
