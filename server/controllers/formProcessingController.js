@@ -1,5 +1,5 @@
 // server/controllers/formProcessingController.js
-const { StudentData, TrailblazerAward, SportsPersonAward, CulturalPersonAward, TimeSettings } = require('../models');
+const { StudentData, TrailblazerAward, SportsPersonAward, CulturalPersonAward, TimeSettings, StudentCgpaCache } = require('../models');
 const path = require('path');
 const fs = require('fs');
 const { refreshCgpaInBackground } = require('../services/cgpaLookupService');
@@ -62,6 +62,13 @@ const formProcessingController = {
                 );
             }
 
+            // Read latest cached CGPA for this student (null = not found = no gate).
+            // Do NOT await inside the refresh above — this is a separate fast cache read.
+            const cgpaCache = studentId
+                ? await StudentCgpaCache.findOne({ where: { student_id: studentId }, attributes: ['cgpa'], raw: true })
+                : null;
+            const studentCgpa = cgpaCache?.cgpa != null ? parseFloat(cgpaCache.cgpa) : null;
+
             return res.json({
                 prefill: {
                     name: student.student_name,
@@ -70,7 +77,8 @@ const formProcessingController = {
                     gender: student.gender,
                     batch: student.batch,
                     email: student.email_id || email,
-                    photo: foundPhoto
+                    photo: foundPhoto,
+                    cgpa: studentCgpa       // null means "no data" — frontend gives benefit of doubt
                 },
                 photoExists,
                 filledRoles

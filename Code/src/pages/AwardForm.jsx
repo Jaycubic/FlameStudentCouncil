@@ -99,6 +99,7 @@ function ApplicationFormDashboard() {
 
     const [photoExists, setPhotoExists] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [studentCgpa, setStudentCgpa] = useState(null);   // null = no data (no gate)
 
     const VALID_ROLES = ['trailblazer', 'sports_person', 'cultural_person'];
     const isValidRole = (role) => VALID_ROLES.includes(role);
@@ -116,6 +117,11 @@ function ApplicationFormDashboard() {
     // the score over automatically from the sibling record.
     const trailblazerHidesSports   = selectedRole === 'trailblazer' && filledRoles.includes('Sports Person Award');
     const trailblazerHidesCultural = selectedRole === 'trailblazer' && filledRoles.includes('Co-curricular Person Award');
+
+    // ── Trailblazer CGPA gate ──────────────────────────────────────────────────
+    // A student MUST have CGPA ≥ 7.0 to apply for Trailblazer.
+    // null means the cache has no data yet — give benefit of the doubt (don't block).
+    const trailblazerBlockedByCgpa = studentCgpa !== null && !isNaN(studentCgpa) && studentCgpa < 7;
 
     const fetchStatusAndPrefill = async () => {
         try {
@@ -149,6 +155,10 @@ function ApplicationFormDashboard() {
             if (roles.length >= 3) {
                 setAllCompleted(true);
             }
+
+            // Capture CGPA from backend cache (null = not found = no gate applied)
+            const rawCgpa = prefillData.prefill?.cgpa;
+            setStudentCgpa(rawCgpa != null ? parseFloat(rawCgpa) : null);
 
             // Restore saved local state — but only if the role hasn't already been
             // submitted from another device. The old transform ('sports_person' → 'Sports Person')
@@ -642,7 +652,9 @@ function ApplicationFormDashboard() {
                                 description="Comprehensive excellence in both Sports and Culture."
                                 icon={FaGraduationCap}
                                 color="purple"
-                                disabled={filledRoles.includes('Trailblazer')}
+                                disabled={filledRoles.includes('Trailblazer') || trailblazerBlockedByCgpa}
+                                disabledLabel={trailblazerBlockedByCgpa && !filledRoles.includes('Trailblazer') ? 'CGPA < 7' : 'Submitted'}
+                                disabledScheme={trailblazerBlockedByCgpa && !filledRoles.includes('Trailblazer') ? 'red' : 'green'}
                                 onClick={() => handleRoleSelect('trailblazer', 'Trailblazer')}
                             />
                             <RoleCard
@@ -1085,13 +1097,15 @@ function ApplicationFormDashboard() {
     );
 }
 
-const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
+const RoleCard = ({ title, description, icon, color, onClick, disabled, disabledLabel, disabledScheme }) => {
     const colorMap = {
         purple: { bg: 'purple.50', border: 'purple.200', icon: 'purple.500', active: 'purple.400' },
         orange: { bg: 'orange.50', border: 'orange.200', icon: 'orange.500', active: 'orange.400' },
         pink: { bg: 'pink.50', border: 'pink.200', icon: 'pink.500', active: 'pink.400' }
     };
     const c = colorMap[color] || colorMap.purple;
+    const badgeScheme = disabledScheme || 'green';
+    const badgeLabel  = disabledLabel  || 'Submitted';
 
     return (
         <VStack
@@ -1117,7 +1131,9 @@ const RoleCard = ({ title, description, icon, color, onClick, disabled }) => {
                 <Text fontSize="sm" color={useColorModeValue('gray.500', 'gray.400')}>{description}</Text>
             </VStack>
             {disabled && (
-                <Badge position="absolute" top={4} right={4} colorScheme="green" variant="solid">Submitted</Badge>
+                <Badge position="absolute" top={4} right={4} colorScheme={badgeScheme} variant="solid">
+                    {badgeLabel}
+                </Badge>
             )}
         </VStack>
     );
