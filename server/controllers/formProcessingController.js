@@ -46,9 +46,9 @@ const formProcessingController = {
             ]);
 
             const filledRoles = [];
-            if (trailblazer) filledRoles.push('Trailblazer');
-            if (sports) filledRoles.push('SportsPerson of The Year Award');
-            if (cultural) filledRoles.push('Best in Co-curricular Activities');
+            if (trailblazer) filledRoles.push('trailblazer');
+            if (sports)      filledRoles.push('sports_person');
+            if (cultural)    filledRoles.push('cultural_person');
 
             const studentId = student.student_cvue_no ? student.student_cvue_no.toString() : '';
 

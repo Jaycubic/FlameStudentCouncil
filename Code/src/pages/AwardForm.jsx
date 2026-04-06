@@ -115,8 +115,10 @@ function ApplicationFormDashboard() {
     // When a student has already submitted a sibling award, that section is
     // completely removed from the Trailblazer form — the backend will carry
     // the score over automatically from the sibling record.
-    const trailblazerHidesSports = selectedRole === 'trailblazer' && filledRoles.includes('SportsPerson of The Year Award');
-    const trailblazerHidesCultural = selectedRole === 'trailblazer' && filledRoles.includes('Best in Co-curricular Activities');
+    // NOTE: filledRoles contains stable role KEYS ('sports_person', 'cultural_person',
+    // 'trailblazer') — never display names. This is safe across any future renames.
+    const trailblazerHidesSports   = selectedRole === 'trailblazer' && filledRoles.includes('sports_person');
+    const trailblazerHidesCultural = selectedRole === 'trailblazer' && filledRoles.includes('cultural_person');
 
     // ── Trailblazer CGPA gate ──────────────────────────────────────────────────
     // A student MUST have CGPA ≥ 7.0 to apply for Trailblazer.
@@ -169,8 +171,8 @@ function ApplicationFormDashboard() {
             if (savedAgreed === 'true') setAgreedToInstructions(true);
 
             if (savedRole && isValidRole(savedRole)) {
-                const savedRoleTitle = ROLE_TITLE_MAP[savedRole];
-                if (roles.includes(savedRoleTitle)) {
+                // Compare against the role KEY directly — filledRoles contains keys, not display names
+                if (roles.includes(savedRole)) {
                     // Role was already submitted (possibly on another device) — clear stale localStorage
                     localStorage.removeItem('awardForm_role');
                 } else {
@@ -264,10 +266,11 @@ function ApplicationFormDashboard() {
         // Validate the role against the known list before setting it
         if (!isValidRole(role)) return;
 
-        if (filledRoles.includes(title)) {
+        // Guard uses role KEY, not title — immune to any future display name changes
+        if (filledRoles.includes(role)) {
             toast({
                 title: 'Already Submitted',
-                description: `You have already applied for the ${title} Award.`,
+                description: `You have already applied for the ${title}.`,
                 status: 'info',
                 duration: 3000,
                 isClosable: true,
@@ -652,9 +655,9 @@ function ApplicationFormDashboard() {
                                 description="Comprehensive excellence in both Sports and Culture."
                                 icon={FaGraduationCap}
                                 color="purple"
-                                disabled={filledRoles.includes('Trailblazer') || trailblazerBlockedByCgpa}
-                                disabledLabel={trailblazerBlockedByCgpa && !filledRoles.includes('Trailblazer') ? 'CGPA < 7' : 'Submitted'}
-                                disabledScheme={trailblazerBlockedByCgpa && !filledRoles.includes('Trailblazer') ? 'red' : 'green'}
+                                disabled={filledRoles.includes('trailblazer') || trailblazerBlockedByCgpa}
+                                disabledLabel={trailblazerBlockedByCgpa && !filledRoles.includes('trailblazer') ? 'CGPA < 7' : 'Submitted'}
+                                disabledScheme={trailblazerBlockedByCgpa && !filledRoles.includes('trailblazer') ? 'red' : 'green'}
                                 onClick={() => handleRoleSelect('trailblazer', 'Trailblazer')}
                             />
                             <RoleCard
@@ -662,7 +665,7 @@ function ApplicationFormDashboard() {
                                 description="Exceptional achievements and leadership in athletics."
                                 icon={FaTrophy}
                                 color="orange"
-                                disabled={filledRoles.includes('SportsPerson of The Year Award')}
+                                disabled={filledRoles.includes('sports_person')}
                                 onClick={() => handleRoleSelect('sports_person', 'SportsPerson of The Year Award')}
                             />
                             <RoleCard
@@ -670,7 +673,7 @@ function ApplicationFormDashboard() {
                                 description="Outstanding contribution to arts, music, and culture."
                                 icon={FaMusic}
                                 color="pink"
-                                disabled={filledRoles.includes('Best in Co-curricular Activities')}
+                                disabled={filledRoles.includes('cultural_person')}
                                 onClick={() => handleRoleSelect('cultural_person', 'Best in Co-curricular Activities')}
                             />
                         </SimpleGrid>
