@@ -578,13 +578,19 @@ const formController = {
               await new Promise(resolve => {
                 const proc = spawn('python3', [scriptPath, outputPath, ...pdfPaths]);
                 let out = '';
+                let err = '';
                 proc.stdout.on('data', d => { out += d.toString(); });
-                proc.on('close', () => {
+                proc.stderr.on('data', d => { err += d.toString(); });
+                proc.on('close', (code) => {
                   try {
                     const r = JSON.parse(out.trim());
-                    log.info({ sidForMerge, typeKey, merged: r.merged, output: r.output }, '[PdfMerge] ✅ Merged successfully');
+                    if (r.success) {
+                      log.info({ sidForMerge, typeKey, merged: r.merged, output: r.output }, '[PdfMerge] ✅ Merged successfully');
+                    } else {
+                      log.error({ sidForMerge, typeKey, error: r.error, stderr: err }, '[PdfMerge] ❌ Script returned failure');
+                    }
                   } catch (_) {
-                    log.warn({ out }, '[PdfMerge] Non-JSON output from merge script');
+                    log.error({ out, stderr: err, exitCode: code }, '[PdfMerge] Non-JSON output from merge script');
                   }
                   resolve();
                 });

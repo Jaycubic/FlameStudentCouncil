@@ -21,7 +21,8 @@
 #   "TrailblazerAward": [{ "photo_drive_id": "...", "email": "..." }, ...]
 # }
 #
-# Returns: { "success": true }  OR  { "success": false, "error": "..." }
+# Returns: { "success": true, "stats": {...} }
+#       OR { "success": false, "error": "..." }
 
 import sys
 import json
@@ -124,6 +125,24 @@ def main():
         print(json.dumps({'success': False, 'error': f'Invalid photo_data JSON: {e}'}))
         return
 
+    # ── Diagnostic: count how many photo_drive_ids are non-empty ──────────────
+    stats = {}
+    for tab_name, rows in photo_data.items():
+        total      = len(rows)
+        with_photo = sum(1 for r in rows if r.get('photo_drive_id'))
+        stats[tab_name] = {'total': total, 'with_photo': with_photo}
+        # Log to stderr for Node.js debug visibility
+        print(f"[PhotoInsert] {tab_name}: {with_photo}/{total} rows have photo_drive_id", file=sys.stderr)
+
+    all_have_photo = sum(s['with_photo'] for s in stats.values())
+    if all_have_photo == 0:
+        print(json.dumps({
+            'success': True,
+            'warning': 'No photo_drive_id found for any student — wrote empty Photo column',
+            'stats': stats
+        }))
+        return
+
     try:
         creds = build_credentials(master_access, master_refresh)
     except RuntimeError as e:
@@ -134,10 +153,6 @@ def main():
         sheets_service = build('sheets', 'v4', credentials=creds)
 
         # ── 1. Write =IMAGE() formulas to column A on every tab ───────────────
-        # USER_ENTERED tells the Sheets API to interpret the string as a formula.
-        # This is the same mechanism insert_photo_formula.py uses and it works
-        # reliably even if the XLSX upload did not preserve the formula.
-
         value_data = []
         for tab_name, rows in photo_data.items():
             if not rows:
@@ -152,7 +167,7 @@ def main():
             })
 
         if value_data:
-            execute_with_retry(
+            result = execute_with_retry(
                 sheets_service.spreadsheets().values().batchUpdate(
                     spreadsheetId=spreadsheet_id,
                     body={
@@ -161,11 +176,12 @@ def main():
                     }
                 )
             )
+            updated_cells = result.get('totalUpdatedCells', 0)
+            print(f"[PhotoInsert] Sheets API updated {updated_cells} cells", file=sys.stderr)
 
         # ── 2. Merge AllAwards column A for same-student rows ─────────────────
         all_rows = photo_data.get('AllAwards', [])
         if all_rows:
-            # Get the sheetId (GID) for the AllAwards tab
             meta     = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
             gid_map  = {
                 s['properties']['title']: s['properties']['sheetId']
@@ -182,8 +198,9 @@ def main():
                             body={'requests': merge_reqs}
                         )
                     )
+                    print(f"[PhotoInsert] Merged {len(merge_reqs)} groups in AllAwards column A", file=sys.stderr)
 
-        print(json.dumps({'success': True}))
+        print(json.dumps({'success': True, 'stats': stats}))
 
     except HttpError as e:
         print(json.dumps({'success': False, 'error': f'Sheets API error: {e}'}))

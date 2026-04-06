@@ -159,7 +159,7 @@ app.use('/attachments', express.static('/opt/View/FlameAwards/server/Attachments
 // Serve index.html for SPA routes — but only for non-file paths
 app.get('*', (req, res) => {
   // Don't serve index.html for obvious asset requests that weren't found
-  if (/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|map)$/.test(req.path)) {
+  if (/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|map|pdf)$/.test(req.path)) {
     return res.status(404).send('Not found');
   }
   res.sendFile(path.join(__dirname, '..', 'Code', 'dist', 'index.html'));

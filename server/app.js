@@ -66,18 +66,20 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // ── Static attachment server — NO AUTH ───────────────────────────────────────
-// Serves /attachments/{sport|cultural|academic}/{filename} directly from disk.
-// Merged PDFs land in the same sport/, cultural/, academic/ subfolders so no
-// additional directory is needed. Registered before auth-gated routes.
+// Serves attachments directly from disk (sport/, cultural/, academic/ subfolders).
+// Registered under BOTH /attachments and /api/attachments so it works regardless
+// of whether nginx proxies only /api/* or all paths to this server.
 const ATTACHMENT_BASE = '/opt/View/FlameAwards/server/Attachments';
-app.use('/attachments', express.static(ATTACHMENT_BASE, {
+const attachmentStatic = express.static(ATTACHMENT_BASE, {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.pdf')) {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'inline');
     }
   }
-}));
+});
+app.use('/attachments', attachmentStatic);
+app.use('/api/attachments', attachmentStatic);
 
 // Routes
 app.use('/api/auth', authRoutes);
