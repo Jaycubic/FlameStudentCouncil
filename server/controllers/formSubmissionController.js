@@ -10,6 +10,7 @@ const {
   CulturalUserSheet,
   SportsUserSheet,
   AcademicUserSheet,
+  StudentCgpaCache,
   User
 } = require('../models');
 const multer = require('multer');
@@ -373,6 +374,32 @@ const formController = {
         if (scores.academic_score !== null) submissionData.academic_score = scores.academic_score;
       } else {
         log.warn({ email }, '[ScoreRead] Master tokens unavailable — scores stored as null');
+      }
+
+      // ── 2b-ii. CGPA injection into academic raw score (Trailblazer only) ────
+      // For Trailblazer, the student’s CGPA is added precisely to the academic
+      // raw score BEFORE it enters the scaling formula.
+      // Example: sheet_raw=40, cgpa=7.15 → combined_raw=47.15 → scaleScore(47.15)
+      // Uses the local StudentCgpaCache — fast single-row read, no audit DB call.
+      // If CGPA is not cached (null), the raw score passes through unchanged.
+      if (selected_role === 'trailblazer' && submissionData.academic_score != null) {
+        const cgpaRow = await StudentCgpaCache.findOne({
+          where: { email },
+          attributes: ['cgpa'],
+          raw: true
+        });
+        const cgpaVal = cgpaRow?.cgpa != null ? parseFloat(cgpaRow.cgpa) : null;
+        if (cgpaVal !== null && !isNaN(cgpaVal)) {
+          const rawBeforeCgpa = parseFloat(submissionData.academic_score);
+          const combinedRaw   = parseFloat((rawBeforeCgpa + cgpaVal).toFixed(2));
+          submissionData.academic_score = combinedRaw;
+          log.info(
+            { email, rawBeforeCgpa, cgpaVal, combinedRaw },
+            '[CgpaInjection] CGPA added to academic raw score for Trailblazer'
+          );
+        } else {
+          log.warn({ email }, '[CgpaInjection] CGPA not in cache — academic_score unchanged, will not include CGPA boost');
+        }
       }
 
       // ── 2c. Auto-scale raw scores → verified scores ───────────────────────
