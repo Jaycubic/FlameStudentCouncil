@@ -1,9 +1,9 @@
 // server/models/StudentCgpaCache.js
-// Pre-fetched CGPA cache — lives in the main FlameAwards DB (config/connection)
+// Pre-fetched CGPA cache — lives in the main FLAME Awards DB (config/connection)
 // Sourced on demand from academicplanning DB (DegreeProgressAudit / PgDegreeProgressAudit)
 
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/connection');   // main FlameAwards DB
+const sequelize = require('../config/connection');   // main FLAME Awards DB
 
 const StudentCgpaCache = sequelize.define('student_cgpa_cache', {
   id: {

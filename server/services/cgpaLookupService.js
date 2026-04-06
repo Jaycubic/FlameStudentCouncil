@@ -2,7 +2,7 @@
 //
 // Purpose: resolve the latest cumulative CGPA for a given student by querying
 //          the correct audit table (UG vs PG) in the academicplanning DB, then
-//          caching the result in app.student_cgpa_cache (main FlameAwards DB).
+//          caching the result in app.student_cgpa_cache (main FLAME Awards DB).
 //
 // Algorithm (per user spec):
 //   1. Get ALL records for the student_id from the correct audit table.

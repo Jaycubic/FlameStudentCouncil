@@ -59,7 +59,7 @@ async function generateNominations(req, res) {
 
         const nominees = [];
 
-        // ── Sports Person Award — top 5 male + 5 female by sports_verified_score ─
+        // ── SportsPerson of The Year Award — top 5 male + 5 female by sports_verified_score ─
         const sportsPicks = topNPerGender(
             sportsRows.map(r => r.toJSON()), 'sports_verified_score', 5
         );
@@ -71,13 +71,13 @@ async function generateNominations(req, res) {
                 batch:                 row.batch,
                 email:                 row.email,
                 sports_verified_score: row.sports_verified_score,
-                award_name:            'Sports Person Award',
+                award_name:            'SportsPerson of The Year Award',
                 rank:                  row._rank,
                 is_top_pick:           row._rank === 1,
             });
         }
 
-        // ── Co-curricular Person Award — top 5 male + 5 female ───────────────
+        // ── Best in Co-curricular Activities — top 5 male + 5 female ──────────
         const culturalPicks = topNPerGender(
             culturalRows.map(r => r.toJSON()), 'cultural_verified_score', 5
         );
@@ -89,7 +89,7 @@ async function generateNominations(req, res) {
                 batch:                   row.batch,
                 email:                   row.email,
                 cultural_verified_score: row.cultural_verified_score,
-                award_name:              'Co-curricular Person Award',
+                award_name:              'Best in Co-curricular Activities',
                 rank:                    row._rank,
                 is_top_pick:             row._rank === 1,
             });

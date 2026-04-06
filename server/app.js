@@ -112,6 +112,10 @@ require('./workers/sheetWorker');
 // Start BullMQ photo-upload worker (concurrency=3, hybrid master/student fallback)
 require('./workers/photoUploadWorker');
 
+// Start BullMQ submission confirmation email worker (concurrency=5)
+require('./workers/submissionEmailWorker');
+
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   log.error({ err: err.message, stack: err.stack }, 'Unhandled Route Error');

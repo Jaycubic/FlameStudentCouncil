@@ -32,7 +32,7 @@ function buildWhere(search, gender, batch) {
 function tagSports(rows) {
     return rows.map(r => ({
         ...r.toJSON(),
-        award_type:              'Sports Person Award',
+        award_type:              'SportsPerson of The Year Award',
         cultural_score:          null,
         cultural_verified_score: null,
         academic_score:          null,
@@ -42,7 +42,7 @@ function tagSports(rows) {
 function tagCultural(rows) {
     return rows.map(r => ({
         ...r.toJSON(),
-        award_type:              'Co-curricular Person Award',
+        award_type:              'Best in Co-curricular Activities',
         sports_score:            null,
         sports_verified_score:   null,
         academic_score:          null,

@@ -242,7 +242,7 @@ function Dashboard() {
       <Box p={8} pb={20}>
         <PageHeader
           title={`Welcome back, ${user?.username || 'Admin'}`}
-          description="Flame Awards 2026 — live applicant overview"
+          description="FLAME Awards 2026 — live applicant overview"
         />
 
         {/* ── Stat Cards ── */}

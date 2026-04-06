@@ -47,8 +47,8 @@ const formProcessingController = {
 
             const filledRoles = [];
             if (trailblazer) filledRoles.push('Trailblazer');
-            if (sports) filledRoles.push('Sports Person Award');
-            if (cultural) filledRoles.push('Co-curricular Person Award');
+            if (sports) filledRoles.push('SportsPerson of The Year Award');
+            if (cultural) filledRoles.push('Best in Co-curricular Activities');
 
             const studentId = student.student_cvue_no ? student.student_cvue_no.toString() : '';
 

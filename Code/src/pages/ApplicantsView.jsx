@@ -30,14 +30,14 @@ import { applicantsService } from '../services/applicantsService';
 
 const AWARD_TABS = [
   { key: 'all', label: 'All', color: 'purple' },
-  { key: 'sports', label: 'Sports Person Award', color: 'blue' },
-  { key: 'cultural', label: 'Co-curricular Person Award', color: 'pink' },
+  { key: 'sports', label: 'SportsPerson of The Year Award', color: 'blue' },
+  { key: 'cultural', label: 'Best in Co-curricular Activities', color: 'pink' },
   { key: 'trailblazer', label: 'Trailblazer Awards', color: 'orange' },
 ];
 
 const AWARD_BADGE = {
-  'Sports Person Award': { colorScheme: 'blue', label: 'Sports', awardKey: 'sports' },
-  'Co-curricular Person Award': { colorScheme: 'pink', label: 'Co-curricular', awardKey: 'cultural' },
+  'SportsPerson of The Year Award': { colorScheme: 'blue',  label: 'Sports',      awardKey: 'sports'   },
+  'Best in Co-curricular Activities': { colorScheme: 'pink', label: 'Co-curricular', awardKey: 'cultural' },
   'Trailblazer Award': { colorScheme: 'orange', label: 'Trailblazer', awardKey: 'trailblazer' },
 };
 

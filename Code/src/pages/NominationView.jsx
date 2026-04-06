@@ -21,13 +21,13 @@ const GRADIENT = 'linear(to-br, #1e3a8a, #2563eb)'
 
 // ─── Award config ─────────────────────────────────────────────────────────────
 const AWARD_CONFIG = {
-  'Sports Person Award': {
+  'SportsPerson of The Year Award': {
     color: 'blue', gradient: 'linear(to-br, #1e40af, #3b82f6)',
     solidGradient: '#1e40af', icon: '🏅',
     scoreLabel: 'Sports Score', scoreField: 'sports_verified_score',
     nomineeCount: '5M + 5F', winnerLabel: '1 winner',
   },
-  'Co-curricular Person Award': {
+  'Best in Co-curricular Activities': {
     color: 'pink', gradient: 'linear(to-br, #9d174d, #ec4899)',
     solidGradient: '#9d174d', icon: '🎭',
     scoreLabel: 'Cultural Score', scoreField: 'cultural_verified_score',
@@ -40,7 +40,7 @@ const AWARD_CONFIG = {
     nomineeCount: '3M + 3F', winnerLabel: '1 winner',
   },
 }
-const AWARD_ORDER = ['Sports Person Award', 'Co-curricular Person Award', 'Trailblazer Award']
+const AWARD_ORDER = ['SportsPerson of The Year Award', 'Best in Co-curricular Activities', 'Trailblazer Award']
 
 function computeTotal(n) {
   const vals = [
@@ -719,11 +719,11 @@ export default function NominationView() {
                 </Stat>
                 <Stat>
                   <StatLabel fontSize="10px" textTransform="uppercase" letterSpacing="wider" color={subColor}>🏅 Sports</StatLabel>
-                  <StatNumber fontSize="2xl">{(grouped['Sports Person Award'] || []).length}</StatNumber>
+                  <StatNumber fontSize="2xl">{(grouped['SportsPerson of The Year Award'] || []).length}</StatNumber>
                 </Stat>
                 <Stat>
                   <StatLabel fontSize="10px" textTransform="uppercase" letterSpacing="wider" color={subColor}>🎭 Cultural</StatLabel>
-                  <StatNumber fontSize="2xl">{(grouped['Co-curricular Person Award'] || []).length}</StatNumber>
+                  <StatNumber fontSize="2xl">{(grouped['Best in Co-curricular Activities'] || []).length}</StatNumber>
                 </Stat>
                 <Stat>
                   <StatLabel fontSize="10px" textTransform="uppercase" letterSpacing="wider" color={subColor}>🔥 Trailblazer</StatLabel>

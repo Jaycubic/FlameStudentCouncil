@@ -34,9 +34,9 @@ const sequelize = new Sequelize(DBP_NAME, DBP_USER, DBP_PASSWORD, {
 
 sequelize
     .authenticate()
-    .then(() => console.log("✅ Connected to PostgreSQL FlameAwards database via Sequelize"))
+    .then(() => console.log("✅ Connected to PostgreSQL FLAME Awards database via Sequelize"))
     .catch(err => {
-        console.error("❌ Error connecting to PostgreSQL FlameAwards database:", err);
+        console.error("❌ Error connecting to PostgreSQL FLAME Awards database:", err);
     });
 
 module.exports = sequelize;

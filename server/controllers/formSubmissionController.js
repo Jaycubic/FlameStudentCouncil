@@ -21,6 +21,7 @@ const { spawn } = require('child_process');
 // Import the fire-and-forget revoke helper from sheetController
 const { revokeStudentAccess } = require('./sheetController');
 const { emitDashboardUpdate } = require('./dashboardController');
+const { submissionEmailQueue } = require('../queues/submissionEmailQueue');
 const log = require('../utils/logger').child({ module: 'FormSubmissionController' });
 // Auto-sync verified scores across award tables when a student submits a new award
 // (backfill from sibling tables runs in the setImmediate block below)
@@ -465,6 +466,19 @@ const formController = {
 
       // ── 6. Background tasks after response is flushed ─────────────────────
       setImmediate(async () => {
+        // ── Queue submission confirmation email (fire-and-forget) ──────────
+        try {
+          const studentName = submissionData.name || email;
+          await submissionEmailQueue.add(
+            `confirm:${submission.id}`,
+            { studentEmail: email, studentName, awardRole: selected_role, submissionId: submission.id },
+            { jobId: `confirm-${submission.id}`, attempts: 3 }
+          );
+          log.info({ email, submissionId: submission.id }, '[SubmissionEmail] Confirmation email queued');
+        } catch (emailErr) {
+          log.warn({ err: emailErr.message }, '[SubmissionEmail] Failed to enqueue — non-fatal');
+        }
+
         triggerSheetRevocation(email, selected_role, { alreadySubmittedSports, alreadySubmittedCultural });
         emitDashboardUpdate();   // push fresh award counts to admin dashboard
 

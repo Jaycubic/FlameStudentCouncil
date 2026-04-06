@@ -1,7 +1,7 @@
 // server/cron/cronPhotoUpload.js
 //
 // Nightly catch-up job: ensures every student who has a local photo but no
-// Drive record gets uploaded to the master FlameAwards2026Photos folder.
+// Drive record gets uploaded to the master FLAME Awards 2026 Photos folder.
 //
 // Runs at 00:00 (midnight) daily via node-cron.
 // Also exported as `runPhotoUploadCatchup()` for manual/admin triggers.
@@ -14,7 +14,7 @@ const fs = require('fs');
 
 const { StudentData, User, PhotoDriveUpload } = require('../models');
 
-const PHOTO_FOLDER_ID  = '1zf29mZFzNObWcMjrbtKg13aoO9PNkqxK'; // FlameAwards2026Photos
+const PHOTO_FOLDER_ID  = '1zf29mZFzNObWcMjrbtKg13aoO9PNkqxK'; // FLAME Awards 2026 Photos
 const MASTER_EMAIL     = 'student.awards@flame.edu.in';
 const LOCAL_PHOTOS_DIR = '/opt/View/StudentTrackingSystem/server/Photos';
 const PHOTO_EXTS       = ['.jpg', '.jpeg', '.png'];

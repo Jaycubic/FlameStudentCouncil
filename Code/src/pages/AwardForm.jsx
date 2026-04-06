@@ -106,17 +106,17 @@ function ApplicationFormDashboard() {
 
     // Explicit map — avoids the broken .replace() transform that caused 'Sports Person' != 'Sports Person Award'
     const ROLE_TITLE_MAP = {
-        trailblazer:     'Trailblazer',
-        sports_person:   'Sports Person Award',
-        cultural_person: 'Co-curricular Person Award',
+        trailblazer: 'Trailblazer',
+        sports_person: 'SportsPerson of The Year Award',
+        cultural_person: 'Best in Co-curricular Activities',
     };
 
     // ── Trailblazer smart section hiding ──────────────────────────────────────
     // When a student has already submitted a sibling award, that section is
     // completely removed from the Trailblazer form — the backend will carry
     // the score over automatically from the sibling record.
-    const trailblazerHidesSports   = selectedRole === 'trailblazer' && filledRoles.includes('Sports Person Award');
-    const trailblazerHidesCultural = selectedRole === 'trailblazer' && filledRoles.includes('Co-curricular Person Award');
+    const trailblazerHidesSports = selectedRole === 'trailblazer' && filledRoles.includes('SportsPerson of The Year Award');
+    const trailblazerHidesCultural = selectedRole === 'trailblazer' && filledRoles.includes('Best in Co-curricular Activities');
 
     // ── Trailblazer CGPA gate ──────────────────────────────────────────────────
     // A student MUST have CGPA ≥ 7.0 to apply for Trailblazer.
@@ -164,7 +164,7 @@ function ApplicationFormDashboard() {
             // submitted from another device. The old transform ('sports_person' → 'Sports Person')
             // was wrong; use the explicit map so the cross-device guard actually fires.
             const savedAgreed = localStorage.getItem('awardForm_agreed');
-            const savedRole   = localStorage.getItem('awardForm_role');
+            const savedRole = localStorage.getItem('awardForm_role');
 
             if (savedAgreed === 'true') setAgreedToInstructions(true);
 
@@ -356,7 +356,7 @@ function ApplicationFormDashboard() {
         data.append('selected_role', selectedRole);
         // Tell the backend which sections were pre-filled so it can source scores
         // from sibling DB records and skip revocation for those sheets
-        data.append('already_submitted_sports',   trailblazerHidesSports   ? 'true' : 'false');
+        data.append('already_submitted_sports', trailblazerHidesSports ? 'true' : 'false');
         data.append('already_submitted_cultural', trailblazerHidesCultural ? 'true' : 'false');
         Object.keys(formData).forEach(key => {
             if (key !== 'photoUrl') data.append(key, formData[key]);
@@ -521,7 +521,7 @@ function ApplicationFormDashboard() {
                     </Box>
                     <VStack spacing={4}>
                         <Text fontSize={{ base: "3xl", md: "5xl" }} fontWeight="black">All Done!</Text>
-                        <Text fontSize="xl" opacity={0.9} lineHeight="tall">You have successfully submitted applications for all award categories: <b>Trailblazer, Sports Person Award, and Co-curricular Person Award</b>.</Text>
+                        <Text fontSize="xl" opacity={0.9} lineHeight="tall">You have successfully submitted applications for all award categories: <b>Trailblazer, SportsPerson of The Year Award, and Best in Co-curricular Activities</b>.</Text>
                     </VStack>
                     <Divider borderColor="whiteAlpha.300" />
                     <VStack w="full" spacing={6}>
@@ -592,7 +592,7 @@ function ApplicationFormDashboard() {
                 </HStack>
             </Box>
 
-            <PageHeader title={timeSettings?.title || "Trailblazer Awards"} description="Flame University's Most Prestigious Honors" />
+            <PageHeader title={timeSettings?.title || "Trailblazer Awards"} description="FLAME University's Annual Student Awards" />
 
             <AnimatePresence mode="wait">
                 {!agreedToInstructions ? (
@@ -658,20 +658,20 @@ function ApplicationFormDashboard() {
                                 onClick={() => handleRoleSelect('trailblazer', 'Trailblazer')}
                             />
                             <RoleCard
-                                title="Sports Person Award"
+                                title="SportsPerson of The Year Award"
                                 description="Exceptional achievements and leadership in athletics."
                                 icon={FaTrophy}
                                 color="orange"
-                                disabled={filledRoles.includes('Sports Person Award')}
-                                onClick={() => handleRoleSelect('sports_person', 'Sports Person Award')}
+                                disabled={filledRoles.includes('SportsPerson of The Year Award')}
+                                onClick={() => handleRoleSelect('sports_person', 'SportsPerson of The Year Award')}
                             />
                             <RoleCard
-                                title="Co-curricular Person Award"
+                                title="Best in Co-curricular Activities"
                                 description="Outstanding contribution to arts, music, and culture."
                                 icon={FaMusic}
                                 color="pink"
-                                disabled={filledRoles.includes('Co-curricular Person Award')}
-                                onClick={() => handleRoleSelect('cultural_person', 'Co-curricular Person Award')}
+                                disabled={filledRoles.includes('Best in Co-curricular Activities')}
+                                onClick={() => handleRoleSelect('cultural_person', 'Best in Co-curricular Activities')}
                             />
                         </SimpleGrid>
                     </MotionVStack>
@@ -740,17 +740,22 @@ function ApplicationFormDashboard() {
                             <VStack spacing={10} align="stretch" opacity={photoExists ? 1 : 0.45} pointerEvents={photoExists ? 'auto' : 'none'}>
 
                                 {/* Carry-over info banner — shown when Trailblazer hides pre-filled sections */}
-                                {(trailblazerHidesSports || trailblazerHidesCultural) && (
+                                {trailblazerHidesSports && (
+                                    <Alert status="info" borderRadius="xl" variant="left-accent" mb={4}>
+                                        <AlertIcon />
+                                        <VStack align="start" spacing={0}>
+                                            <Text fontWeight="bold" fontSize="sm">Your Sports Score: Active ✅</Text>
+                                            <Text fontSize="xs">🏅 Your score from the <b>SportsPerson of The Year Award</b> submission is used automatically.</Text>
+                                        </VStack>
+                                    </Alert>
+                                )}
+
+                                {trailblazerHidesCultural && (
                                     <Alert status="info" borderRadius="xl" variant="left-accent">
                                         <AlertIcon />
-                                        <VStack align="start" spacing={1}>
-                                            <Text fontWeight="bold" fontSize="sm">Score carry-over active</Text>
-                                            {trailblazerHidesSports && (
-                                                <Text fontSize="xs">🏅 Your <b>Sports</b> score will be carried over automatically from your Sports Person Award submission.</Text>
-                                            )}
-                                            {trailblazerHidesCultural && (
-                                                <Text fontSize="xs">🎭 Your <b>Co-curricular</b> score will be carried over automatically from your Co-curricular Person Award submission.</Text>
-                                            )}
+                                        <VStack align="start" spacing={0}>
+                                            <Text fontWeight="bold" fontSize="sm">Your Cultural Score: Active ✅</Text>
+                                            <Text fontSize="xs">🎭 Your score from the <b>Best in Co-curricular Activities</b> submission is used automatically.</Text>
                                         </VStack>
                                     </Alert>
                                 )}
@@ -1105,7 +1110,7 @@ const RoleCard = ({ title, description, icon, color, onClick, disabled, disabled
     };
     const c = colorMap[color] || colorMap.purple;
     const badgeScheme = disabledScheme || 'green';
-    const badgeLabel  = disabledLabel  || 'Submitted';
+    const badgeLabel = disabledLabel || 'Submitted';
 
     return (
         <VStack
