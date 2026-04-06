@@ -31,7 +31,7 @@ const MotionCard = motion(Card);
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ title, stat, icon, gradient, badge }) {
-  const bg    = useColorModeValue('white', 'gray.800');
+  const bg = useColorModeValue('white', 'gray.800');
   const label = useColorModeValue('gray.500', 'gray.400');
   return (
     <MotionCard
@@ -79,9 +79,9 @@ function StatCard({ title, stat, icon, gradient, badge }) {
 
 // ─── Chart Card ───────────────────────────────────────────────────────────────
 function ChartCard({ title, children, onExpand }) {
-  const bg     = useColorModeValue('white', 'gray.800');
+  const bg = useColorModeValue('white', 'gray.800');
   const border = useColorModeValue('gray.100', 'gray.700');
-  const text   = useColorModeValue('gray.800', 'white');
+  const text = useColorModeValue('gray.800', 'white');
   return (
     <MotionCard
       bg={bg}
@@ -127,11 +127,11 @@ function Dashboard() {
   });
 
   const genderModal = useDisclosure();
-  const batchModal  = useDisclosure();
+  const batchModal = useDisclosure();
 
-  const textColor  = useColorModeValue('gray.800', 'white');
-  const cardBg     = useColorModeValue('white', 'gray.800');
-  const subText    = useColorModeValue('gray.500', 'gray.400');
+  const textColor = useColorModeValue('gray.800', 'white');
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const subText = useColorModeValue('gray.500', 'gray.400');
 
   // Redirect students
   useEffect(() => {
@@ -182,8 +182,8 @@ function Dashboard() {
       {
         label: 'Male',
         data: [
-          stats.genderByAward.sports?.male    ?? 0,
-          stats.genderByAward.cultural?.male  ?? 0,
+          stats.genderByAward.sports?.male ?? 0,
+          stats.genderByAward.cultural?.male ?? 0,
           stats.genderByAward.trailblazer?.male ?? 0,
         ],
         backgroundColor: 'rgba(59, 130, 246, 0.75)',
@@ -192,8 +192,8 @@ function Dashboard() {
       {
         label: 'Female',
         data: [
-          stats.genderByAward.sports?.female    ?? 0,
-          stats.genderByAward.cultural?.female  ?? 0,
+          stats.genderByAward.sports?.female ?? 0,
+          stats.genderByAward.cultural?.female ?? 0,
           stats.genderByAward.trailblazer?.female ?? 0,
         ],
         backgroundColor: 'rgba(236, 72, 153, 0.75)',
@@ -202,8 +202,8 @@ function Dashboard() {
       {
         label: 'Other',
         data: [
-          stats.genderByAward.sports?.other    ?? 0,
-          stats.genderByAward.cultural?.other  ?? 0,
+          stats.genderByAward.sports?.other ?? 0,
+          stats.genderByAward.cultural?.other ?? 0,
           stats.genderByAward.trailblazer?.other ?? 0,
         ],
         backgroundColor: 'rgba(168, 85, 247, 0.75)',
@@ -248,19 +248,19 @@ function Dashboard() {
         {/* ── Stat Cards ── */}
         <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={5} mb={8}>
           <StatCard
-            title="Sports Award Applicants"
+            title="Sports Person of The Year Award Applicants"
             stat={stats.sportsCount}
             icon={TrophyIcon}
             gradient="linear(to-br, blue.400, blue.600)"
           />
           <StatCard
-            title="Cultural Award Applicants"
+            title="Best in Co-curricular Activities Applicants"
             stat={stats.culturalCount}
             icon={MusicalNoteIcon}
             gradient="linear(to-br, pink.400, pink.600)"
           />
           <StatCard
-            title="Trailblazer Applicants"
+            title="Trailblazer Award Applicants"
             stat={stats.trailblazerCount}
             icon={StarIcon}
             gradient="linear(to-br, orange.400, orange.600)"

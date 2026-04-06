@@ -740,22 +740,17 @@ function ApplicationFormDashboard() {
                             <VStack spacing={10} align="stretch" opacity={photoExists ? 1 : 0.45} pointerEvents={photoExists ? 'auto' : 'none'}>
 
                                 {/* Carry-over info banner — shown when Trailblazer hides pre-filled sections */}
-                                {trailblazerHidesSports && (
-                                    <Alert status="info" borderRadius="xl" variant="left-accent" mb={4}>
-                                        <AlertIcon />
-                                        <VStack align="start" spacing={0}>
-                                            <Text fontWeight="bold" fontSize="sm">Your Sports Score: Active ✅</Text>
-                                            <Text fontSize="xs">🏅 Your score from the <b>SportsPerson of The Year Award</b> submission is used automatically.</Text>
-                                        </VStack>
-                                    </Alert>
-                                )}
-
-                                {trailblazerHidesCultural && (
+                                {(trailblazerHidesSports || trailblazerHidesCultural) && (
                                     <Alert status="info" borderRadius="xl" variant="left-accent">
                                         <AlertIcon />
-                                        <VStack align="start" spacing={0}>
-                                            <Text fontWeight="bold" fontSize="sm">Your Cultural Score: Active ✅</Text>
-                                            <Text fontSize="xs">🎭 Your score from the <b>Best in Co-curricular Activities</b> submission is used automatically.</Text>
+                                        <VStack align="start" spacing={1}>
+                                            <Text fontWeight="bold" fontSize="sm">Your Sports Score: Active ✅</Text>
+                                            {trailblazerHidesSports && (
+                                                <Text fontSize="xs">Your score from the <b>SportsPerson of The Year Award</b> submission is used automatically.</Text>
+                                            )}
+                                            {trailblazerHidesCultural && (
+                                                <Text fontSize="xs">Your <b>Co-curricular Score: Active ✅</b> — Your score from the <b>Best in Co-curricular Activities</b> submission is used automatically.</Text>
+                                            )}
                                         </VStack>
                                     </Alert>
                                 )}
