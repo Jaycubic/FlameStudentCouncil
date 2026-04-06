@@ -9,18 +9,36 @@ function toFloat(val) {
     return isNaN(n) ? null : n;
 }
 
-// ─── Helper: pick top-scorer per gender ──────────────────────────────────────
-function topPerGender(rows, scoreField) {
-    const best = {};
+// ─── Helper: pick top N per gender, sorted descending by scoreField ───────────
+// Returns a flat array ranked 1..N within each gender, is_top_pick=true for rank 1.
+function topNPerGender(rows, scoreField, n) {
+    const byGender = {};
     for (const row of rows) {
         const score = toFloat(row[scoreField]);
         if (score === null) continue;
-        const gender = (row.gender || '').trim();
-        if (!best[gender] || score > toFloat(best[gender][scoreField])) {
-            best[gender] = row;
-        }
+        const gender = (row.gender || 'Unknown').trim();
+        if (!byGender[gender]) byGender[gender] = [];
+        byGender[gender].push({ ...row, _score: score });
     }
-    return best;
+
+    const results = [];
+    for (const [gender, list] of Object.entries(byGender)) {
+        list.sort((a, b) => b._score - a._score);
+        const top = list.slice(0, n);
+        top.forEach((r, i) => {
+            results.push({ ...r, _rank: i + 1, _gender: gender });
+        });
+    }
+    return results;
+}
+
+// ─── Helper: compute trailblazer total ───────────────────────────────────────
+function trailTotal(row) {
+    return [
+        toFloat(row.sports_verified_score),
+        toFloat(row.cultural_verified_score),
+        toFloat(row.academic_verified_score),
+    ].filter(v => v !== null).reduce((a, b) => a + b, 0);
 }
 
 // ─── Generate nominations (overwrites existing) ───────────────────────────────
@@ -41,62 +59,62 @@ async function generateNominations(req, res) {
 
         const nominees = [];
 
-        // ── Sports Person Award ───────────────────────────────────────────────
-        const sportsWinners = topPerGender(sportsRows.map(r => r.toJSON()), 'sports_verified_score');
-        for (const row of Object.values(sportsWinners)) {
+        // ── Sports Person Award — top 5 male + 5 female by sports_verified_score ─
+        const sportsPicks = topNPerGender(
+            sportsRows.map(r => r.toJSON()), 'sports_verified_score', 5
+        );
+        for (const row of sportsPicks) {
             nominees.push({
                 name:                  row.name,
-                student_id:            row.student_id,
+                student_id:            (row.student_id || '').toString().trim(),
                 gender:                row.gender,
                 batch:                 row.batch,
                 email:                 row.email,
                 sports_verified_score: row.sports_verified_score,
                 award_name:            'Sports Person Award',
+                rank:                  row._rank,
+                is_top_pick:           row._rank === 1,
             });
         }
 
-        // ── Co-curricular Person Award ────────────────────────────────────────
-        const culturalWinners = topPerGender(culturalRows.map(r => r.toJSON()), 'cultural_verified_score');
-        for (const row of Object.values(culturalWinners)) {
+        // ── Co-curricular Person Award — top 5 male + 5 female ───────────────
+        const culturalPicks = topNPerGender(
+            culturalRows.map(r => r.toJSON()), 'cultural_verified_score', 5
+        );
+        for (const row of culturalPicks) {
             nominees.push({
                 name:                    row.name,
-                student_id:              row.student_id,
+                student_id:              (row.student_id || '').toString().trim(),
                 gender:                  row.gender,
                 batch:                   row.batch,
                 email:                   row.email,
                 cultural_verified_score: row.cultural_verified_score,
                 award_name:              'Co-curricular Person Award',
+                rank:                    row._rank,
+                is_top_pick:             row._rank === 1,
             });
         }
 
-        // ── Trailblazer Award: single highest total ───────────────────────────
-        let trailWinner = null;
-        let trailBestTotal = -Infinity;
-        for (const r of trailblazerRows) {
-            const row = r.toJSON();
-            const vals = [
-                toFloat(row.sports_verified_score),
-                toFloat(row.cultural_verified_score),
-                toFloat(row.academic_verified_score),
-            ].filter(v => v !== null);
-            if (vals.length === 0) continue;
-            const total = vals.reduce((a, b) => a + b, 0);
-            if (total > trailBestTotal) {
-                trailBestTotal = total;
-                trailWinner = { ...row, _total: total };
-            }
-        }
-        if (trailWinner) {
+        // ── Trailblazer Award — top 3 male + 3 female by sum of all scores ───
+        const trailJson = trailblazerRows.map(r => r.toJSON());
+        const trailWithTotal = trailJson
+            .map(row => ({ ...row, _total: trailTotal(row) }))
+            .filter(row => row._total > 0);
+
+        const trailPicks = topNPerGender(trailWithTotal, '_total', 3);
+        for (const row of trailPicks) {
             nominees.push({
-                name:                    trailWinner.name,
-                student_id:              trailWinner.student_id,
-                gender:                  trailWinner.gender,
-                batch:                   trailWinner.batch,
-                email:                   trailWinner.email,
-                sports_verified_score:   trailWinner.sports_verified_score,
-                cultural_verified_score: trailWinner.cultural_verified_score,
-                academic_verified_score: trailWinner.academic_verified_score,
+                name:                    row.name,
+                student_id:              (row.student_id || '').toString().trim(),
+                gender:                  row.gender,
+                batch:                   row.batch,
+                email:                   row.email,
+                sports_verified_score:   row.sports_verified_score,
+                cultural_verified_score: row.cultural_verified_score,
+                academic_verified_score: row.academic_verified_score,
                 award_name:              'Trailblazer Award',
+                rank:                    row._rank,
+                is_top_pick:             row._rank === 1,
             });
         }
 
@@ -122,7 +140,7 @@ async function generateNominations(req, res) {
 async function getNominations(req, res) {
     try {
         const rows = await NominatedStudent.findAll({
-            order: [['award_name', 'ASC'], ['gender', 'ASC']],
+            order: [['award_name', 'ASC'], ['gender', 'ASC'], ['rank', 'ASC']],
         });
         return res.json({ success: true, data: rows.map(r => r.toJSON()) });
     } catch (err) {
@@ -135,27 +153,20 @@ async function getNominations(req, res) {
 async function deleteNominee(req, res) {
     try {
         const { id } = req.params;
-
-        // Guard: id must be a positive integer
         const parsedId = parseInt(id, 10);
         if (!parsedId || parsedId < 1) {
             return res.status(400).json({ success: false, message: 'Invalid nominee ID.' });
         }
-
         const nominee = await NominatedStudent.findByPk(parsedId);
         if (!nominee) {
             return res.status(404).json({ success: false, message: 'Nominee not found.' });
         }
-
         await nominee.destroy();
-
         log.info({ id: parsedId, name: nominee.name }, '[Nominations] Nominee deleted');
-
         return res.json({
             success: true,
             message: `Nominee "${nominee.name}" has been removed.`,
         });
-
     } catch (err) {
         log.error({ err: err.message }, '[Nominations] deleteNominee error');
         return res.status(500).json({ success: false, message: err.message });

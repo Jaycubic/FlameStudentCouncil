@@ -44,6 +44,16 @@ const NominatedStudent = sequelize.define('NominatedStudent', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    rank: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 1,       // 1 = top pick (potential winner), 2..N = runners-up
+    },
+    is_top_pick: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
+    },
 }, {
     tableName: 'nominated_students',
     schema: 'app',
