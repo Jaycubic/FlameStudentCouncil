@@ -142,14 +142,17 @@ app.use('/generated_pdfs', express.static('/opt/View/StudentTrackingSystem/serve
 }));
 
 // ── Merged attachment PDFs — served inline (no auth needed) ──────────────────
-// /merged-pdfs/{student_id}_{type}_merged.pdf opens the PDF directly in the
-// browser. MUST be before the SPA catch-all (*) so Express handles it, not React.
-app.use('/merged-pdfs', express.static('/opt/View/FlameAwards/server/Attachments/merged', {
+// Serves /attachments/{sport|cultural|academic}/{filename} directly from disk.
+// sport/, cultural/, academic/ already exist; no merged/ subfolder needed.
+// MUST be before the SPA catch-all (*) so Express handles it, not React Router.
+app.use('/attachments', express.static('/opt/View/FlameAwards/server/Attachments', {
   index: false,
-  setHeaders: (res) => {
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline');   // preview in browser tab
-    res.setHeader('Cache-Control', 'public, max-age=300');
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');   // preview in browser tab
+      res.setHeader('Cache-Control', 'public, max-age=300');
+    }
   }
 }));
 

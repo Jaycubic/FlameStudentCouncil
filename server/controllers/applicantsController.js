@@ -8,8 +8,7 @@ const { Op } = require('sequelize');
 const { syncVerifiedScores } = require('../services/scoresSyncService');
 
 const ATTACHMENT_DIR  = '/opt/View/FlameAwards/server/Attachments';
-const MERGED_DIR      = path.join(ATTACHMENT_DIR, 'merged');
-const MERGED_PDF_BASE = 'https://flameawards.in/merged-pdfs';
+const MERGED_PDF_BASE = 'https://flameawards.in/attachments';
 const PHOTO_DIR       = '/opt/View/StudentTrackingSystem/server/Photos';
 const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
 const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
@@ -183,12 +182,14 @@ async function getApplicantProfile(req, res) {
                 : [],
         ]);
 
-        // Resolve merged PDF URL if the file has already been generated
+        // Merged PDF — check if the combined file exists in the award-type subfolder
         const mergeKeyMap  = { sports: 'sport', cultural: 'cultural', trailblazer: 'trailblazer' };
+        const mergeSubMap  = { sports: 'sport', cultural: 'cultural', trailblazer: 'academic' };
         const mk           = mergeKeyMap[awardType];
+        const sub          = mergeSubMap[awardType];
         const mergedFile   = mk && record.student_id ? `${record.student_id}_${mk}_merged.pdf` : null;
-        const mergedPdfUrl = mergedFile && fs.existsSync(path.join(MERGED_DIR, mergedFile))
-            ? `${MERGED_PDF_BASE}/${mergedFile}`
+        const mergedPdfUrl = mergedFile && sub && fs.existsSync(path.join(ATTACHMENT_DIR, sub, mergedFile))
+            ? `${MERGED_PDF_BASE}/${sub}/${mergedFile}`
             : null;
 
         return res.json({

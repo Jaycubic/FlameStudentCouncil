@@ -569,8 +569,12 @@ const formController = {
               ...aFiles.map(f => path.join(ATTACHMENT_DIR, 'academic', f.file_name)),
             ].filter(p => fs.existsSync(p));
             if (pdfPaths.length > 0) {
-              const outputPath = path.join(ATTACHMENT_DIR, 'merged', `${sidForMerge}_${typeKey}_merged.pdf`);
-              const scriptPath = path.join(__dirname, '../scripts/merge_pdfs.py');
+              // Save merged PDF inside the award-type subfolder (sport/, cultural/, academic/)
+              // These directories already exist (created at startup), so no mkdir needed.
+              const mergeSubMap  = { sport: 'sport', cultural: 'cultural', trailblazer: 'academic' };
+              const mergeSub     = mergeSubMap[typeKey] || typeKey;
+              const outputPath   = path.join(ATTACHMENT_DIR, mergeSub, `${sidForMerge}_${typeKey}_merged.pdf`);
+              const scriptPath   = path.join(__dirname, '../scripts/merge_pdfs.py');
               await new Promise(resolve => {
                 const proc = spawn('python3', [scriptPath, outputPath, ...pdfPaths]);
                 let out = '';

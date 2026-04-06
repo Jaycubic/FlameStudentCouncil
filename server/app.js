@@ -65,15 +65,17 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ── Static PDF server — NO AUTH ───────────────────────────────────────────────
-// Serves merged attachment PDFs directly at /merged-pdfs/<filename>.
-// MUST be registered before any auth-gated routes so no token is needed.
-// This allows the link in the Admin Workbook to open directly in the browser.
-const MERGED_PDF_DIR = '/opt/View/FlameAwards/server/Attachments/merged';
-app.use('/merged-pdfs', express.static(MERGED_PDF_DIR, {
-  setHeaders: (res) => {
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline');   // preview in browser, don't force download
+// ── Static attachment server — NO AUTH ───────────────────────────────────────
+// Serves /attachments/{sport|cultural|academic}/{filename} directly from disk.
+// Merged PDFs land in the same sport/, cultural/, academic/ subfolders so no
+// additional directory is needed. Registered before auth-gated routes.
+const ATTACHMENT_BASE = '/opt/View/FlameAwards/server/Attachments';
+app.use('/attachments', express.static(ATTACHMENT_BASE, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    }
   }
 }));
 

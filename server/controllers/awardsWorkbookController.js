@@ -10,9 +10,9 @@ const {
 const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
 const { syncVerifiedScores } = require('../services/scoresSyncService');
 
-const MASTER_EMAIL       = 'student.awards@flame.edu.in';
-const FOLDER_ID          = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
-const MERGED_PDF_BASE_URL = 'https://flameawards.in/merged-pdfs'; // served without auth
+const MASTER_EMAIL        = 'student.awards@flame.edu.in';
+const FOLDER_ID           = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+const ATTACHMENT_BASE_URL = 'https://flameawards.in/attachments'; // no-auth static route
 
 // ─── Immutable columns — NEVER updated by either sync direction ───────────────
 const IMMUTABLE = new Set(['student_id', 'email', 'name']);
@@ -96,11 +96,18 @@ async function collectAllData() {
         'Cultural Award':    'cultural',
         'Trailblazer Award': 'trailblazer',
     };
+    // Merged PDFs are stored in existing award-type subfolders (no merged/ dir needed)
+    const AWARD_SUB_FOLDER = {
+        'Sports Award':      'sport',
+        'Cultural Award':    'cultural',
+        'Trailblazer Award': 'academic',
+    };
 
     const toRow = (r, awardType) => {
         const mergeKey      = AWARD_MERGE_KEY[awardType] || '';
-        const attachmentUrl = (mergeKey && r.student_id)
-            ? `${MERGED_PDF_BASE_URL}/${r.student_id}_${mergeKey}_merged.pdf`
+        const sub           = AWARD_SUB_FOLDER[awardType] || '';
+        const attachmentUrl = (mergeKey && sub && r.student_id)
+            ? `${ATTACHMENT_BASE_URL}/${sub}/${r.student_id}_${mergeKey}_merged.pdf`
             : '';
         return {
             photo_drive_id:           photoMap[r.student_id] || '',
@@ -214,6 +221,38 @@ async function openOrCreate(req, res) {
         });
 
         log.info({ workbook_id: result.sheet_id }, '[Workbook] Created and stored');
+
+        // ── Background: insert =IMAGE() formulas via Sheets API ───────────────
+        // generate_awards_workbook.py uploads an XLSX which may not preserve
+        // =IMAGE() through Drive's format conversion. We fire insert_workbook_photos.py
+        // separately (same proven pattern as insert_photo_formula.py) after returning.
+        setImmediate(async () => {
+            try {
+                const photoScriptPath = path.join(__dirname, '../scripts/insert_workbook_photos.py');
+                // Build photo payload: { tabName: [{ photo_drive_id, email }, ...] }
+                const photoPayload = {
+                    AllAwards:        data.all.map(r        => ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
+                    SportsAward:      data.sports.map(r     => ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
+                    CulturalAward:    data.cultural.map(r   => ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
+                    TrailblazerAward: data.trailblazer.map(r=> ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
+                };
+                const photoB64 = Buffer.from(JSON.stringify(photoPayload)).toString('base64');
+                const photoResult = await runPython(photoScriptPath, [
+                    result.sheet_id,
+                    masterUser.access_token,
+                    masterUser.refresh_token,
+                    photoB64,
+                ]);
+                if (photoResult.success) {
+                    log.info({ workbook_id: result.sheet_id }, '[Workbook] ✅ Photo formulas inserted');
+                } else {
+                    log.warn({ error: photoResult.error }, '[Workbook] Photo insertion failed (non-fatal)');
+                }
+            } catch (photoErr) {
+                log.error({ err: photoErr.message }, '[Workbook] Photo script error (non-fatal)');
+            }
+        });
+
         return res.json({
             success:     true,
             isNew:       true,
