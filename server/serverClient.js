@@ -141,6 +141,18 @@ app.use('/generated_pdfs', express.static('/opt/View/StudentTrackingSystem/serve
   index: false, // no directory listing
 }));
 
+// ── Merged attachment PDFs — served inline (no auth needed) ──────────────────
+// /merged-pdfs/{student_id}_{type}_merged.pdf opens the PDF directly in the
+// browser. MUST be before the SPA catch-all (*) so Express handles it, not React.
+app.use('/merged-pdfs', express.static('/opt/View/FlameAwards/server/Attachments/merged', {
+  index: false,
+  setHeaders: (res) => {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');   // preview in browser tab
+    res.setHeader('Cache-Control', 'public, max-age=300');
+  }
+}));
+
 // Serve index.html for SPA routes — but only for non-file paths
 app.get('*', (req, res) => {
   // Don't serve index.html for obvious asset requests that weren't found

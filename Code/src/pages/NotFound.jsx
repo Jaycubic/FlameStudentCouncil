@@ -1,3 +1,4 @@
+// src/pages/NotFound.jsx
 import {
   Box,
   Heading,

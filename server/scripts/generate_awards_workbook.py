@@ -278,6 +278,35 @@ def protect_sheet_columns(sheets_service, spreadsheet_id, sheet_gid):
         print(f"[WARN] Could not add sheet protection: {e}", file=sys.stderr)
 
 
+# ─── Sheets API helpers for post-upload photo column ─────────────────────────
+
+def _build_sheets_merge_requests(sheet_gid, rows, start_row_index=1):
+    """
+    Build Sheets API mergeCells requests for column A,
+    grouping consecutive rows with the same email.
+    """
+    requests     = []
+    current      = start_row_index
+    for _email, grp in groupby(rows, key=lambda r: r.get('email', '')):
+        group_rows = list(grp)
+        count      = len(group_rows)
+        if count > 1:
+            requests.append({
+                "mergeCells": {
+                    "range": {
+                        "sheetId":          sheet_gid,
+                        "startRowIndex":    current,
+                        "endRowIndex":      current + count,
+                        "startColumnIndex": 0,
+                        "endColumnIndex":   1,
+                    },
+                    "mergeType": "MERGE_ALL"
+                }
+            })
+        current += count
+    return requests
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -356,9 +385,56 @@ def main():
 
         # Apply warning-only protection to each tab
         meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-        for sheet in meta.get('sheets', []):
-            gid = sheet['properties']['sheetId']
+        gid_map = {s['properties']['title']: s['properties']['sheetId'] for s in meta.get('sheets', [])}
+        for gid in gid_map.values():
             protect_sheet_columns(sheets_service, spreadsheet_id, gid)
+
+        # ─── Post-upload: rewrite Photo column (col A) via Sheets API ─────────
+        # openpyxl writes =IMAGE() as a formula string in the XLSX, but the
+        # Drive XLSX→Google Sheets conversion may not preserve it as a live
+        # formula. Rewriting via Sheets API with USER_ENTERED guarantees the
+        # =IMAGE() is interpreted natively by Google Sheets.
+        tab_rows_map = {
+            'AllAwards':        all_rows,
+            'SportsAward':      sports_rows,
+            'CulturalAward':    cultural_rows,
+            'TrailblazerAward': trailblazer_rows,
+        }
+        photo_data = []
+        for tab_name, rows in tab_rows_map.items():
+            if not rows:
+                continue
+            values = [['Photo']]   # header
+            for record in rows:
+                formula = get_photo_formula(record.get('photo_drive_id', ''))
+                values.append([formula])
+            photo_data.append({'range': f"'{tab_name}'!A1", 'values': values})
+
+        if photo_data:
+            try:
+                execute_with_retry(
+                    sheets_service.spreadsheets().values().batchUpdate(
+                        spreadsheetId=spreadsheet_id,
+                        body={'valueInputOption': 'USER_ENTERED', 'data': photo_data}
+                    )
+                )
+            except Exception as _e:
+                print(f"[WARN] Photo formula rewrite failed: {_e}", file=sys.stderr)
+
+        # ─── Post-upload: merge AllAwards Photo cells for same-student rows ───
+        all_gid = gid_map.get('AllAwards')
+        if all_gid is not None and all_rows:
+            merge_reqs = _build_sheets_merge_requests(all_gid, all_rows, start_row_index=1)
+            if merge_reqs:
+                try:
+                    execute_with_retry(
+                        sheets_service.spreadsheets().batchUpdate(
+                            spreadsheetId=spreadsheet_id,
+                            body={'requests': merge_reqs}
+                        )
+                    )
+                except Exception as _e:
+                    print(f"[WARN] Photo merge step failed: {_e}", file=sys.stderr)
 
         print(json.dumps({"success": True, "sheet_id": spreadsheet_id, "url": url}))
 
