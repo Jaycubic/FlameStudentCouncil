@@ -542,6 +542,56 @@ const formController = {
         } catch (syncErr) {
           console.error('[ScoresSync] Backfill error on submission:', syncErr.message);
         }
+
+        // ── Background PDF merge ───────────────────────────────────────────────
+        // Combines all uploaded PDFs for this submission into one file stored at
+        // Attachments/merged/{student_id}_{type}_merged.pdf, served publicly at
+        // /merged-pdfs/{student_id}_{type}_merged.pdf (no auth, inline preview).
+        // Trailblazer merges sport + cultural + academic PDFs all together.
+        try {
+          const sidForMerge = submissionData.student_id;
+          const typeKey     = { sports_person: 'sport', cultural_person: 'cultural', trailblazer: 'trailblazer' }[selected_role];
+          if (sidForMerge && typeKey) {
+            const [sFiles, cFiles, aFiles] = await Promise.all([
+              (selected_role === 'sports_person' || selected_role === 'trailblazer')
+                ? SportAttachment.findAll({ where: { submission_id: submission.id }, attributes: ['file_name'] })
+                : [],
+              (selected_role === 'cultural_person' || selected_role === 'trailblazer')
+                ? CulturalAttachment.findAll({ where: { submission_id: submission.id }, attributes: ['file_name'] })
+                : [],
+              selected_role === 'trailblazer'
+                ? academicAttachment.findAll({ where: { submission_id: submission.id }, attributes: ['file_name'] })
+                : [],
+            ]);
+            const pdfPaths = [
+              ...sFiles.map(f => path.join(ATTACHMENT_DIR, 'sport',    f.file_name)),
+              ...cFiles.map(f => path.join(ATTACHMENT_DIR, 'cultural', f.file_name)),
+              ...aFiles.map(f => path.join(ATTACHMENT_DIR, 'academic', f.file_name)),
+            ].filter(p => fs.existsSync(p));
+            if (pdfPaths.length > 0) {
+              const outputPath = path.join(ATTACHMENT_DIR, 'merged', `${sidForMerge}_${typeKey}_merged.pdf`);
+              const scriptPath = path.join(__dirname, '../scripts/merge_pdfs.py');
+              await new Promise(resolve => {
+                const proc = spawn('python3', [scriptPath, outputPath, ...pdfPaths]);
+                let out = '';
+                proc.stdout.on('data', d => { out += d.toString(); });
+                proc.on('close', () => {
+                  try {
+                    const r = JSON.parse(out.trim());
+                    log.info({ sidForMerge, typeKey, merged: r.merged, output: r.output }, '[PdfMerge] ✅ Merged successfully');
+                  } catch (_) {
+                    log.warn({ out }, '[PdfMerge] Non-JSON output from merge script');
+                  }
+                  resolve();
+                });
+              });
+            } else {
+              log.info({ sidForMerge, typeKey }, '[PdfMerge] No PDF files found — skipping merge');
+            }
+          }
+        } catch (mergeErr) {
+          log.error({ err: mergeErr.message }, '[PdfMerge] Error during PDF merge');
+        }
       });
 
     } catch (error) {

@@ -7,8 +7,10 @@ const { TrailblazerAward, SportsPersonAward, CulturalPersonAward,
 const { Op } = require('sequelize');
 const { syncVerifiedScores } = require('../services/scoresSyncService');
 
-const ATTACHMENT_DIR = '/opt/View/FlameAwards/server/Attachments';
-const PHOTO_DIR      = '/opt/View/StudentTrackingSystem/server/Photos';
+const ATTACHMENT_DIR  = '/opt/View/FlameAwards/server/Attachments';
+const MERGED_DIR      = path.join(ATTACHMENT_DIR, 'merged');
+const MERGED_PDF_BASE = 'https://flameawards.in/merged-pdfs';
+const PHOTO_DIR       = '/opt/View/StudentTrackingSystem/server/Photos';
 const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
 const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
 const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','academic_score','submission_date','sports_verified_score','cultural_verified_score','academic_verified_score','total_verified_score','status','photo'];
@@ -181,6 +183,14 @@ async function getApplicantProfile(req, res) {
                 : [],
         ]);
 
+        // Resolve merged PDF URL if the file has already been generated
+        const mergeKeyMap  = { sports: 'sport', cultural: 'cultural', trailblazer: 'trailblazer' };
+        const mk           = mergeKeyMap[awardType];
+        const mergedFile   = mk && record.student_id ? `${record.student_id}_${mk}_merged.pdf` : null;
+        const mergedPdfUrl = mergedFile && fs.existsSync(path.join(MERGED_DIR, mergedFile))
+            ? `${MERGED_PDF_BASE}/${mergedFile}`
+            : null;
+
         return res.json({
             success: true,
             data: {
@@ -191,6 +201,7 @@ async function getApplicantProfile(req, res) {
                     cultural: culturalSheet?.user_sheet_id ? `https://docs.google.com/spreadsheets/d/${culturalSheet.user_sheet_id}` : null,
                     academic: academicSheet?.user_sheet_id ? `https://docs.google.com/spreadsheets/d/${academicSheet.user_sheet_id}` : null,
                 },
+                mergedPdfUrl,
                 attachments: {
                     sport:    sportFiles.map(f    => ({ id: f.id, fileName: f.file_name })),
                     cultural: culturalFiles.map(f => ({ id: f.id, fileName: f.file_name })),

@@ -5,13 +5,14 @@ const { Op }  = require('sequelize');
 const {
     TrailblazerAward, SportsPersonAward, CulturalPersonAward,
     SportsUserSheet, CulturalUserSheet, AcademicUserSheet,
-    AwardsWorkbook, User,
+    AwardsWorkbook, User, PhotoDriveUpload,
 } = require('../models');
 const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
 const { syncVerifiedScores } = require('../services/scoresSyncService');
 
-const MASTER_EMAIL = 'student.awards@flame.edu.in';
-const FOLDER_ID    = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+const MASTER_EMAIL       = 'student.awards@flame.edu.in';
+const FOLDER_ID          = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+const MERGED_PDF_BASE_URL = 'https://flameawards.in/merged-pdfs'; // served without auth
 
 // ─── Immutable columns — NEVER updated by either sync direction ───────────────
 const IMMUTABLE = new Set(['student_id', 'email', 'name']);
@@ -74,32 +75,69 @@ async function collectAllData() {
     const culturalSheetMap = Object.fromEntries(culturalSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
     const academicSheetMap = Object.fromEntries(academicSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
 
-    const toRow = (r, awardType) => ({
-        student_id:               r.student_id   || '',
-        name:                     r.name         || '',
-        email:                    r.email        || '',
-        gender:                   r.gender       || '',
-        batch:                    r.batch        || '',
-        mobile_number:            r.mobile_number || '',
-        academic_score:           r.academic_score || '',
-        sports_score:             r.sports_score || '',
-        cultural_score:           r.cultural_score || '',
-        sports_verified_score:    r.sports_verified_score || '',
-        cultural_verified_score:  r.cultural_verified_score || '',
-        academic_verified_score:  r.academic_verified_score || '',
-        total_verified_score:     r.total_verified_score || '',
-        submission_date:          r.submission_date ? new Date(r.submission_date).toISOString().split('T')[0] : '',
-        'Sports Sheet Link':      sportsSheetMap[r.email]   || '',
-        'Cultural Sheet Link':    culturalSheetMap[r.email] || '',
-        'Academic Sheet Link':    academicSheetMap[r.email] || '',
-        award_type:               awardType,
-    });
+    // Build student_id → Drive photo file ID map (for =IMAGE() in workbook Photo column)
+    const allStudentIds = [
+        ...new Set([
+            ...sportsRows.map(r => r.student_id).filter(Boolean),
+            ...culturalRows.map(r => r.student_id).filter(Boolean),
+            ...trailblazerRows.map(r => r.student_id).filter(Boolean),
+        ])
+    ];
+    const photoRecords = allStudentIds.length > 0
+        ? await PhotoDriveUpload.findAll({
+            where: { student_id: { [Op.in]: allStudentIds } },
+            attributes: ['student_id', 'drive_file_id'],
+          })
+        : [];
+    const photoMap = Object.fromEntries(photoRecords.map(p => [p.student_id, p.drive_file_id]));
+
+    const AWARD_MERGE_KEY = {
+        'Sports Award':      'sport',
+        'Cultural Award':    'cultural',
+        'Trailblazer Award': 'trailblazer',
+    };
+
+    const toRow = (r, awardType) => {
+        const mergeKey      = AWARD_MERGE_KEY[awardType] || '';
+        const attachmentUrl = (mergeKey && r.student_id)
+            ? `${MERGED_PDF_BASE_URL}/${r.student_id}_${mergeKey}_merged.pdf`
+            : '';
+        return {
+            photo_drive_id:           photoMap[r.student_id] || '',
+            student_id:               r.student_id   || '',
+            name:                     r.name         || '',
+            email:                    r.email        || '',
+            gender:                   r.gender       || '',
+            batch:                    r.batch        || '',
+            mobile_number:            r.mobile_number || '',
+            academic_score:           r.academic_score || '',
+            sports_score:             r.sports_score || '',
+            cultural_score:           r.cultural_score || '',
+            sports_verified_score:    r.sports_verified_score || '',
+            cultural_verified_score:  r.cultural_verified_score || '',
+            academic_verified_score:  r.academic_verified_score || '',
+            total_verified_score:     r.total_verified_score || '',
+            submission_date:          r.submission_date ? new Date(r.submission_date).toISOString().split('T')[0] : '',
+            'Sports Sheet Link':      sportsSheetMap[r.email]   || '',
+            'Cultural Sheet Link':    culturalSheetMap[r.email] || '',
+            'Academic Sheet Link':    academicSheetMap[r.email] || '',
+            award_type:               awardType,
+            Attachment:               attachmentUrl,
+        };
+    };
 
     const sports      = sportsRows.map(r      => toRow(r, 'Sports Award'));
     const cultural    = culturalRows.map(r    => toRow(r, 'Cultural Award'));
     const trailblazer = trailblazerRows.map(r => toRow(r, 'Trailblazer Award'));
-    const all         = [...sports, ...cultural, ...trailblazer]
-        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    // Sort 'all' by email first (keeps same-student rows adjacent for photo-cell
+    // merging in the Python script), then by name for admin readability.
+    const all = [...sports, ...cultural, ...trailblazer]
+        .sort((a, b) => {
+            const emailCmp = (a.email || '').localeCompare(b.email || '');
+            if (emailCmp !== 0) return emailCmp;
+            return (a.award_type || '').localeCompare(b.award_type || '');
+        });
 
     return { sports, cultural, trailblazer, all };
 }

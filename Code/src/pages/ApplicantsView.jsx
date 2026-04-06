@@ -305,41 +305,31 @@ function ProfileModal({ isOpen, onClose, record, onUpdate }) {
                 </HStack>
               </Box>
 
-              {((profile.attachments?.sport?.length > 0) || (profile.attachments?.cultural?.length > 0) || (profile.attachments?.academic?.length > 0)) && (
+              {profile.mergedPdfUrl && (
                 <>
                   <Divider borderColor={divColor} />
                   <Box>
                     <Text fontSize="10px" fontWeight="700" textTransform="uppercase" letterSpacing="wider"
-                      color={subColor} mb={2}>Attachments</Text>
-                    <VStack align="start" spacing={2}>
-                      {profile.attachments?.sport?.map(f => (
-                        <Link key={f.id} href={applicantsService.getFileUrl('sport', f.fileName)} isExternal>
-                          <HStack>
-                            <DocumentIcon style={{ width: 14, height: 14, color: '#3B82F6' }} />
-                            <Text fontSize="12px" color="blue.500">{f.fileName}</Text>
-                          </HStack>
-                        </Link>
-                      ))}
-                      {profile.attachments?.cultural?.map(f => (
-                        <Link key={f.id} href={applicantsService.getFileUrl('cultural', f.fileName)} isExternal>
-                          <HStack>
-                            <DocumentIcon style={{ width: 14, height: 14, color: '#EC4899' }} />
-                            <Text fontSize="12px" color="pink.500">{f.fileName}</Text>
-                          </HStack>
-                        </Link>
-                      ))}
-                      {profile.attachments?.academic?.map(f => (
-                        <Link key={f.id} href={applicantsService.getFileUrl('academic', f.fileName)} isExternal>
-                          <HStack>
-                            <DocumentIcon style={{ width: 14, height: 14, color: '#7C3AED' }} />
-                            <Text fontSize="12px" color="purple.500">{f.fileName}</Text>
-                          </HStack>
-                        </Link>
-                      ))}
-                    </VStack>
+                      color={subColor} mb={2}>Supporting Documents</Text>
+                    <Link href={profile.mergedPdfUrl} isExternal>
+                      <Tag
+                        colorScheme={badge.colorScheme || 'red'}
+                        borderRadius="full"
+                        cursor="pointer"
+                        size="sm"
+                        px={3}
+                        py={1.5}
+                        _hover={{ opacity: 0.8 }}
+                      >
+                        <DocumentIcon style={{ width: 13, height: 13, marginRight: 6 }} />
+                        View Merged PDF
+                        <ArrowTopRightOnSquareIcon style={{ width: 11, height: 11, marginLeft: 5 }} />
+                      </Tag>
+                    </Link>
                   </Box>
                 </>
               )}
+
             </VStack>
           ) : null}
         </ModalBody>

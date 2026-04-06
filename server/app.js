@@ -65,6 +65,18 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// ── Static PDF server — NO AUTH ───────────────────────────────────────────────
+// Serves merged attachment PDFs directly at /merged-pdfs/<filename>.
+// MUST be registered before any auth-gated routes so no token is needed.
+// This allows the link in the Admin Workbook to open directly in the browser.
+const MERGED_PDF_DIR = '/opt/View/FlameAwards/server/Attachments/merged';
+app.use('/merged-pdfs', express.static(MERGED_PDF_DIR, {
+  setHeaders: (res) => {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');   // preview in browser, don't force download
+  }
+}));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/roles', roleRoutes);
