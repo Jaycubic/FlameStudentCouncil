@@ -549,7 +549,7 @@ const formController = {
         // /merged-pdfs/{student_id}_{type}_merged.pdf (no auth, inline preview).
         // Trailblazer merges sport + cultural + academic PDFs all together.
         try {
-          const sidForMerge = submissionData.student_id;
+          const sidForMerge = (submissionData.student_id || '').toString().trim();
           const typeKey     = { sports_person: 'sport', cultural_person: 'cultural', trailblazer: 'trailblazer' }[selected_role];
           if (sidForMerge && typeKey) {
             const [sFiles, cFiles, aFiles] = await Promise.all([

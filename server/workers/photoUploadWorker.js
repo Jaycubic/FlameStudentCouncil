@@ -50,7 +50,8 @@ function runUpload(args) {
 
 // ─── Worker processor ─────────────────────────────────────────────────────────
 const worker = new Worker('photo-upload', async (job) => {
-    const { studentId, studentEmail } = job.data;
+    const { studentId: rawId, studentEmail } = job.data;
+    const studentId = (rawId || '').toString().trim();
     log.info({ studentId, attempt: job.attemptsMade + 1 }, 'Processing photo upload job');
 
     // ── 1. Idempotency: skip if already uploaded ───────────────────────────────

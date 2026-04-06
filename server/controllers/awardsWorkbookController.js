@@ -104,14 +104,15 @@ async function collectAllData() {
     };
 
     const toRow = (r, awardType) => {
+        const sid           = (r.student_id || '').toString().trim();
         const mergeKey      = AWARD_MERGE_KEY[awardType] || '';
         const sub           = AWARD_SUB_FOLDER[awardType] || '';
-        const attachmentUrl = (mergeKey && sub && r.student_id)
-            ? `${ATTACHMENT_BASE_URL}/${sub}/${r.student_id}_${mergeKey}_merged.pdf`
+        const attachmentUrl = (mergeKey && sub && sid)
+            ? `${ATTACHMENT_BASE_URL}/${sub}/${sid}_${mergeKey}_merged.pdf`
             : '';
         return {
-            photo_drive_id:           photoMap[r.student_id] || '',
-            student_id:               r.student_id   || '',
+            photo_drive_id:           photoMap[sid] || '',
+            student_id:               sid,
             name:                     r.name         || '',
             email:                    r.email        || '',
             gender:                   r.gender       || '',

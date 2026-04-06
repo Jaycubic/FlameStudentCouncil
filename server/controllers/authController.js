@@ -115,7 +115,7 @@ async function queuePhotoUpload(studentEmail) {
       console.warn(`[PhotoQueue] No StudentData for ${studentEmail}`);
       return;
     }
-    const studentId = student.student_cvue_no.toString();
+    const studentId = student.student_cvue_no.toString().trim();
 
     // Idempotency: skip if already on master Drive
     const existing = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
@@ -155,7 +155,7 @@ async function triggerCgpaOnLogin(studentEmail) {
       return;
     }
     refreshCgpaInBackground(
-      student.student_cvue_no.toString(),
+      student.student_cvue_no.toString().trim(),
       studentEmail,
       student.batch
     );
@@ -710,8 +710,10 @@ const authController = {
 
       // ── Queue photo upload + refresh CGPA cache (Student only) ───────────
       if (role.name === 'Student') {
-        queuePhotoUpload(googleEmail).catch(() => {});
-        triggerCgpaOnLogin(googleEmail).catch(() => {});
+        // Photo and CGPA are fully independent — separate setImmediate calls
+        // so one can't block or starve the other.
+        setImmediate(() => queuePhotoUpload(googleEmail).catch(() => {}));
+        setImmediate(() => triggerCgpaOnLogin(googleEmail).catch(() => {}));
       }
 
       if (!process.env.JWT_SECRET) {

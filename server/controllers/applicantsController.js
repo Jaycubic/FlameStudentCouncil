@@ -187,7 +187,8 @@ async function getApplicantProfile(req, res) {
         const mergeSubMap  = { sports: 'sport', cultural: 'cultural', trailblazer: 'academic' };
         const mk           = mergeKeyMap[awardType];
         const sub          = mergeSubMap[awardType];
-        const mergedFile   = mk && record.student_id ? `${record.student_id}_${mk}_merged.pdf` : null;
+        const sid          = (record.student_id || '').toString().trim();
+        const mergedFile   = mk && sid ? `${sid}_${mk}_merged.pdf` : null;
         const mergedPdfUrl = mergedFile && sub && fs.existsSync(path.join(ATTACHMENT_DIR, sub, mergedFile))
             ? `${MERGED_PDF_BASE}/${sub}/${mergedFile}`
             : null;
