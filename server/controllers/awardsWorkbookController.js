@@ -78,9 +78,9 @@ async function collectAllData() {
     // Build student_id → Drive photo file ID map (for =IMAGE() in workbook Photo column)
     const allStudentIds = [
         ...new Set([
-            ...sportsRows.map(r => r.student_id).filter(Boolean),
-            ...culturalRows.map(r => r.student_id).filter(Boolean),
-            ...trailblazerRows.map(r => r.student_id).filter(Boolean),
+            ...sportsRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean),
+            ...culturalRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean),
+            ...trailblazerRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean),
         ])
     ];
 
