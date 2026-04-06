@@ -35,10 +35,12 @@ const AWARD_TABS = [
   { key: 'trailblazer', label: 'Trailblazer Awards', color: 'orange' },
 ];
 
+// AWARD_BADGE keys MUST match the stable award_type keys from applicantsController
+// ('sports', 'cultural', 'trailblazer') — never display name strings.
 const AWARD_BADGE = {
-  'SportsPerson of The Year Award': { colorScheme: 'blue',  label: 'Sports',      awardKey: 'sports'   },
-  'Best in Co-curricular Activities': { colorScheme: 'pink', label: 'Co-curricular', awardKey: 'cultural' },
-  'Trailblazer Award': { colorScheme: 'orange', label: 'Trailblazer', awardKey: 'trailblazer' },
+  sports:      { colorScheme: 'blue',   label: 'SportsPerson of The Year Award', awardKey: 'sports'      },
+  cultural:    { colorScheme: 'pink',   label: 'Best in Co-curricular Activities', awardKey: 'cultural'  },
+  trailblazer: { colorScheme: 'orange', label: 'Trailblazer Award',               awardKey: 'trailblazer' },
 };
 
 const GRADIENT = 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)';

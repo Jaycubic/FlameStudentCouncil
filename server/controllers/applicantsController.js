@@ -28,11 +28,13 @@ function buildWhere(search, gender, batch) {
     return where;
 }
 
-// Tag rows with award_type and normalise missing columns to null
+// Tag rows with award_type using stable internal keys — NEVER display names.
+// These match the API query param (award_type=sports/cultural/trailblazer)
+// and the AWARD_BADGE keys in ApplicantsView.jsx.
 function tagSports(rows) {
     return rows.map(r => ({
         ...r.toJSON(),
-        award_type:              'SportsPerson of The Year Award',
+        award_type:              'sports',
         cultural_score:          null,
         cultural_verified_score: null,
         academic_score:          null,
@@ -42,7 +44,7 @@ function tagSports(rows) {
 function tagCultural(rows) {
     return rows.map(r => ({
         ...r.toJSON(),
-        award_type:              'Best in Co-curricular Activities',
+        award_type:              'cultural',
         sports_score:            null,
         sports_verified_score:   null,
         academic_score:          null,
@@ -51,7 +53,7 @@ function tagCultural(rows) {
 }
 function tagTrailblazer(rows) {
     return rows.map(r => {
-        const obj = { ...r.toJSON(), award_type: 'Trailblazer Award' };
+        const obj = { ...r.toJSON(), award_type: 'trailblazer' };
         // Real-time total: sum of whichever verified scores are non-null
         const vals = [
             obj.sports_verified_score,

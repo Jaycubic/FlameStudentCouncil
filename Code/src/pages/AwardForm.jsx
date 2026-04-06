@@ -126,64 +126,76 @@ function ApplicationFormDashboard() {
     const trailblazerBlockedByCgpa = studentCgpa !== null && !isNaN(studentCgpa) && studentCgpa < 7;
 
     const fetchStatusAndPrefill = async () => {
+        // loadedSettings is declared outside both try blocks so the open/close
+        // check in block 2 can always access it regardless of block 1 outcome.
+        let loadedSettings = null;
+
+        // ── Block 1: Time settings (non-fatal) ────────────────────────────────
+        // A failure here must NEVER prevent filledRoles / prefill from loading.
         try {
             const timeRes = await timeSettingsService.getSettings();
-            let currentSettings = null;
-            if (timeRes.success && timeRes.data) {
-                currentSettings = timeRes.data;
-                setTimeSettings(currentSettings);
+            // timeSettingsService uses axios → response.data is the raw object.
+            // It may arrive as { data: {...} } or directly as the settings object.
+            loadedSettings = timeRes?.data ?? timeRes;
+            if (loadedSettings?.start_date) {
+                setTimeSettings(loadedSettings);
+            } else {
+                loadedSettings = null; // incomplete settings — treat as missing
             }
+        } catch (timeErr) {
+            console.warn('[AwardForm] Time settings unavailable (non-fatal):', timeErr.message);
+            // loadedSettings stays null — block 2 will show "Settings missing"
+        }
 
+        // ── Block 2: Prefill + filledRoles (critical path) ────────────────────
+        try {
             const prefillData = await formProcessingService.getPrefillData();
             const p = prefillData.prefill;
-            const sid = p.student_id;
-            const photoName = p.photo || sid;
+            const photoName = p.photo || p.student_id;
+
             setFormData(prev => ({
                 ...prev,
-                name: p.name || prev.name,
-                studentId: p.student_id || prev.studentId,
+                name:         p.name          || prev.name,
+                studentId:    p.student_id    || prev.studentId,
                 mobileNumber: p.mobile_number || prev.mobileNumber,
-                email: p.email || prev.email,
-                gender: p.gender || prev.gender,
-                batch: p.batch || prev.batch,
+                email:        p.email         || prev.email,
+                gender:       p.gender        || prev.gender,
+                batch:        p.batch         || prev.batch,
                 photoUrl: prefillData.photoExists && photoName
                     ? `/api/photos/${photoName}?t=${Date.now()}`
-                    : defaultProfilePhoto
+                    : defaultProfilePhoto,
             }));
             setPhotoExists(prefillData.photoExists);
 
+            // filledRoles: stable role keys — 'trailblazer' | 'sports_person' | 'cultural_person'
+            // NEVER display name strings. Safe across any future rename.
             const roles = prefillData.filledRoles || [];
             setFilledRoles(roles);
-            if (roles.length >= 3) {
-                setAllCompleted(true);
-            }
+            if (roles.length >= 3) setAllCompleted(true);
 
-            // Capture CGPA from backend cache (null = not found = no gate applied)
-            const rawCgpa = prefillData.prefill?.cgpa;
+            // CGPA gate (null = no cached data = no gate applied)
+            const rawCgpa = p.cgpa;
             setStudentCgpa(rawCgpa != null ? parseFloat(rawCgpa) : null);
 
-            // Restore saved local state — but only if the role hasn't already been
-            // submitted from another device. The old transform ('sports_person' → 'Sports Person')
-            // was wrong; use the explicit map so the cross-device guard actually fires.
+            // ── Restore saved role from localStorage ──────────────────────────
+            // Guard uses role KEY (not display name) — immune to future renames.
             const savedAgreed = localStorage.getItem('awardForm_agreed');
-            const savedRole = localStorage.getItem('awardForm_role');
-
+            const savedRole   = localStorage.getItem('awardForm_role');
             if (savedAgreed === 'true') setAgreedToInstructions(true);
-
             if (savedRole && isValidRole(savedRole)) {
-                // Compare against the role KEY directly — filledRoles contains keys, not display names
                 if (roles.includes(savedRole)) {
-                    // Role was already submitted (possibly on another device) — clear stale localStorage
+                    // Already submitted on another device — clear stale cache
                     localStorage.removeItem('awardForm_role');
                 } else {
                     setSelectedRole(savedRole);
                 }
             }
 
-            if (currentSettings && currentSettings.start_date) {
-                const now = new Date();
-                const startDate = new Date(`${currentSettings.start_date}T${currentSettings.start_time}`);
-                const endDate = new Date(`${currentSettings.end_date}T${currentSettings.end_time}`);
+            // ── Application window open/close gate ────────────────────────────
+            if (loadedSettings?.start_date) {
+                const now       = new Date();
+                const startDate = new Date(`${loadedSettings.start_date}T${loadedSettings.start_time}`);
+                const endDate   = new Date(`${loadedSettings.end_date}T${loadedSettings.end_time}`);
 
                 if (now < startDate) {
                     setIsApplicationOpen(false);
@@ -199,8 +211,13 @@ function ApplicationFormDashboard() {
                 setAppStatusMessage('The Form has not yet opened. (Settings missing)');
             }
         } catch (err) {
-            console.error('Initialization error:', err);
-            toast({ title: 'System Error', description: 'Failed to initialize form. Please try again later.', status: 'error', duration: 5000 });
+            console.error('[AwardForm] Prefill error:', err);
+            toast({
+                title: 'System Error',
+                description: 'Failed to load your application data. Please refresh.',
+                status: 'error',
+                duration: 5000,
+            });
         }
     };
 
