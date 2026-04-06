@@ -52,6 +52,16 @@ const formProcessingController = {
 
             const studentId = student.student_cvue_no ? student.student_cvue_no.toString() : '';
 
+            // Fire-and-forget CGPA refresh — schedules via setImmediate inside the
+            // service so it runs AFTER this response is flushed, zero latency added.
+            if (studentId && student.batch) {
+                refreshCgpaInBackground(
+                    studentId,
+                    student.email_id || email,
+                    student.batch
+                );
+            }
+
             return res.json({
                 prefill: {
                     name: student.student_name,
@@ -65,16 +75,6 @@ const formProcessingController = {
                 photoExists,
                 filledRoles
             });
-
-            // Fire-and-forget CGPA refresh — runs after response is sent,
-            // keeps app.student_cgpa_cache fresh without adding any latency.
-            if (studentId && student.batch) {
-                refreshCgpaInBackground(
-                    studentId,
-                    student.email_id || email,
-                    student.batch
-                );
-            }
 
         } catch (error) {
             console.error('Prefill error:', error);

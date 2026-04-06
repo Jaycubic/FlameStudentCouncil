@@ -10,6 +10,7 @@ const CryptoJS = require('crypto-js');
 const redis = require('redis');
 const { Op } = require('sequelize');
 const { photoUploadQueue } = require('../queues/photoUploadQueue');
+const { refreshCgpaInBackground } = require('../services/cgpaLookupService');
 require('dotenv').config();
 
 // Redis client setup
@@ -138,6 +139,29 @@ async function queuePhotoUpload(studentEmail) {
   } catch (err) {
     // Never block login response
     console.error('[PhotoQueue] Failed to enqueue:', err.message);
+  }
+}
+
+// ─── Refresh CGPA cache on student login ───────────────────────────────────────────
+// Looks up the student's id and batch from StudentData, then fires a
+// background CGPA re-fetch that upserts into app.student_cgpa_cache.
+// Mirrors the queuePhotoUpload pattern — never blocks the login response.
+
+async function triggerCgpaOnLogin(studentEmail) {
+  try {
+    const student = await StudentData.findOne({ where: { email_id: studentEmail } });
+    if (!student?.student_cvue_no || !student?.batch) {
+      console.warn(`[CgpaOnLogin] No StudentData or batch for ${studentEmail}`);
+      return;
+    }
+    refreshCgpaInBackground(
+      student.student_cvue_no.toString(),
+      studentEmail,
+      student.batch
+    );
+    console.log(`[CgpaOnLogin] ✅ Background CGPA refresh triggered for ${student.student_cvue_no}`);
+  } catch (err) {
+    console.error('[CgpaOnLogin] Failed to trigger CGPA refresh:', err.message);
   }
 }
 
@@ -684,9 +708,10 @@ const authController = {
         updated_at: new Date()
       });
 
-      // ── Queue photo Drive upload (Student only) ──────────────────────────
+      // ── Queue photo upload + refresh CGPA cache (Student only) ───────────
       if (role.name === 'Student') {
         queuePhotoUpload(googleEmail).catch(() => {});
+        triggerCgpaOnLogin(googleEmail).catch(() => {});
       }
 
       if (!process.env.JWT_SECRET) {
