@@ -31,6 +31,7 @@ app.use(
           "blob:",
           "https://cdn-icons-png.flaticon.com",
           "https://flameawards.in",
+          "https://via.placeholder.com",
         ],
         connectSrc: [
           "'self'",

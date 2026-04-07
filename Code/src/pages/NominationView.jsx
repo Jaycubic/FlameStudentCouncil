@@ -197,7 +197,7 @@ const TEMPLATES = {
 }
 
 // ─── ComposeModal ─────────────────────────────────────────────────────────────
-function ComposeModal({ isOpen, onClose, communicationGroups }) {
+function ComposeModal({ isOpen, onClose, communicationGroups = {} }) {
   const toast = useToast()
   const editorRef = useRef(null)
   const modalBg = useColorModeValue('white', 'gray.800')
@@ -206,10 +206,11 @@ function ComposeModal({ isOpen, onClose, communicationGroups }) {
   const subColor = useColorModeValue('gray.500', 'gray.400')
   const rowHover = useColorModeValue('gray.100', 'gray.700')
   const inputBorder = useColorModeValue('gray.200', 'gray.600')
-  const sentBg = useColorModeValue('green.50', 'green.900')
-  const failedBg = useColorModeValue('red.50', 'red.900')
 
-  const [selectedIds, setSelectedIds] = useState(new Set())
+  const TABS = ['SportsPerson of The Year Award', 'Best in Co-curricular Activities', 'Trailblazer Award', 'Not Nominated']
+
+  const [activeTab, setActiveTab] = useState(TABS[0])
+  const [selectedEmails, setSelectedEmails] = useState(new Set())
   const [extraRecipients, setExtraRecipients] = useState([])
   const [ccList, setCcList] = useState([])
   const [subject, setSubject] = useState('')
@@ -218,23 +219,31 @@ function ComposeModal({ isOpen, onClose, communicationGroups }) {
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedIds(new Set(nominees.map(n => n.id)))
+      setActiveTab(TABS[0])
       setExtraRecipients([])
       setCcList([])
-      setSubject('🏆 FLAME Awards — Official Nomination Notification')
       setSendResult(null)
       setIsSending(false)
-      setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = '' }, 60)
     }
-  }, [isOpen, nominees])
+  }, [isOpen])
 
-  const allSelected = nominees.length > 0 && selectedIds.size === nominees.length
-  const someSelected = selectedIds.size > 0 && selectedIds.size < nominees.length
-  const toggleNominee = id => setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
-  const toggleAll = checked => setSelectedIds(checked ? new Set(nominees.map(n => n.id)) : new Set())
+  useEffect(() => {
+    if (!isOpen) return;
+    const currentGroup = communicationGroups[activeTab] || [];
+    setSelectedEmails(new Set(currentGroup.map(n => n.email)))
+    setSubject(TEMPLATES[activeTab]?.subject || '')
+    setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = TEMPLATES[activeTab]?.body || '' }, 60)
+  }, [isOpen, activeTab, communicationGroups])
 
-  const selectedEmails = nominees.filter(n => selectedIds.has(n.id)).map(n => n.email)
-  const allEmails = [...new Set([...selectedEmails, ...extraRecipients])]
+  const currentGroup = communicationGroups[activeTab] || [];
+  const allSelected = currentGroup.length > 0 && selectedEmails.size === currentGroup.length
+  const someSelected = selectedEmails.size > 0 && selectedEmails.size < currentGroup.length
+  
+  const toggleEmail = email => setSelectedEmails(prev => { const s = new Set(prev); s.has(email) ? s.delete(email) : s.add(email); return s })
+  const toggleAll = checked => setSelectedEmails(checked ? new Set(currentGroup.map(n => n.email)) : new Set())
+
+  const activeEmails = currentGroup.filter(n => selectedEmails.has(n.email)).map(n => n.email)
+  const allEmails = [...new Set([...activeEmails, ...extraRecipients])]
   const totalCount = allEmails.length
 
   const handleSend = async () => {
@@ -245,8 +254,13 @@ function ComposeModal({ isOpen, onClose, communicationGroups }) {
       toast({ title: 'Email body cannot be empty', status: 'warning', duration: 3000, isClosable: true }); return
     }
     setIsSending(true)
+    
+    const selectedRecipients = currentGroup.filter(n => selectedEmails.has(n.email))
+    const extraRecipientsObj = extraRecipients.filter(email => !selectedEmails.has(email)).map(email => ({ email, name: '', rejected_awards: '' }))
+    const recipients = [...selectedRecipients, ...extraRecipientsObj]
+
     try {
-      const result = await nominationService.sendNotifications({ to: allEmails, cc: ccList, subject: subject.trim(), html: body })
+      const result = await nominationService.sendNotifications({ recipients, cc: ccList, subject: subject.trim(), html: body })
       setSendResult(result)
     } catch (err) {
       toast({ title: 'Send failed', description: err.message, status: 'error', duration: 6000, isClosable: true })
@@ -275,6 +289,20 @@ function ComposeModal({ isOpen, onClose, communicationGroups }) {
             </VStack>
           </HStack>
         </Box>
+
+        {!sendResult && (
+          <Box bg={leftBg} px={6} py={2} borderBottom="1px solid" borderColor={divColor}>
+            <Tabs variant="soft-rounded" colorScheme="blue" size="sm" index={TABS.indexOf(activeTab)} onChange={idx => setActiveTab(TABS[idx])}>
+              <TabList overflowX="auto" pb={1} sx={{ '&::-webkit-scrollbar': { display: 'none' }}}>
+                {TABS.map(tab => (
+                  <Tab key={tab} whiteSpace="nowrap" fontWeight="600">
+                    {tab} <Badge ml={2} colorScheme={tab === 'Not Nominated' ? 'red' : 'blue'} borderRadius="full">{communicationGroups[tab]?.length || 0}</Badge>
+                  </Tab>
+                ))}
+              </TabList>
+            </Tabs>
+          </Box>
+        )}
 
         <ModalBody p={0} overflow="hidden">
           {sendResult ? (
@@ -306,47 +334,41 @@ function ComposeModal({ isOpen, onClose, communicationGroups }) {
                 borderColor={divColor} display="flex" flexDirection="column" overflow="hidden">
                 <Box p={4} borderBottom="1px solid" borderColor={divColor} flexShrink={0}>
                   <Text fontSize="10px" fontWeight="700" textTransform="uppercase"
-                    letterSpacing="wider" color={subColor} mb={2}>Nominees</Text>
+                    letterSpacing="wider" color={subColor} mb={2}>Recipients</Text>
                   <Checkbox isChecked={allSelected} isIndeterminate={someSelected}
                     onChange={e => toggleAll(e.target.checked)}
                     fontSize="13px" fontWeight="600" colorScheme="blue">
                     Select All
                     <Badge ml={2} colorScheme="blue" borderRadius="full" fontSize="9px" fontWeight="700">
-                      {nominees.length}
+                      {currentGroup.length}
                     </Badge>
                   </Checkbox>
                 </Box>
                 <Box flex="1" overflowY="auto" p={3}>
-                  {AWARD_ORDER.map(award => {
-                    const group = nominees.filter(n => n.award_name === award)
-                    if (!group.length) return null
-                    const cfg = AWARD_CONFIG[award]
-                    return (
-                      <Box key={award} mb={4}>
-                        <Text fontSize="9px" fontWeight="700" textTransform="uppercase"
-                          letterSpacing="wider" color={subColor} mb={1.5}>{cfg.icon} {award}</Text>
-                        <VStack spacing={0.5} align="stretch">
-                          {group.map(n => (
-                            <HStack key={n.id} p={1.5} borderRadius="lg" cursor="pointer" spacing={2}
-                              bg={selectedIds.has(n.id) ? `${cfg.color}.50` : 'transparent'}
-                              _hover={{ bg: rowHover }} onClick={() => toggleNominee(n.id)}>
-                              <Checkbox isChecked={selectedIds.has(n.id)} colorScheme={cfg.color}
-                                onClick={e => e.stopPropagation()} onChange={() => toggleNominee(n.id)} flexShrink={0} />
-                              <VStack align="start" spacing={0} flex="1" minW={0}>
-                                <HStack spacing={1}>
-                                  {n.is_top_pick && <Icon as={StarSolid} w={2.5} h={2.5} color={`${cfg.color}.500`} />}
-                                  <Text fontSize="12px" fontWeight={n.is_top_pick ? '700' : '500'} noOfLines={1}>{n.name}</Text>
-                                </HStack>
-                                <Text fontSize="10px" color={subColor} noOfLines={1}>{n.gender} · {n.batch}</Text>
-                              </VStack>
-                              <Badge colorScheme={n.is_top_pick ? cfg.color : 'gray'}
-                                fontSize="8px" borderRadius="full" flexShrink={0}>#{n.rank}</Badge>
+                  {currentGroup.length === 0 ? (
+                    <Text fontSize="12px" color={subColor} textAlign="center" mt={4}>No recipients in this group.</Text>
+                  ) : (
+                    <VStack spacing={0.5} align="stretch">
+                      {currentGroup.map((n, i) => (
+                        <HStack key={n.email + '_' + i} p={1.5} borderRadius="lg" cursor="pointer" spacing={2}
+                          bg={selectedEmails.has(n.email) ? `blue.50` : 'transparent'}
+                          _hover={{ bg: rowHover }} onClick={() => toggleEmail(n.email)}>
+                          <Checkbox isChecked={selectedEmails.has(n.email)} colorScheme="blue"
+                            onClick={e => e.stopPropagation()} onChange={() => toggleEmail(n.email)} flexShrink={0} />
+                          <VStack align="start" spacing={0} flex="1" minW={0}>
+                            <HStack spacing={1}>
+                              {n.is_top_pick && <Icon as={StarSolid} w={2.5} h={2.5} color={`blue.500`} />}
+                              <Text fontSize="12px" fontWeight={n.is_top_pick ? '700' : '500'} noOfLines={1}>{n.name}</Text>
                             </HStack>
-                          ))}
-                        </VStack>
-                      </Box>
-                    )
-                  })}
+                            <Text fontSize="10px" color={subColor} noOfLines={1}>
+                              {activeTab === 'Not Nominated' && n.rejected_awards ? `Rejected: ${n.rejected_awards}` : `${n.gender || ''} · ${n.batch || ''}`}
+                            </Text>
+                          </VStack>
+                          {n.rank && <Badge colorScheme={n.is_top_pick ? 'blue' : 'gray'} fontSize="8px" borderRadius="full" flexShrink={0}>#{n.rank}</Badge>}
+                        </HStack>
+                      ))}
+                    </VStack>
+                  )}
                 </Box>
                 <Box p={3} borderTop="1px solid" borderColor={divColor} flexShrink={0}>
                   <Text fontSize="10px" fontWeight="700" textTransform="uppercase"
@@ -633,6 +655,7 @@ export default function NominationView() {
 
   const { isOpen: isComposeOpen, onOpen: onComposeOpen, onClose: onComposeClose } = useDisclosure()
   const [nominees, setNominees] = useState([])
+  const [communicationGroups, setCommunicationGroups] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
 
@@ -641,12 +664,14 @@ export default function NominationView() {
     try {
       const res = await nominationService.getNominations()
       setNominees(res?.data || [])
+      const commRes = await nominationService.getCommunicationGroups()
+      setCommunicationGroups(commRes?.data || {})
     } catch (err) {
       toast({ title: 'Error loading nominations', description: err.message, status: 'error', duration: 4000 })
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => { loadNominees() }, [loadNominees])
 
@@ -772,7 +797,7 @@ export default function NominationView() {
         </SimpleGrid>
       )}
 
-      <ComposeModal isOpen={isComposeOpen} onClose={onComposeClose} nominees={nominees} />
+      <ComposeModal isOpen={isComposeOpen} onClose={onComposeClose} communicationGroups={communicationGroups} />
     </Box>
   )
 }
