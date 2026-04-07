@@ -5,6 +5,7 @@ import {
   Badge, Avatar, Divider, Spinner, Center, useToast, useColorModeValue,
   Flex, Icon, Stat, StatLabel, StatNumber, useDisclosure, Tooltip,
   Alert, AlertIcon, AlertDescription, AlertTitle,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter,
   ModalCloseButton, Checkbox, Input, IconButton, SimpleGrid, Tabs, TabList, Tab,
 } from '@chakra-ui/react'
 import {
