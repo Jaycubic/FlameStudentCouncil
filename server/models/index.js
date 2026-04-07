@@ -1,3 +1,4 @@
+// models/index.js
 const sequelize = require('../config/connection');
 const Organization = require('./Organization');
 const Location = require('./Location');
@@ -30,6 +31,7 @@ const AwardsWorkbook      = require('./AwardsWorkbook');
 const AcademicUserSheet   = require('./AcademicUserSheet');
 const NominatedStudent    = require('./NominatedStudent');
 const StudentCgpaCache    = require('./StudentCgpaCache');
+const SheetPool           = require('./SheetPool');
 
 const models = {
   Organization,
@@ -63,6 +65,7 @@ const models = {
   AcademicUserSheet,
   NominatedStudent,
   StudentCgpaCache,
+  SheetPool,
 };
 
 Object.values(models).forEach(model => {

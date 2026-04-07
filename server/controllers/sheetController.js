@@ -1,33 +1,64 @@
 // controllers/sheetController.js
-const { CulturalUserSheet, SportsUserSheet, AcademicUserSheet, User, StudentData, PhotoDriveUpload } = require('../models');
-const { spawn } = require('child_process');
-const path = require('path');
+//
+// Architecture: pool-first hot path
+//
+//   FAST PATH (pool has sheets):
+//     1. DB lookup — already has sheet?          ~1ms
+//     2. Atomic pool pop (SELECT FOR UPDATE)     ~2ms
+//     3. rename_and_share.py (2 Drive calls)   ~200ms
+//     4. DB write                                ~1ms
+//     Total: ~204ms, flat regardless of load
+//
+//   FALLBACK PATH (pool empty — should be rare):
+//     Falls back to the original generate_sheet.py flow.
+//     Also triggers an emergency pool refill so it self-heals.
+//
+//   BACKGROUND:
+//     poolRefillWorker.js keeps the pool stocked via files.copy().
+//     It runs every 15 minutes and whenever pool drops below LOW_WATER_MARK.
+
+'use strict';
+
+const {
+    CulturalUserSheet,
+    SportsUserSheet,
+    AcademicUserSheet,
+    User,
+    StudentData,
+    PhotoDriveUpload,
+} = require('../models');
+const SheetPool       = require('../models/SheetPool');
+const { spawn }       = require('child_process');
+const path            = require('path');
+const sequelize       = require('../config/database');
 const { sheetQueue, getJobStatus } = require('../queues/sheetQueue');
-const log = require('../utils/logger').child({ module: 'SheetController' });
+const { poolQueue }   = require('../queues/poolQueue');
+const { LOW_WATER_MARK } = require('../workers/poolRefillWorker');
+const log             = require('../utils/logger').child({ module: 'SheetController' });
 
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
-const FOLDER_ID = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+const FOLDER_ID    = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+
+const NAME_MAP = {
+    sports:   'Sports Matrix',
+    cultural: 'Socio-Cultural Matrix',
+    academic: 'Academic Matrix',
+};
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────
-// Fast-path limit: 3 concurrent synchronous operations.
-// When full, new requests overflow to the BullMQ queue (async path).
+// Limits simultaneous fallback-path workers (the slow generate_sheet.py path).
+// Pool-path requests do NOT consume semaphore slots — they're fast enough.
 class Semaphore {
     constructor(limit) {
         this.limit = limit;
         this.count = 0;
     }
-    // Non-blocking: returns true if acquired, false if full
     tryAcquire() {
-        if (this.count < this.limit) {
-            this.count++;
-            return true;
-        }
+        if (this.count < this.limit) { this.count++; return true; }
         return false;
     }
-    release() {
-        this.count--;
-    }
-    get active() { return this.count; }
+    release()      { this.count--; }
+    get active()   { return this.count; }
 }
 
 const driveSemaphore = new Semaphore(3);
@@ -74,7 +105,7 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
         fileId,
         studentPermissionId,
         masterUser.access_token,
-        masterUser.refresh_token
+        masterUser.refresh_token,
     ], { detached: true, stdio: 'ignore' });
 
     proc.unref();
@@ -84,13 +115,11 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
     });
 }
 
-// ─── Insert =IMAGE() formula into cell B2 after sheet creation ──────────────
+// ─── Insert =IMAGE() formula into cell B2 after sheet assignment ─────────────
 // Non-fatal: if Drive file not cached yet or script fails, sheet still works.
-const PHOTO_FOLDER_ID_SHEET = '1zf29mZFzNObWcMjrbtKg13aoO9PNkqxK';
 
 async function insertPhotoFormula(sheetId, userEmail, masterUser) {
     try {
-        // Resolve student data
         const student = await StudentData.findOne({ where: { email_id: userEmail } });
         if (!student?.student_cvue_no) {
             log.warn({ userEmail }, '[PhotoFormula] No StudentData found — skipping insert');
@@ -98,7 +127,6 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
         }
         const studentId = student.student_cvue_no.toString();
 
-        // Look up cached Drive file ID
         const photoRecord = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
         if (!photoRecord?.drive_file_id) {
             log.warn({ studentId }, '[PhotoFormula] Photo not on Drive yet — skipping insert');
@@ -111,11 +139,10 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
             photoRecord.drive_file_id,
             masterUser.access_token,
             masterUser.refresh_token,
-            // Student info for Personal Information tab
-            student.student_name || '',
+            student.student_name  || '',
             studentId,
-            student.batch || '',
-            student.email_id || userEmail,
+            student.batch         || '',
+            student.email_id      || userEmail,
             student.contact_no ? student.contact_no.toString() : '',
         ]);
 
@@ -125,13 +152,43 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
             log.warn({ sheetId, error: result.error }, '[PhotoFormula] Script returned failure');
         }
     } catch (err) {
-        // Never block sheet delivery — photo/info insertion is best-effort
         log.error({ sheetId, err: err.message }, '[PhotoFormula] Non-fatal error');
     }
 }
 
+// ─── Atomic pool pop ──────────────────────────────────────────────────────────
+// SELECT FOR UPDATE SKIP LOCKED ensures two concurrent requests never claim
+// the same sheet, even if they hit the DB at the exact same millisecond.
+
+async function atomicPoolPop(type) {
+    const t = await sequelize.transaction();
+    try {
+        const sheet = await SheetPool.findOne({
+            where:       { type, assigned_to: null },
+            lock:        t.LOCK.UPDATE,
+            skipLocked:  true,
+            transaction: t,
+        });
+
+        if (!sheet) {
+            await t.rollback();
+            return null;
+        }
+
+        await sheet.update(
+            { assigned_to: '__pending__', assigned_at: new Date() },
+            { transaction: t }
+        );
+
+        await t.commit();
+        return sheet;
+    } catch (err) {
+        await t.rollback();
+        throw err;
+    }
+}
+
 // ─── Permission Restore Helper ────────────────────────────────────────────────
-// Standalone function (not on controller) to avoid Express `this` binding issues.
 
 async function handleRestore(res, existingSheet, userEmail, type) {
     const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
@@ -143,7 +200,7 @@ async function handleRestore(res, existingSheet, userEmail, type) {
         existingSheet.user_sheet_id,
         userEmail,
         masterUser.access_token,
-        masterUser.refresh_token
+        masterUser.refresh_token,
     ];
 
     if (driveSemaphore.tryAcquire()) {
@@ -161,10 +218,10 @@ async function handleRestore(res, existingSheet, userEmail, type) {
             log.info({ userEmail, type, permId: result.student_permission_id }, 'Access restored');
 
             return res.status(200).json({
-                success: true,
+                success:  true,
                 sheet_id: existingSheet.user_sheet_id,
-                url: `https://docs.google.com/spreadsheets/d/${existingSheet.user_sheet_id}`,
-                isNew: false
+                url:      `https://docs.google.com/spreadsheets/d/${existingSheet.user_sheet_id}`,
+                isNew:    false,
             });
         } finally {
             driveSemaphore.release();
@@ -172,19 +229,19 @@ async function handleRestore(res, existingSheet, userEmail, type) {
     } else {
         log.info({ userEmail }, 'Queue restore (semaphore full)');
         const job = await sheetQueue.add(`restore:${userEmail}`, {
-            action: 'restore',
+            action:    'restore',
             type,
             userEmail,
-            args: restoreArgs
+            args:      restoreArgs,
         }, {
-            jobId: `restore-${type}-${userEmail}-${Date.now()}`
+            jobId: `restore-${type}-${userEmail}-${Date.now()}`,
         });
 
         return res.status(202).json({
             success: true,
-            status: 'queued',
-            jobId: job.id,
-            message: 'Restoring your sheet access. Please wait...'
+            status:  'queued',
+            jobId:   job.id,
+            message: 'Restoring your sheet access. Please wait...',
         });
     }
 }
@@ -195,120 +252,196 @@ const sheetController = {
 
     /**
      * GET /api/sheets/:type
-     * Hybrid: fast path (semaphore) or async path (BullMQ queue).
      *
-     * - If semaphore has capacity → run Python synchronously → instant response
-     * - If semaphore is full → enqueue BullMQ job → return 202 + jobId for polling
+     * Priority order:
+     *   1. Already has sheet in DB → return immediately
+     *   2. Pool has a sheet → pop + rename + share (~200ms, no semaphore needed)
+     *   3. Pool empty (edge case) → live generate_sheet.py (original flow)
+     *                               + trigger emergency pool refill
      */
     async getSheet(req, res) {
         try {
             const userEmail = req.user.email;
-            const type = req.params.type;
+            const type      = req.params.type;
 
             if (!['cultural', 'sports', 'academic'].includes(type)) {
                 return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
             }
 
-            const MODEL_MAP = { cultural: CulturalUserSheet, sports: SportsUserSheet, academic: AcademicUserSheet };
+            const MODEL_MAP = {
+                cultural: CulturalUserSheet,
+                sports:   SportsUserSheet,
+                academic: AcademicUserSheet,
+            };
             const Model = MODEL_MAP[type];
 
-            // ── 1. Check DB (fast path) ──────────────────────────────────────
+            // ── 1. Already has a sheet ───────────────────────────────────────
             const existingSheet = await Model.findOne({ where: { email: userEmail } });
             if (existingSheet) {
-                // If permission was revoked (prior submission), re-grant access
                 if (!existingSheet.student_permission_id) {
                     return await handleRestore(res, existingSheet, userEmail, type);
                 }
-
                 return res.status(200).json({
-                    success: true,
+                    success:  true,
                     sheet_id: existingSheet.user_sheet_id,
-                    url: `https://docs.google.com/spreadsheets/d/${existingSheet.user_sheet_id}`,
-                    isNew: false
+                    url:      `https://docs.google.com/spreadsheets/d/${existingSheet.user_sheet_id}`,
+                    isNew:    false,
                 });
             }
 
-            // ── 2. Fetch student metadata & tokens ──────────────────────────
+            // ── 2. Fetch student metadata & master account ───────────────────
             const student = await StudentData.findOne({ where: { email_id: userEmail } });
             if (!student?.student_cvue_no) {
                 return res.status(404).json({ success: false, message: 'Student registration data not found.' });
             }
             const studentId = student.student_cvue_no.toString();
 
-            const studentUser = await User.findOne({ where: { email: userEmail } });
-            if (!studentUser?.access_token) {
-                return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
-            }
-
             const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
             if (!masterUser?.access_token) {
                 return res.status(500).json({ success: false, message: 'Master account configuration missing.' });
+            }
+
+            // ── 3. Try pool pop ──────────────────────────────────────────────
+            const pooled = await atomicPoolPop(type);
+
+            if (pooled) {
+                log.info({ userEmail, sheet_id: pooled.sheet_id }, '[Pool] Sheet claimed — running rename+share');
+
+                // ── 3a. Rename + share (2 Drive API calls) ───────────────────
+                const displayName = `${NAME_MAP[type]} - ${studentId}`;
+                const renameScript = path.join(__dirname, '../scripts/rename_and_share.py');
+
+                let renameResult;
+                try {
+                    renameResult = await runPythonScript(renameScript, [
+                        pooled.sheet_id,
+                        userEmail,
+                        displayName,
+                        masterUser.access_token,
+                        masterUser.refresh_token,
+                    ]);
+                } catch (err) {
+                    // Script failed — release pool row so it can be retried
+                    await pooled.update({ assigned_to: null, assigned_at: null });
+                    log.error({ userEmail, err: err.message }, '[Pool] rename_and_share failed — pool row released');
+                    return res.status(500).json({ success: false, message: 'Sheet setup failed: ' + err.message });
+                }
+
+                if (!renameResult.success) {
+                    await pooled.update({ assigned_to: null, assigned_at: null });
+                    log.error({ userEmail, error: renameResult.error }, '[Pool] rename_and_share returned failure — pool row released');
+                    return res.status(500).json({ success: false, message: 'Sheet setup failed: ' + renameResult.error });
+                }
+
+                // ── 3b. Persist to user sheet table ──────────────────────────
+                const [sheet, created] = await Model.findOrCreate({
+                    where:    { email: userEmail },
+                    defaults: {
+                        email:                 userEmail,
+                        user_sheet_id:         pooled.sheet_id,
+                        student_permission_id: renameResult.student_permission_id,
+                    },
+                });
+
+                const sheetId = created ? pooled.sheet_id : sheet.user_sheet_id;
+
+                // Mark pool row with final owner (audit trail)
+                await pooled.update({ assigned_to: userEmail });
+
+                // ── 3c. Photo formula — best-effort, non-blocking ─────────────
+                insertPhotoFormula(sheetId, userEmail, masterUser).catch(() => {});
+
+                // ── 3d. Trigger pool refill if running low ────────────────────
+                const remaining = await SheetPool.count({ where: { type, assigned_to: null } });
+                if (remaining < LOW_WATER_MARK) {
+                    poolQueue
+                        .add('low-water-refill', { type }, { jobId: `refill-${type}-${Date.now()}`, priority: 5 })
+                        .then(() => log.info({ type, remaining }, '[Pool] Low-water refill enqueued'))
+                        .catch(err => log.error({ err: err.message }, '[Pool] Failed to enqueue refill'));
+                }
+
+                log.info({ userEmail, sheetId, remaining }, '[Pool] ✅ Sheet assigned via pool');
+
+                return res.status(created ? 201 : 200).json({
+                    success:  true,
+                    sheet_id: sheetId,
+                    url:      `https://docs.google.com/spreadsheets/d/${sheetId}`,
+                    isNew:    created,
+                });
+            }
+
+            // ── 4. Pool exhausted — fallback to live generation ───────────────
+            // This should be rare (pool refiller keeps it stocked).
+            // Trigger an emergency refill so future requests hit the pool.
+            log.warn({ userEmail, type }, '[Pool] Pool empty — falling back to live generation');
+
+            poolQueue
+                .add('emergency-refill', { type }, { jobId: `emergency-${type}-${Date.now()}`, priority: 1 })
+                .catch(err => log.error({ err: err.message }, '[Pool] Failed to enqueue emergency refill'));
+
+            // ── Fallback: original generate_sheet.py path ────────────────────
+            const studentUser = await User.findOne({ where: { email: userEmail } });
+            if (!studentUser?.access_token) {
+                return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
             }
 
             const scriptArgs = [
                 type, userEmail,
                 studentUser.access_token, studentUser.refresh_token,
                 MASTER_EMAIL,
-                masterUser.access_token, masterUser.refresh_token,
+                masterUser.access_token,  masterUser.refresh_token,
                 FOLDER_ID,
-                studentId
+                studentId,
             ];
 
-            // ── 3. Hybrid: try semaphore, fallback to queue ──────────────────
             if (driveSemaphore.tryAcquire()) {
-                // FAST PATH — run synchronously
-                log.info({ userEmail, active: driveSemaphore.active }, 'Fast path generate');
+                log.info({ userEmail, active: driveSemaphore.active }, '[Fallback] Fast path generate');
                 try {
                     const scriptPath = path.join(__dirname, '../scripts/generate_sheet.py');
                     const result = await runPythonScript(scriptPath, scriptArgs);
 
                     if (!result.success) {
-                        log.error({ userEmail, error: result.error }, 'Python sheet generation error');
+                        log.error({ userEmail, error: result.error }, '[Fallback] Python sheet generation error');
                         return res.status(500).json({ success: false, message: 'Sheet generation failed: ' + result.error });
                     }
 
-                    // Atomic DB write
                     const [sheet, created] = await Model.findOrCreate({
-                        where: { email: userEmail },
+                        where:    { email: userEmail },
                         defaults: {
-                            email: userEmail,
-                            user_sheet_id: result.sheet_id,
-                            student_permission_id: result.student_permission_id
-                        }
+                            email:                 userEmail,
+                            user_sheet_id:         result.sheet_id,
+                            student_permission_id: result.student_permission_id,
+                        },
                     });
 
                     const sheetId = created ? result.sheet_id : sheet.user_sheet_id;
-
-                    // ── Insert =IMAGE() into B2 — best-effort, non-blocking ──
-                    await insertPhotoFormula(sheetId, userEmail, masterUser);
+                    insertPhotoFormula(sheetId, userEmail, masterUser).catch(() => {});
 
                     return res.status(created ? 201 : 200).json({
-                        success: true,
+                        success:  true,
                         sheet_id: sheetId,
-                        url: `https://docs.google.com/spreadsheets/d/${sheetId}`,
-                        isNew: created
+                        url:      `https://docs.google.com/spreadsheets/d/${sheetId}`,
+                        isNew:    created,
                     });
-
                 } finally {
                     driveSemaphore.release();
                 }
             } else {
-                // QUEUE PATH — semaphore full, offload to BullMQ
-                log.info({ userEmail, active: driveSemaphore.active }, 'Queue path generate (semaphore full)');
+                log.info({ userEmail, active: driveSemaphore.active }, '[Fallback] Queue path (semaphore full)');
                 const job = await sheetQueue.add(`generate:${userEmail}`, {
-                    action: 'generate',
+                    action:    'generate',
                     type,
                     userEmail,
-                    args: scriptArgs
+                    args:      scriptArgs,
                 }, {
-                    jobId: `gen-${type}-${userEmail}-${Date.now()}`
+                    jobId: `gen-${type}-${userEmail}-${Date.now()}`,
                 });
 
                 return res.status(202).json({
                     success: true,
-                    status: 'queued',
-                    jobId: job.id,
-                    message: 'Your sheet is being generated. Please wait...'
+                    status:  'queued',
+                    jobId:   job.id,
+                    message: 'Your sheet is being generated. Please wait...',
                 });
             }
 
@@ -321,7 +454,6 @@ const sheetController = {
     /**
      * GET /api/sheets/job/:jobId
      * Poll endpoint for queued sheet jobs.
-     * Frontend calls this every 3s until status is 'completed' or 'failed'.
      */
     async checkJobStatus(req, res) {
         try {
@@ -331,28 +463,17 @@ const sheetController = {
             if (result.status === 'not_found') {
                 return res.status(404).json({ success: false, status: 'not_found' });
             }
-
             if (result.status === 'completed') {
-                return res.status(200).json({
-                    success: true,
-                    status: 'completed',
-                    ...result.result
-                });
+                return res.status(200).json({ success: true, status: 'completed', ...result.result });
             }
-
             if (result.status === 'failed') {
                 return res.status(200).json({
                     success: false,
-                    status: 'failed',
-                    error: result.error || 'Sheet generation failed. Please try again.'
+                    status:  'failed',
+                    error:   result.error || 'Sheet generation failed. Please try again.',
                 });
             }
-
-            // 'waiting', 'active', 'delayed'
-            return res.status(200).json({
-                success: true,
-                status: result.status
-            });
+            return res.status(200).json({ success: true, status: result.status });
 
         } catch (error) {
             log.error({ err: error }, 'checkJobStatus error');
@@ -361,25 +482,47 @@ const sheetController = {
     },
 
     /**
+     * GET /api/sheets/pool-status
+     * Admin endpoint: shows current pool levels per type.
+     */
+    async getPoolStatus(req, res) {
+        try {
+            const counts = await Promise.all(
+                ['cultural', 'sports', 'academic'].map(async type => ({
+                    type,
+                    available: await SheetPool.count({ where: { type, assigned_to: null } }),
+                    assigned:  await SheetPool.count({ where: { type, assigned_to: { [require('sequelize').Op.not]: null } } }),
+                }))
+            );
+
+            return res.status(200).json({ success: true, pool: counts });
+        } catch (error) {
+            log.error({ err: error }, 'getPoolStatus error');
+            return res.status(500).json({ success: false, message: 'Internal server error.' });
+        }
+    },
+
+    /**
      * POST /api/sheets/:type/revoke
-     * Removes student's Drive permission. File stays in master's Drive.
+     * Removes student's Drive permission after form submission.
      */
     async revokeAccess(req, res) {
         try {
             const userEmail = req.body.email || req.user.email;
-            const type = req.params.type;
+            const type      = req.params.type;
 
             if (!['cultural', 'sports', 'academic'].includes(type)) {
                 return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
             }
 
-            const Model = type === 'cultural' ? CulturalUserSheet : type === 'sports' ? SportsUserSheet : AcademicUserSheet;
-            const sheet = await Model.findOne({ where: { email: userEmail } });
+            const Model = type === 'cultural' ? CulturalUserSheet
+                        : type === 'sports'   ? SportsUserSheet
+                                               : AcademicUserSheet;
 
+            const sheet = await Model.findOne({ where: { email: userEmail } });
             if (!sheet) {
                 return res.status(404).json({ success: false, message: 'No sheet found for this user.' });
             }
-
             if (!sheet.student_permission_id) {
                 return res.status(200).json({ success: true, message: 'No student permission to revoke.' });
             }
@@ -402,8 +545,8 @@ const sheetController = {
 
     /**
      * POST /api/sheets/update-template/:type
-     * Download the master workbook template from Drive to local server.
-     * Drive file ID is read from env: SPORTS_TEMPLATE_ID / CULTURAL_TEMPLATE_ID / ACADEMIC_TEMPLATE_ID
+     * Downloads the master workbook from Drive to local disk, then triggers
+     * an immediate pool refill so new copies use the updated template.
      */
     async updateTemplate(req, res) {
         try {
@@ -425,18 +568,26 @@ const sheetController = {
                 result = await runPythonScript(scriptPath, [
                     type,
                     masterUser.access_token,
-                    masterUser.refresh_token
+                    masterUser.refresh_token,
                 ]);
             } catch (err) {
                 log.error({ err: err.message }, 'updateTemplate script error');
                 return res.status(500).json({ success: false, message: 'Template update failed internally.' });
             }
 
-            if (result.success) {
-                return res.status(200).json({ success: true, message: result.message || 'Template updated successfully.' });
-            } else {
+            if (!result.success) {
                 return res.status(500).json({ success: false, message: 'Drive error: ' + result.error });
             }
+
+            // Trigger immediate pool refill with the new template
+            poolQueue
+                .add('post-update-refill', { type }, { jobId: `post-update-${type}-${Date.now()}`, priority: 3 })
+                .catch(err => log.error({ err: err.message }, '[Pool] Failed to enqueue post-update refill'));
+
+            return res.status(200).json({
+                success: true,
+                message: (result.message || 'Template updated successfully.') + ' Pool refill started.',
+            });
 
         } catch (error) {
             log.error({ err: error }, 'updateTemplate error');
@@ -444,7 +595,7 @@ const sheetController = {
         }
     },
 
-    revokeStudentAccess
+    revokeStudentAccess,
 };
 
 module.exports = sheetController;

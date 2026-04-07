@@ -108,7 +108,8 @@ app.use('/api/email',       require('./routes/emailRoutes.js'));
 
 // Start BullMQ sheet worker (runs in-process)
 require('./workers/sheetWorker');
-
+// Pool Refill Worker
+require('./workers/poolRefillWorker');
 // Start BullMQ photo-upload worker (concurrency=3, hybrid master/student fallback)
 require('./workers/photoUploadWorker');
 
