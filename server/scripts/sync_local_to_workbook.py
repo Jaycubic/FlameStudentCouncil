@@ -199,6 +199,20 @@ def main():
     cultural_rows    = data.get('cultural',    [])
     trailblazer_rows = data.get('trailblazer', [])
 
+    # ─── Sort rows by verified scores (descending) ──────────────────────────
+    def safe_score(row, key):
+        try:
+            val = row.get(key)
+            if val is None or str(val).strip() == '' or str(val).strip() == '—':
+                return 0.0
+            return float(val)
+        except (ValueError, TypeError):
+            return 0.0
+
+    sports_rows.sort(key=lambda r: safe_score(r, 'sports_verified_score'), reverse=True)
+    cultural_rows.sort(key=lambda r: safe_score(r, 'cultural_verified_score'), reverse=True)
+    trailblazer_rows.sort(key=lambda r: safe_score(r, 'total_verified_score'), reverse=True)
+
     tabs = [
         ('AllAwards',        ALL_COLS,      all_rows),
         ('SportsAward',      SPORTS_COLS,   sports_rows),
