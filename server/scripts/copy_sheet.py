@@ -93,6 +93,7 @@ def main():
             body={
                 'name':    f"[POOL] {NAME_MAP.get(sheet_type, sheet_type.capitalize())}",
                 'parents': [FOLDER_ID],
+                'mimeType': 'application/vnd.google-apps.spreadsheet',
             },
             fields='id'
         ).execute()
