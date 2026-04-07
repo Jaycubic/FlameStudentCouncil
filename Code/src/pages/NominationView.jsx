@@ -119,11 +119,9 @@ function ToolBtn({ label, onExec, title, btnStyle = {} }) {
 
 // ─── RichTextEditor ───────────────────────────────────────────────────────────
 function RichTextEditor({ editorRef }) {
-  const [isEmpty, setIsEmpty] = useState(true)
   const toolbarBg = useColorModeValue('gray.50', 'gray.750')
   const borderCol = useColorModeValue('gray.200', 'gray.600')
   const editorBg = useColorModeValue('white', 'gray.800')
-  const phColor = useColorModeValue('gray.400', 'gray.500')
   const linkColor = useColorModeValue('blue.600', 'blue.300')
 
   const exec = (cmd, val = null) => {
@@ -151,21 +149,10 @@ function RichTextEditor({ editorRef }) {
         </HStack>
       </Box>
       <Box position="relative" bg={editorBg} flex="1" overflow="hidden">
-        {isEmpty && (
-          <Text position="absolute" top={3} left={3} right={3} fontSize="13px"
-            color={phColor} pointerEvents="none" userSelect="none" zIndex={0}
-            whiteSpace="pre-line" lineHeight="1.75">
-            {'Dear [Recipient],\n\nWe are pleased to inform you that you have been selected…'}
-          </Text>
-        )}
         <Box
           ref={editorRef} contentEditable suppressContentEditableWarning
           h="full" minH="220px" p={3} outline="none"
           fontSize="13.5px" lineHeight="1.75" overflowY="auto"
-          onInput={e => {
-            const v = e.target.innerHTML
-            setIsEmpty(!v || v === '<br>' || v.trim() === '' || v === '<br/>')
-          }}
           sx={{
             '& h2': { fontSize: '18px', fontWeight: '800', mt: '8px', mb: '4px' },
             '& ul, & ol': { pl: '22px' },
