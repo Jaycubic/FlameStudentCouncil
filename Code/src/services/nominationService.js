@@ -108,7 +108,7 @@ class NominationService {
         }
     }  // ← this brace was missing in the previous version
 
-    async sendNotifications({ to, recipients, cc, subject, html }) {
+    async sendNotifications({ to, recipients, awardCategory, cc, subject, html }) {
         try {
             const deviceId = await this.getDeviceId();
             const response = await fetch('/api/email/send-notifications', {
@@ -118,7 +118,7 @@ class NominationService {
                     'Content-Type': 'application/json',
                     'x-device-id': deviceId,
                 },
-                body: JSON.stringify({ to, recipients, cc, subject, html }),
+                body: JSON.stringify({ to, recipients, awardCategory, cc, subject, html }),
             });
             return await this.handleResponse(response);
         } catch (error) {

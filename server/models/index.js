@@ -32,6 +32,7 @@ const AcademicUserSheet   = require('./AcademicUserSheet');
 const NominatedStudent    = require('./NominatedStudent');
 const StudentCgpaCache    = require('./StudentCgpaCache');
 const SheetPool           = require('./SheetPool');
+const EmailLog            = require('./EmailLog');
 
 const models = {
   Organization,
@@ -66,6 +67,7 @@ const models = {
   NominatedStudent,
   StudentCgpaCache,
   SheetPool,
+  EmailLog,
 };
 
 Object.values(models).forEach(model => {

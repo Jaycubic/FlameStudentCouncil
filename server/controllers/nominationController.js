@@ -1,5 +1,5 @@
 // server/controllers/nominationController.js
-const { SportsPersonAward, CulturalPersonAward, TrailblazerAward, NominatedStudent } = require('../models');
+const { SportsPersonAward, CulturalPersonAward, TrailblazerAward, NominatedStudent, EmailLog } = require('../models');
 const log = require('../utils/logger').child({ module: 'NominationController' });
 
 // ─── Helper: parse a verified score string to float ──────────────────────────
@@ -176,11 +176,12 @@ async function deleteNominee(req, res) {
 // ─── Get communication groups (Nominated + Rejections) ───────────────────────
 async function getCommunicationGroups(req, res) {
     try {
-        const [sportsRows, culturalRows, trailblazerRows, nominations] = await Promise.all([
+        const [sportsRows, culturalRows, trailblazerRows, nominations, emailLogs] = await Promise.all([
             SportsPersonAward.findAll({ attributes: ['id', 'name', 'student_id', 'gender', 'batch', 'email'] }),
             CulturalPersonAward.findAll({ attributes: ['id', 'name', 'student_id', 'gender', 'batch', 'email'] }),
             TrailblazerAward.findAll({ attributes: ['id', 'name', 'student_id', 'gender', 'batch', 'email'] }),
             NominatedStudent.findAll(),
+            EmailLog.findAll({ order: [['sent_at', 'DESC']] }) // Get latest logs first
         ]);
 
         const groups = {
@@ -248,6 +249,23 @@ async function getCommunicationGroups(req, res) {
                     gender: data.gender,
                     rejected_awards: rejectedFor.join(' and '), // Output e.g. "SportsPerson of The Year Award and Best in Co-curricular Activities"
                 });
+            }
+        }
+
+        // Attach last email status based on logs
+        for (const [awardName, members] of Object.entries(groups)) {
+            for (const member of members) {
+                const memberEmail = (member.email || '').toLowerCase().trim();
+                const memberLogs = emailLogs.filter(log => 
+                    log.email.toLowerCase().trim() === memberEmail && 
+                    log.award_category === awardName
+                );
+                
+                if (memberLogs.length > 0) {
+                    member.last_email_status = memberLogs[0].status;
+                    member.last_email_sent_at = memberLogs[0].sent_at;
+                    member.last_email_error = memberLogs[0].error_message;
+                }
             }
         }
 

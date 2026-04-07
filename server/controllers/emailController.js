@@ -5,6 +5,7 @@
 // with configurable per-message delay to respect SMTP rate limits.
 
 const nodemailer = require('nodemailer');
+const { EmailLog } = require('../models');
 const log = require('../utils/logger').child({ module: 'EmailController' });
 
 // ─── Transporter (connection pooled) ─────────────────────────────────────────
@@ -86,6 +87,7 @@ async function sendNotifications(req, res) {
         const {
             to             = [],
             recipients     = [],
+            awardCategory  = 'Unknown',
             cc             = [],
             subject,
             html,
@@ -148,9 +150,29 @@ async function sendNotifications(req, res) {
                     subject: customizedSubject.trim(),
                     html:    finalHtml,
                 });
+                
+                await EmailLog.create({
+                    student_id: rData.student_id || null,
+                    email: recipientEmail,
+                    award_category: awardCategory,
+                    status: 'sent',
+                    error_message: null
+                });
+
                 sent.push(recipientEmail);
                 log.info({ recipient: recipientEmail }, '[Email] ✓ Sent');
             } catch (err) {
+                try {
+                    await EmailLog.create({
+                        student_id: rData.student_id || null,
+                        email: recipientEmail,
+                        award_category: awardCategory,
+                        status: 'failed',
+                        error_message: err.message
+                    });
+                } catch(dbErr) {
+                    log.error({ err: dbErr.message }, '[Email] Failed to write log');
+                }
                 failed.push({ email: recipientEmail, error: err.message });
                 log.error({ recipient: recipientEmail, err: err.message }, '[Email] ✗ Failed');
             }

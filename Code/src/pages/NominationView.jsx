@@ -218,7 +218,9 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {} }) {
   useEffect(() => {
     if (!isOpen) return;
     const currentGroup = communicationGroups[activeTab] || [];
-    setSelectedEmails(new Set(currentGroup.map(n => n.email)))
+    // Auto-select only if they haven't successfully received this email yet
+    const unsentEmails = currentGroup.filter(n => n.last_email_status !== 'sent').map(n => n.email);
+    setSelectedEmails(new Set(unsentEmails))
     setSubject(TEMPLATES[activeTab]?.subject || '')
     setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = TEMPLATES[activeTab]?.body || '' }, 60)
   }, [isOpen, activeTab, communicationGroups])
@@ -248,7 +250,7 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {} }) {
     const recipients = [...selectedRecipients, ...extraRecipientsObj]
 
     try {
-      const result = await nominationService.sendNotifications({ recipients, cc: ccList, subject: subject.trim(), html: body })
+      const result = await nominationService.sendNotifications({ recipients, awardCategory: activeTab, cc: ccList, subject: subject.trim(), html: body })
       setSendResult(result)
     } catch (err) {
       toast({ title: 'Send failed', description: err.message, status: 'error', duration: 6000, isClosable: true })
@@ -337,7 +339,10 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {} }) {
                     <Text fontSize="12px" color={subColor} textAlign="center" mt={4}>No recipients in this group.</Text>
                   ) : (
                     <VStack spacing={0.5} align="stretch">
-                      {currentGroup.map((n, i) => (
+                      {currentGroup.map((n, i) => {
+                        const isSent = n.last_email_status === 'sent';
+                        const isFailed = n.last_email_status === 'failed';
+                        return (
                         <HStack key={n.email + '_' + i} p={1.5} borderRadius="lg" cursor="pointer" spacing={2}
                           bg={selectedEmails.has(n.email) ? `blue.50` : 'transparent'}
                           _hover={{ bg: rowHover }} onClick={() => toggleEmail(n.email)}>
@@ -352,9 +357,11 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {} }) {
                               {activeTab === 'Not Nominated' && n.rejected_awards ? `Rejected: ${n.rejected_awards}` : `${n.gender || ''} · ${n.batch || ''}`}
                             </Text>
                           </VStack>
-                          {n.rank && <Badge colorScheme={n.is_top_pick ? 'blue' : 'gray'} fontSize="8px" borderRadius="full" flexShrink={0}>#{n.rank}</Badge>}
+                          {isSent && <Badge colorScheme="green" fontSize="8px" borderRadius="full" flexShrink={0}>Sent</Badge>}
+                          {isFailed && <Badge colorScheme="red" fontSize="8px" borderRadius="full" flexShrink={0}>Failed</Badge>}
+                          {!isSent && !isFailed && n.rank && <Badge colorScheme={n.is_top_pick ? 'blue' : 'gray'} fontSize="8px" borderRadius="full" flexShrink={0}>#{n.rank}</Badge>}
                         </HStack>
-                      ))}
+                      )})}
                     </VStack>
                   )}
                 </Box>
