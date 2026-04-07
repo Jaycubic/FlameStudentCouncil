@@ -132,6 +132,14 @@ async function sendNotifications(req, res) {
             try {
                 const rName = rData.name || 'Student';
                 const rAwards = rData.rejected_awards || rData.award_name || 'Award';
+                
+                // Intelligently infer award category if frontend didn't pass it or if it's missing
+                let finalAwardCat = awardCategory !== 'Unknown' ? awardCategory : null;
+                if (!finalAwardCat) {
+                    if (rData.rejected_awards) finalAwardCat = 'Not Nominated';
+                    else if (rData.award_name) finalAwardCat = rData.award_name;
+                    else finalAwardCat = 'Unknown';
+                }
 
                 const customizedHtml = html
                     .replace(studentNameRegex, rName)
@@ -154,7 +162,7 @@ async function sendNotifications(req, res) {
                 await EmailLog.create({
                     student_id: rData.student_id || null,
                     email: recipientEmail,
-                    award_category: awardCategory,
+                    award_category: finalAwardCat,
                     status: 'sent',
                     error_message: null
                 });
@@ -166,7 +174,7 @@ async function sendNotifications(req, res) {
                     await EmailLog.create({
                         student_id: rData.student_id || null,
                         email: recipientEmail,
-                        award_category: awardCategory,
+                        award_category: finalAwardCat,
                         status: 'failed',
                         error_message: err.message
                     });
