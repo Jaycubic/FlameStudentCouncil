@@ -173,4 +173,89 @@ async function deleteNominee(req, res) {
     }
 }
 
-module.exports = { generateNominations, getNominations, deleteNominee };
+// ─── Get communication groups (Nominated + Rejections) ───────────────────────
+async function getCommunicationGroups(req, res) {
+    try {
+        const [sportsRows, culturalRows, trailblazerRows, nominations] = await Promise.all([
+            SportsPersonAward.findAll({ attributes: ['id', 'name', 'student_id', 'gender', 'batch', 'email'] }),
+            CulturalPersonAward.findAll({ attributes: ['id', 'name', 'student_id', 'gender', 'batch', 'email'] }),
+            TrailblazerAward.findAll({ attributes: ['id', 'name', 'student_id', 'gender', 'batch', 'email'] }),
+            NominatedStudent.findAll(),
+        ]);
+
+        const groups = {
+            'SportsPerson of The Year Award': [],
+            'Best in Co-curricular Activities': [],
+            'Trailblazer Award': [],
+            'Not Nominated': [],
+        };
+
+        // Populate nominated groups
+        for (const nom of nominations) {
+            const award = nom.award_name;
+            if (groups[award]) {
+                groups[award].push(nom.toJSON());
+            }
+        }
+
+        // Map all applications
+        const applicantsMap = {};
+        
+        function trackApplication(row, awardName) {
+            const email = (row.email || '').toLowerCase().trim();
+            if (!email) return;
+            if (!applicantsMap[email]) {
+                applicantsMap[email] = {
+                    name: row.name,
+                    email: email,
+                    student_id: row.student_id,
+                    batch: row.batch,
+                    gender: row.gender,
+                    appliedAwards: new Set(),
+                    nominatedAwards: new Set()
+                };
+            }
+            applicantsMap[email].appliedAwards.add(awardName);
+        }
+
+        sportsRows.forEach(r => trackApplication(r, 'SportsPerson of The Year Award'));
+        culturalRows.forEach(r => trackApplication(r, 'Best in Co-curricular Activities'));
+        trailblazerRows.forEach(r => trackApplication(r, 'Trailblazer Award'));
+
+        // Track nominations
+        for (const nom of nominations) {
+            const email = (nom.email || '').toLowerCase().trim();
+            if (applicantsMap[email]) {
+                applicantsMap[email].nominatedAwards.add(nom.award_name);
+            }
+        }
+
+        // Identify rejections
+        for (const [email, data] of Object.entries(applicantsMap)) {
+            const rejectedFor = [];
+            for (const award of data.appliedAwards) {
+                if (!data.nominatedAwards.has(award)) {
+                    rejectedFor.push(award);
+                }
+            }
+
+            if (rejectedFor.length > 0) {
+                groups['Not Nominated'].push({
+                    name: data.name,
+                    email: data.email,
+                    student_id: data.student_id,
+                    batch: data.batch,
+                    gender: data.gender,
+                    rejected_awards: rejectedFor.join(' and '), // Output e.g. "SportsPerson of The Year Award and Best in Co-curricular Activities"
+                });
+            }
+        }
+
+        return res.json({ success: true, data: groups });
+    } catch (err) {
+        log.error({ err: err.message }, '[Nominations] getCommunicationGroups error');
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+module.exports = { generateNominations, getNominations, deleteNominee, getCommunicationGroups };

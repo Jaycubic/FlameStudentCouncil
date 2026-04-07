@@ -2,10 +2,13 @@
 const express = require('express');
 const router  = express.Router();
 const auth    = require('../middleware/auth');
-const { generateNominations, getNominations, deleteNominee } = require('../controllers/nominationController');
+const { generateNominations, getNominations, deleteNominee, getCommunicationGroups } = require('../controllers/nominationController');
 
 // GET  /api/nominations            — list all current nominees   (admin only)
 router.get('/',          auth.validateTokenFileServe, auth.requireAdmin, getNominations);
+
+// GET  /api/nominations/communications — list communication groups including rejections
+router.get('/communications', auth.validateTokenFileServe, auth.requireAdmin, getCommunicationGroups);
 
 // POST /api/nominations/generate   — recalculate & overwrite     (admin only)
 router.post('/generate', auth.validateTokenFileServe, auth.requireAdmin, generateNominations);

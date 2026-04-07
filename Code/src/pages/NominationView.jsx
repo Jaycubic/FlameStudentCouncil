@@ -5,8 +5,7 @@ import {
   Badge, Avatar, Divider, Spinner, Center, useToast, useColorModeValue,
   Flex, Icon, Stat, StatLabel, StatNumber, useDisclosure, Tooltip,
   Alert, AlertIcon, AlertDescription, AlertTitle,
-  Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  ModalCloseButton, Checkbox, Input, IconButton, SimpleGrid,
+  ModalCloseButton, Checkbox, Input, IconButton, SimpleGrid, Tabs, TabList, Tab,
 } from '@chakra-ui/react'
 import {
   TrophyIcon, SparklesIcon, EnvelopeIcon, PaperAirplaneIcon,
@@ -178,8 +177,27 @@ function RichTextEditor({ editorRef }) {
   )
 }
 
+const TEMPLATES = {
+  'SportsPerson of The Year Award': {
+      subject: 'Congratulations! You’ve Won the Best in Sports Award',
+      body: `Dear [Student's Name],<br><br>Congratulations! You have been awarded the Sportsperson of the Year Award for your exceptional performance and dedication in the field of sports. 🏆<br><br>Your hard work and perseverance have not gone unnoticed, and this award is a testament to your commitment to excellence.<br><br>You will be formally awarded at the Annual Student Awards Ceremony:<br><b>📍 Venue:</b> Shantiniketan Auditorium<br><b>⏰ Timing:</b> 4:30 PM<br><b>👔 Dress Code:</b> Formals<br><br>Please confirm your attendance at your earliest convenience.<br><br>Once again, congratulations! We look forward to celebrating with you.<br><br>Wishing you all the best!`
+  },
+  'Best in Co-curricular Activities': {
+      subject: 'Congratulations! You’ve Been Awarded the Best in Co-Curricular Activities',
+      body: `Dear [Student's Name],<br><br>We are thrilled to inform you that you have been selected as the recipient of this year’s Best in Co-Curricular Activities Award! 🎉<br><br>Your dedication, passion, and contributions to co-curricular activities have truly set you apart. This award recognizes your outstanding achievements and the impact you have made.<br><br>You will be formally awarded at the Annual Student Awards Ceremony:<br><b>📍 Venue:</b> Shantiniketan Auditorium<br><b>⏰ Timing:</b> 4:30 PM<br><b>👔 Dress Code:</b> Formals<br><br>Please confirm your attendance at your earliest convenience.<br><br>Congratulations once again! We are incredibly proud of you and look forward to celebrating this achievement with you.<br><br>Wishing you all the best!`
+  },
+  'Trailblazer Award': {
+      subject: 'Congratulations! You Are a Trailblazers Award Winner',
+      body: `Dear [Student's Name],<br><br>We are excited to announce that you have been selected as a Trailblazers Award winner! 🌟 This award celebrates your excellence across academics, sports, and cultural activities, making you a true all-rounder.<br><br>Your ability to balance multiple domains while excelling in each is truly commendable, and we are proud to recognize your achievements.<br><br>You will be formally awarded at the Annual Student Awards Ceremony:<br><b>📍 Venue:</b> Shantiniketan Auditorium<br><b>⏰ Timing:</b> 4:30 PM<br><b>👔 Dress Code:</b> Formals<br><br>Please confirm your attendance at your earliest convenience.<br><br>Congratulations once again! Keep inspiring those around you.<br><br>Wishing you all the best!`
+  },
+  'Not Nominated': {
+      subject: 'Update on Your Application for the Annual Student Awards',
+      body: `Dear [Student's Name],<br><br>Thank you for your application for the [Awards] that you have worked towards. We truly appreciate the time and effort you put into showcasing your achievements.<br><br>After careful consideration, we regret to inform you that your application has not been selected for this year’s award. This in no way diminishes your accomplishments, and we encourage you to continue pursuing excellence in your endeavors.<br><br>We hope to see you apply again in the future! If you would like any feedback on your application, feel free to reach out.<br><br>Wishing you all the best!`
+  }
+}
+
 // ─── ComposeModal ─────────────────────────────────────────────────────────────
-function ComposeModal({ isOpen, onClose, nominees }) {
+function ComposeModal({ isOpen, onClose, communicationGroups }) {
   const toast = useToast()
   const editorRef = useRef(null)
   const modalBg = useColorModeValue('white', 'gray.800')

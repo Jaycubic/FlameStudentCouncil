@@ -85,14 +85,19 @@ async function sendNotifications(req, res) {
     try {
         const {
             to             = [],
+            recipients     = [],
             cc             = [],
             subject,
             html,
             batchDelayMs   = DEFAULT_BATCH_DELAY,
         } = req.body;
 
+        const allRecipients = (Array.isArray(recipients) && recipients.length > 0)
+            ? recipients
+            : (Array.isArray(to) ? to.map(email => ({ email })) : []);
+
         // ── Validate ──────────────────────────────────────────────────────────
-        if (!Array.isArray(to) || to.length === 0) {
+        if (allRecipients.length === 0) {
             return res.status(400).json({ success: false, message: 'At least one recipient is required.' });
         }
         if (!subject?.trim()) {
@@ -102,32 +107,56 @@ async function sendNotifications(req, res) {
             return res.status(400).json({ success: false, message: 'Email body is required.' });
         }
 
-        const emailHtml = buildEmailHtml(html);
-        const ccStr     = Array.isArray(cc) ? cc.filter(Boolean).join(', ') : '';
-        const sent      = [];
-        const failed    = [];
+        const ccStr  = Array.isArray(cc) ? cc.filter(Boolean).join(', ') : '';
+        const sent   = [];
+        const failed = [];
 
-        log.info({ total: to.length, cc: cc.length }, '[Email] Starting batch send');
+        log.info({ total: allRecipients.length, cc: cc.length }, '[Email] Starting batch send');
+
+        // Regex matches variations of "[Student's Name]" including HTML entity codes
+        const studentNameRegex = /\[Student(?:'|’|&#39;|&apos;|&lsquo;|&rsquo;)?s? Name\]/gi;
+        const awardsRegex = /\[Awards\]/gi;
 
         // ── Send individually ─────────────────────────────────────────────────
-        for (const recipient of to) {
+        for (let i = 0; i < allRecipients.length; i++) {
+            const rData = allRecipients[i];
+            const recipientEmail = typeof rData === 'string' ? rData : rData.email;
+            
+            if (!recipientEmail) {
+                failed.push({ email: 'Unknown', error: 'Missing email' });
+                continue;
+            }
+
             try {
+                const rName = rData.name || 'Student';
+                const rAwards = rData.rejected_awards || rData.award_name || 'Award';
+
+                const customizedHtml = html
+                    .replace(studentNameRegex, rName)
+                    .replace(awardsRegex, rAwards);
+                
+                const customizedSubject = subject
+                    .replace(studentNameRegex, rName)
+                    .replace(awardsRegex, rAwards);
+
+                const finalHtml = buildEmailHtml(customizedHtml);
+
                 await transporter.sendMail({
                     from:    `"FLAME Awards" <${process.env.EMAIL_USER}>`,
-                    to:      recipient,
+                    to:      recipientEmail,
                     cc:      ccStr || undefined,
-                    subject: subject.trim(),
-                    html:    emailHtml,
+                    subject: customizedSubject.trim(),
+                    html:    finalHtml,
                 });
-                sent.push(recipient);
-                log.info({ recipient }, '[Email] ✓ Sent');
+                sent.push(recipientEmail);
+                log.info({ recipient: recipientEmail }, '[Email] ✓ Sent');
             } catch (err) {
-                failed.push({ email: recipient, error: err.message });
-                log.error({ recipient, err: err.message }, '[Email] ✗ Failed');
+                failed.push({ email: recipientEmail, error: err.message });
+                log.error({ recipient: recipientEmail, err: err.message }, '[Email] ✗ Failed');
             }
 
             // Inter-message delay to respect SMTP rate limits
-            if (batchDelayMs > 0 && to.indexOf(recipient) < to.length - 1) {
+            if (batchDelayMs > 0 && i < allRecipients.length - 1) {
                 await new Promise(r => setTimeout(r, batchDelayMs));
             }
         }

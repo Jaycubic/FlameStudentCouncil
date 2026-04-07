@@ -89,9 +89,26 @@ class NominationService {
             }
             throw error;
         }
+    }
+
+    async getCommunicationGroups() {
+        try {
+            const deviceId = await this.getDeviceId();
+            const response = await fetch(`${API_URL}/communications`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'x-device-id': deviceId },
+            });
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                throw new Error('Network Issue: Unable to reach the server. Please check your connection.');
+            }
+            throw error;
+        }
     }  // ← this brace was missing in the previous version
 
-    async sendNotifications({ to, cc, subject, html }) {
+    async sendNotifications({ to, recipients, cc, subject, html }) {
         try {
             const deviceId = await this.getDeviceId();
             const response = await fetch('/api/email/send-notifications', {
@@ -101,7 +118,7 @@ class NominationService {
                     'Content-Type': 'application/json',
                     'x-device-id': deviceId,
                 },
-                body: JSON.stringify({ to, cc, subject, html }),
+                body: JSON.stringify({ to, recipients, cc, subject, html }),
             });
             return await this.handleResponse(response);
         } catch (error) {
