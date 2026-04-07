@@ -117,7 +117,7 @@ function ApplicationFormDashboard() {
     // the score over automatically from the sibling record.
     // NOTE: filledRoles contains stable role KEYS ('sports_person', 'cultural_person',
     // 'trailblazer') — never display names. This is safe across any future renames.
-    const trailblazerHidesSports   = selectedRole === 'trailblazer' && filledRoles.includes('sports_person');
+    const trailblazerHidesSports = selectedRole === 'trailblazer' && filledRoles.includes('sports_person');
     const trailblazerHidesCultural = selectedRole === 'trailblazer' && filledRoles.includes('cultural_person');
 
     // ── Trailblazer CGPA gate ──────────────────────────────────────────────────
@@ -155,12 +155,12 @@ function ApplicationFormDashboard() {
 
             setFormData(prev => ({
                 ...prev,
-                name:         p.name          || prev.name,
-                studentId:    p.student_id    || prev.studentId,
+                name: p.name || prev.name,
+                studentId: p.student_id || prev.studentId,
                 mobileNumber: p.mobile_number || prev.mobileNumber,
-                email:        p.email         || prev.email,
-                gender:       p.gender        || prev.gender,
-                batch:        p.batch         || prev.batch,
+                email: p.email || prev.email,
+                gender: p.gender || prev.gender,
+                batch: p.batch || prev.batch,
                 photoUrl: prefillData.photoExists && photoName
                     ? `/api/photos/${photoName}?t=${Date.now()}`
                     : defaultProfilePhoto,
@@ -180,7 +180,7 @@ function ApplicationFormDashboard() {
             // ── Restore saved role from localStorage ──────────────────────────
             // Guard uses role KEY (not display name) — immune to future renames.
             const savedAgreed = localStorage.getItem('awardForm_agreed');
-            const savedRole   = localStorage.getItem('awardForm_role');
+            const savedRole = localStorage.getItem('awardForm_role');
             if (savedAgreed === 'true') setAgreedToInstructions(true);
             if (savedRole && isValidRole(savedRole)) {
                 if (roles.includes(savedRole)) {
@@ -193,9 +193,9 @@ function ApplicationFormDashboard() {
 
             // ── Application window open/close gate ────────────────────────────
             if (loadedSettings?.start_date) {
-                const now       = new Date();
+                const now = new Date();
                 const startDate = new Date(`${loadedSettings.start_date}T${loadedSettings.start_time}`);
-                const endDate   = new Date(`${loadedSettings.end_date}T${loadedSettings.end_time}`);
+                const endDate = new Date(`${loadedSettings.end_date}T${loadedSettings.end_time}`);
 
                 if (now < startDate) {
                     setIsApplicationOpen(false);
@@ -764,7 +764,7 @@ function ApplicationFormDashboard() {
                                     <Alert status="info" borderRadius="xl" variant="left-accent">
                                         <AlertIcon />
                                         <VStack align="start" spacing={1}>
-                                            <Text fontWeight="bold" fontSize="sm">Your Sports Score: Active ✅</Text>
+                                            <Text fontWeight="bold" fontSize="sm">Your Score: Active ✅</Text>
                                             {trailblazerHidesSports && (
                                                 <Text fontSize="xs">Your score from the <b>SportsPerson of The Year Award</b> submission is used automatically.</Text>
                                             )}
