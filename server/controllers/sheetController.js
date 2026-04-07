@@ -30,7 +30,7 @@ const {
 const SheetPool       = require('../models/SheetPool');
 const { spawn }       = require('child_process');
 const path            = require('path');
-const sequelize       = require('../config/database');
+const sequelize       = require('../config/connection');
 const { sheetQueue, getJobStatus } = require('../queues/sheetQueue');
 const { poolQueue }   = require('../queues/poolQueue');
 const { LOW_WATER_MARK } = require('../workers/poolRefillWorker');
