@@ -252,11 +252,13 @@ async function getCommunicationGroups(req, res) {
             }
         }
 
-        // Attach last email status based on logs
+        // Attach last email status based on logs (Bulletproof JSON comparison)
+        const plainLogs = emailLogs.map(log => log.toJSON());
+
         for (const [awardName, members] of Object.entries(groups)) {
             for (const member of members) {
                 const memberEmail = (member.email || '').toLowerCase().trim();
-                const memberLogs = emailLogs.filter(log => 
+                const memberLogs = plainLogs.filter(log => 
                     log.email.toLowerCase().trim() === memberEmail && 
                     log.award_category === awardName
                 );

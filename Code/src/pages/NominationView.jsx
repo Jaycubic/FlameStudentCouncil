@@ -185,7 +185,7 @@ const TEMPLATES = {
 }
 
 // ─── ComposeModal ─────────────────────────────────────────────────────────────
-function ComposeModal({ isOpen, onClose, communicationGroups = {} }) {
+function ComposeModal({ isOpen, onClose, communicationGroups = {}, onRefresh }) {
   const toast = useToast()
   const editorRef = useRef(null)
   const modalBg = useColorModeValue('white', 'gray.800')
@@ -252,6 +252,7 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {} }) {
     try {
       const result = await nominationService.sendNotifications({ recipients, awardCategory: activeTab, cc: ccList, subject: subject.trim(), html: body })
       setSendResult(result)
+      if (onRefresh) onRefresh() // Refresh parent state so badges update
     } catch (err) {
       toast({ title: 'Send failed', description: err.message, status: 'error', duration: 6000, isClosable: true })
     } finally {
@@ -792,7 +793,7 @@ export default function NominationView() {
         </SimpleGrid>
       )}
 
-      <ComposeModal isOpen={isComposeOpen} onClose={onComposeClose} communicationGroups={communicationGroups} />
+      <ComposeModal isOpen={isComposeOpen} onClose={onComposeClose} communicationGroups={communicationGroups} onRefresh={loadNominees} />
     </Box>
   )
 }
