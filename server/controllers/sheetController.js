@@ -33,6 +33,7 @@ const path            = require('path');
 const sequelize       = require('../config/connection');
 const { sheetQueue, getJobStatus } = require('../queues/sheetQueue');
 const { poolQueue }   = require('../queues/poolQueue');
+const { photoUploadQueue } = require('../queues/photoUploadQueue');
 const { LOW_WATER_MARK } = require('../workers/poolRefillWorker');
 const log             = require('../utils/logger').child({ module: 'SheetController' });
 
@@ -128,15 +129,31 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
         const studentId = student.student_cvue_no.toString();
 
         const photoRecord = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
-        if (!photoRecord?.drive_file_id) {
-            log.warn({ studentId }, '[PhotoFormula] Photo not on Drive yet — skipping insert');
-            return;
+        let driveFileId = photoRecord?.drive_file_id;
+
+        if (!driveFileId) {
+            log.warn({ studentId }, '[PhotoFormula] Photo not on Drive yet — appending student info only and triggering upload worker');
+            try {
+                await photoUploadQueue.add(
+                    `upload:${studentId}`,
+                    { studentId, studentEmail: userEmail, jobType: 'upload' },
+                    {
+                        jobId: `upload-${studentId}-${Date.now()}`,
+                        priority: 2,
+                        attempts: 4,
+                        backoff: { type: 'exponential', delay: 15_000 }
+                    }
+                );
+            } catch (err) {
+                log.error({ err: err.message }, 'Failed to enqueue photo upload from sheetController');
+            }
+            driveFileId = 'NONE';
         }
 
         const scriptPath = path.join(__dirname, '../scripts/insert_photo_formula.py');
         const result = await runPythonScript(scriptPath, [
             sheetId,
-            photoRecord.drive_file_id,
+            driveFileId,
             masterUser.access_token,
             masterUser.refresh_token,
             student.student_name  || '',

@@ -70,20 +70,18 @@ def main():
         return
 
     # ── Build the IMAGE formula ────────────────────────────────────────────────
-    image_url = f'https://lh3.googleusercontent.com/d/{drive_file_id}'
-    formula   = f'=IMAGE("{image_url}")'
+    data = []
+
+    if drive_file_id and drive_file_id != 'NONE':
+        image_url = f'https://lh3.googleusercontent.com/d/{drive_file_id}'
+        formula   = f'=IMAGE("{image_url}")'
+        data.append({
+            'range': "'Personal Information'!B13",
+            'values': [[formula]]
+        })
 
     try:
         sheets_service = build('sheets', 'v4', credentials=creds)
-
-        # Batch update: photo formula + student info
-        data = [
-            # Photo in B13 of Personal Information tab
-            {
-                'range': "'Personal Information'!B13",
-                'values': [[formula]]
-            },
-        ]
 
         # Student info in merged cells C4:D4 through C8:D8
         if name:
@@ -96,6 +94,10 @@ def main():
             data.append({'range': "'Personal Information'!C7", 'values': [[email]]})
         if mobile_number:
             data.append({'range': "'Personal Information'!C8", 'values': [[mobile_number]]})
+
+        if not data:
+            print(json.dumps({'success': True, 'message': 'No data to insert'}))
+            return
 
         sheets_service.spreadsheets().values().batchUpdate(
             spreadsheetId=sheet_id,
