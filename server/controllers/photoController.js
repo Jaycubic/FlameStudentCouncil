@@ -1,7 +1,7 @@
-// controllers/photoController.js
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { photoUploadQueue } = require('../queues/photoUploadQueue');
 
 const uploadPath = '/opt/View/StudentTrackingSystem/server/Photos';
 
@@ -56,6 +56,31 @@ exports.uploadPhoto = (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
+
+    // Trigger Google Drive upload now that the local file exists
+    setImmediate(async () => {
+      try {
+        const studentId = req.query.studentId || 'unknown';
+        const studentEmail = req.user?.email;
+
+        if (studentId !== 'unknown' && studentEmail) {
+          await photoUploadQueue.add(
+            `upload:${studentId}`,
+            { studentId, studentEmail, jobType: 'upload' },
+            {
+              jobId: `upload-${studentId}-${Date.now()}`,
+              priority: 1,
+              attempts: 4,
+              backoff: { type: 'exponential', delay: 15_000 }
+            }
+          );
+          console.log(`[PHOTO] Queued Drive upload for ${studentId} after local upload`);
+        }
+      } catch (qErr) {
+        console.error('[PHOTO] Failed to enqueue Drive upload:', qErr.message);
+      }
+    });
+
     res.status(200).json({
       message: 'Photo uploaded successfully',
       filename: req.file.filename, // e.g. "240951.png" — includes extension
