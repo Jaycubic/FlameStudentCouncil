@@ -440,23 +440,31 @@ const formController = {
       // ── 4. Handle attachments ──────────────────────────────────────────────
       const attachmentJobs = [];
 
-      if (req.files['sport_attachment']) {
-        req.files['sport_attachment'].forEach(file => {
-          attachmentJobs.push(SportAttachment.create({ submission_id: submission.id, file_name: file.filename }));
-        });
-      }
-      if (req.files['cultural_attachment']) {
-        req.files['cultural_attachment'].forEach(file => {
-          attachmentJobs.push(CulturalAttachment.create({ submission_id: submission.id, file_name: file.filename }));
-        });
-      }
-      if (req.files['academic_attachments']) {
-        req.files['academic_attachments'].forEach(file => {
-          attachmentJobs.push(academicAttachment.create({ submission_id: submission.id, file_name: file.filename }));
-        });
-      }
+      try {
+        if (req.files && req.files['sport_attachment']) {
+          req.files['sport_attachment'].forEach(file => {
+            attachmentJobs.push(SportAttachment.create({ submission_id: submission.id, file_name: file.filename }));
+          });
+        }
+        if (req.files && req.files['cultural_attachment']) {
+          req.files['cultural_attachment'].forEach(file => {
+            attachmentJobs.push(CulturalAttachment.create({ submission_id: submission.id, file_name: file.filename }));
+          });
+        }
+        if (req.files && req.files['academic_attachments']) {
+          req.files['academic_attachments'].forEach(file => {
+            attachmentJobs.push(academicAttachment.create({ submission_id: submission.id, file_name: file.filename }));
+          });
+        }
 
-      await Promise.all(attachmentJobs);
+        await Promise.all(attachmentJobs);
+      } catch (attachErr) {
+        log.error({ err: attachErr.message, email }, 'Error processing or saving attachments');
+        return res.status(400).json({ 
+          message: 'Error processing attachments. Please ensure your files are correctly formatted and uploaded.', 
+          error: attachErr.message 
+        });
+      }
 
       // ── 5. Respond to student FIRST ────────────────────────────────────────
       res.status(200).json({
