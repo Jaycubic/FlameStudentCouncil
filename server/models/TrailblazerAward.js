@@ -37,7 +37,7 @@ const TrailblazerAward = sequelize.define('TrailblazerAward', {
         allowNull: true,
     },
     academic_score: {
-        type: DataTypes.DECIMAL(4, 2),
+        type: DataTypes.DECIMAL(6, 2),
         allowNull: true,
     },
     cultural_score: {
