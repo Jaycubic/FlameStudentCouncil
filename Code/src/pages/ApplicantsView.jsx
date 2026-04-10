@@ -752,7 +752,7 @@ function ApplicantsView() {
                     {showVerSports && <TdCell color={record.sports_verified_score ? 'green.500' : subColor}>{record.sports_verified_score}</TdCell>}
                     {showVerCultural && <TdCell color={record.cultural_verified_score ? 'green.500' : subColor}>{record.cultural_verified_score}</TdCell>}
                     {showVerAcademic && <TdCell color={record.academic_verified_score ? 'green.500' : subColor}>{record.academic_verified_score}</TdCell>}
-                    {showTotal && <TdCell color={record.total_verified_score ? 'orange.500' : subColor}><b>{record.total_verified_score}</b></TdCell>}
+                    {showTotal && <TdCell color={record.total_verified_score ? 'orange.500' : subColor}><b>{record.total_verified_score ? parseFloat(record.total_verified_score).toFixed(2) : null}</b></TdCell>}
                     <TdCell>
                       {record.submission_date
                         ? new Date(record.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })

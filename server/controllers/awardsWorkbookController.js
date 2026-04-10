@@ -153,7 +153,7 @@ async function collectAllData() {
             sports_verified_score:    r.sports_verified_score || '',
             cultural_verified_score:  r.cultural_verified_score || '',
             academic_verified_score:  r.academic_verified_score || '',
-            total_verified_score:     r.total_verified_score || '',
+            total_verified_score:     r.total_verified_score ? parseFloat(r.total_verified_score).toFixed(2) : '',
             submission_date:          r.submission_date ? new Date(r.submission_date).toISOString().split('T')[0] : '',
             'Sports Sheet Link':      sportsSheetMap[r.email]   || '',
             'Cultural Sheet Link':    culturalSheetMap[r.email] || '',
@@ -346,7 +346,12 @@ async function syncFromCloud(req, res) {
             const updates = {};
             for (const field of CLOUD_SYNCABLE) {
                 if (cloudRow[field] !== undefined) {
-                    updates[field] = cloudRow[field] === '' ? null : cloudRow[field];
+                    let val = cloudRow[field] === '' ? null : cloudRow[field];
+                    if (val !== null && field === 'total_verified_score') {
+                        const parsed = parseFloat(val);
+                        if (!isNaN(parsed)) val = parsed.toFixed(2);
+                    }
+                    updates[field] = val;
                 }
             }
             if (Object.keys(updates).length === 0) { skipped++; continue; }

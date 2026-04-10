@@ -60,7 +60,7 @@ function tagTrailblazer(rows) {
             obj.cultural_verified_score,
             obj.academic_verified_score,
         ].map(v => parseFloat(v)).filter(n => !isNaN(n));
-        obj.total_verified_score = vals.length > 0 ? String(vals.reduce((a, b) => a + b, 0)) : null;
+        obj.total_verified_score = vals.length > 0 ? vals.reduce((a, b) => a + b, 0).toFixed(2) : null;
         return obj;
     });
 }

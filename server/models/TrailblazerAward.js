@@ -79,7 +79,7 @@ const TrailblazerAward = sequelize.define('TrailblazerAward', {
         allowNull: true,
     },
     total_verified_score: {
-        type: DataTypes.STRING,
+        type: DataTypes.DECIMAL(6, 2),
         allowNull: true,
     },
 }, {
