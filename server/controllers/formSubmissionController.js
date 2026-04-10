@@ -403,6 +403,22 @@ const formController = {
         }
       }
 
+      // ── 2b-iii. Bulletproof Score Validation & Sanitization ───────────────────
+      // Ensures no weird payloads, unbounded sheet reads, or formula overflows
+      // can crash the database by exceeding constraints (like DECIMAL(6,2)).
+      const validateScore = (scoreRaw) => {
+        if (scoreRaw === null || scoreRaw === undefined || String(scoreRaw).trim() === '') return null;
+        let value = parseFloat(scoreRaw);
+        if (isNaN(value)) value = 0;
+        if (value < 0) value = 0;
+        if (value > 9999.99) value = 9999.99; // Strict cap prevents DB overflow
+        return value.toFixed(2);
+      };
+
+      if (submissionData.sports_score != null)   submissionData.sports_score   = validateScore(submissionData.sports_score);
+      if (submissionData.cultural_score != null) submissionData.cultural_score = validateScore(submissionData.cultural_score);
+      if (submissionData.academic_score != null) submissionData.academic_score = validateScore(submissionData.academic_score);
+
       // ── 2c. Auto-scale raw scores → verified scores ───────────────────────
       // Formula from weighted_scaled_scores.md (w = 0.05, y_max = 12):
       //   x ≤ 150  →  y = x / 15
