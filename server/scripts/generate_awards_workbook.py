@@ -1,12 +1,12 @@
 # scripts/generate_awards_workbook.py
 #
 # Usage:
-#   python3 generate_awards_workbook.py \
-#       <master_access_token> <master_refresh_token> \
-#       <folder_id> <json_data_base64>
+#   echo <json_data_base64> | python3 generate_awards_workbook.py \
+#       <master_access_token> <master_refresh_token> <folder_id>
 #
-# json_data_base64: base64-encoded JSON with keys:
-#   all[]  sports[]  cultural[]  trailblazer[]
+# json_data_base64: base64-encoded JSON read from STDIN (not a CLI arg).
+# Passing it via stdin avoids the Linux ARG_MAX (E2BIG) limit.
+#   Keys: all[]  sports[]  cultural[]  trailblazer[]
 #   Each row includes: photo_drive_id, student_id, name, email, gender, batch,
 #   mobile_number, academic_score, sports_score, cultural_score,
 #   sports_verified_score, cultural_verified_score, academic_verified_score,
@@ -310,17 +310,27 @@ def _build_sheets_merge_requests(sheet_gid, rows, start_row_index=1):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 4:
         print(json.dumps({
             "success": False,
-            "error": "Usage: master_access_token master_refresh_token folder_id json_data_base64"
+            "error": "Usage: master_access_token master_refresh_token folder_id  (json_data_base64 via stdin)"
         }))
         return
 
     master_access_token  = sys.argv[1]
     master_refresh_token = sys.argv[2]
     folder_id            = sys.argv[3]
-    json_data_b64        = sys.argv[4]
+
+    # Read large JSON payload from stdin to avoid E2BIG (ARG_MAX exceeded)
+    try:
+        json_data_b64 = sys.stdin.read().strip()
+    except Exception as e:
+        print(json.dumps({"success": False, "error": f"Failed to read stdin: {e}"}))
+        return
+
+    if not json_data_b64:
+        print(json.dumps({"success": False, "error": "No data received on stdin"}))
+        return
 
     try:
         data = json.loads(base64.b64decode(json_data_b64).decode('utf-8'))

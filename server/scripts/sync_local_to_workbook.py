@@ -170,17 +170,27 @@ def build_merge_requests(sheet_gid, rows, start_row_index=1):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 4:
         print(json.dumps({
             "success": False,
-            "error": "Usage: workbook_id access_token refresh_token json_data_base64"
+            "error": "Usage: workbook_id access_token refresh_token  (json_data_base64 via stdin)"
         }))
         return
 
     workbook_id          = sys.argv[1]
     master_access_token  = sys.argv[2]
     master_refresh_token = sys.argv[3]
-    json_data_b64        = sys.argv[4]
+
+    # Large JSON payload via stdin — avoids Linux ARG_MAX (E2BIG) limit
+    try:
+        json_data_b64 = sys.stdin.read().strip()
+    except Exception as e:
+        print(json.dumps({"success": False, "error": f"Failed to read stdin: {e}"}))
+        return
+
+    if not json_data_b64:
+        print(json.dumps({"success": False, "error": "No data received on stdin"}))
+        return
 
     try:
         data = json.loads(base64.b64decode(json_data_b64).decode('utf-8'))

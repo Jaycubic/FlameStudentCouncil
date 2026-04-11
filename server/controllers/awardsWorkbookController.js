@@ -25,12 +25,25 @@ const CLOUD_SYNCABLE = [
 ];
 
 // ─── Python runner ────────────────────────────────────────────────────────────
-function runPython(scriptPath, args, timeoutMs = 180_000) {
+// stdinData (optional string): written to the child's stdin then closed.
+// Use this for large payloads to avoid the Linux ARG_MAX (E2BIG) limit.
+function runPython(scriptPath, args, timeoutMs = 180_000, stdinData = null) {
     return new Promise((resolve, reject) => {
         const proc = spawn('python3', [scriptPath, ...args]);
         let out = '', err = '';
         proc.stdout.on('data', d => { out += d.toString(); });
         proc.stderr.on('data', d => { err += d.toString(); });
+
+        // Write large payload via stdin (avoids E2BIG on Linux)
+        if (stdinData !== null) {
+            try {
+                proc.stdin.write(stdinData);
+                proc.stdin.end();
+            } catch (e) {
+                reject(new Error(`Failed to write to python stdin: ${e.message}`));
+                return;
+            }
+        }
 
         const timer = setTimeout(() => {
             proc.kill('SIGTERM');
@@ -235,8 +248,7 @@ async function openOrCreate(req, res) {
             masterUser.access_token,
             masterUser.refresh_token,
             FOLDER_ID,
-            dataB64,
-        ]);
+        ], 180_000, dataB64);   // dataB64 passed via stdin — avoids E2BIG
 
         if (!result.success) {
             log.error({ error: result.error }, '[Workbook] Generation failed');
@@ -408,8 +420,7 @@ async function syncToCloud(req, res) {
             workbook.workbook_id,
             masterUser.access_token,
             masterUser.refresh_token,
-            dataB64,
-        ]);
+        ], 180_000, dataB64);   // dataB64 passed via stdin — avoids E2BIG
 
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error });

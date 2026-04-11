@@ -165,9 +165,17 @@ function RichTextEditor({ editorRef }) {
   )
 }
 
+// ─── Email Templates ──────────────────────────────────────────────────────────
+// 'Shortlisted Nominees' → ceremony invite — ALL nominees (before winners announced)
+// Award tabs             → winner emails — ONLY confirmed winners
+// 'Not Nominated'        → rejection — non-selected applicants only
 const TEMPLATES = {
+  'Shortlisted Nominees': {
+    subject: `Congratulations! You're Shortlisted \u2013 Annual Prize Distribution \uD83C\uDF89`,
+    body: `<p style="font-style:italic;color:#64748b;border-left:3px solid #cbd5e1;padding-left:12px;margin-bottom:16px;">&ldquo;Excellence is not a single act, but a habit. You are what you repeatedly do.&rdquo;</p><p>Dear <strong>[Student's Name]</strong>,</p><p><strong>Congratulations!! \uD83C\uDF1F</strong></p><p>We are delighted to inform you that you have been <strong>shortlisted for the [Awards]</strong>. Your dedication and contributions have truly stood out, and this recognition is well deserved.</p><p>The winners will be announced at the <strong>Annual Prize Distribution Ceremony</strong>, and we would be honored to celebrate this moment with you \uD83C\uDF89</p><ul style="list-style:none;padding-left:0;line-height:2.4;"><li>\uD83D\uDCC5 <strong>Date:</strong> 21st April</li><li>\uD83D\uDD53 <strong>Time:</strong> 4:30 PM</li><li>\uD83D\uDCCD <strong>Venue:</strong> Shantiniketan Auditorium</li><li>\u23F0 <strong>Please be seated by 4:15 PM.</strong></li></ul><p>We look forward to celebrating your achievements and honoring all our nominees at the ceremony.</p>`,
+  },
   'SportsPerson of The Year Award': {
-      subject: 'Congratulations! You’ve Won the Best in Sports Award',
+      subject: "Congratulations! You've Won the Best in Sports Award!",
       body: `Dear [Student's Name],<br><br>Congratulations! You have been awarded the Sportsperson of the Year Award for your exceptional performance and dedication in the field of sports. 🏆<br><br>Your hard work and perseverance have not gone unnoticed, and this award is a testament to your commitment to excellence.<br><br>You will be formally awarded at the Annual Student Awards Ceremony:<br><b>📍 Venue:</b> Shantiniketan Auditorium<br><b>⏰ Timing:</b> 4:30 PM<br><b>👔 Dress Code:</b> Formals<br><br>Please confirm your attendance at your earliest convenience.<br><br>Once again, congratulations! We look forward to celebrating with you.<br><br>Wishing you all the best!`
   },
   'Best in Co-curricular Activities': {
@@ -195,7 +203,8 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {}, onRefresh }) 
   const rowHover = useColorModeValue('gray.100', 'gray.700')
   const inputBorder = useColorModeValue('gray.200', 'gray.600')
 
-  const TABS = ['SportsPerson of The Year Award', 'Best in Co-curricular Activities', 'Trailblazer Award', 'Not Nominated']
+  // Tab order: Shortlist invite FIRST, then winner tabs, then rejection
+  const TABS = ['Shortlisted Nominees', 'SportsPerson of The Year Award', 'Best in Co-curricular Activities', 'Trailblazer Award', 'Not Nominated']
 
   const [activeTab, setActiveTab] = useState(TABS[0])
   const [selectedEmails, setSelectedEmails] = useState(new Set())
@@ -285,11 +294,15 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {}, onRefresh }) 
           <Box bg={leftBg} px={6} py={2} borderBottom="1px solid" borderColor={divColor}>
             <Tabs variant="soft-rounded" colorScheme="blue" size="sm" index={TABS.indexOf(activeTab)} onChange={idx => setActiveTab(TABS[idx])}>
               <TabList overflowX="auto" pb={1} sx={{ '&::-webkit-scrollbar': { display: 'none' }}}>
-                {TABS.map(tab => (
-                  <Tab key={tab} whiteSpace="nowrap" fontWeight="600">
-                    {tab} <Badge ml={2} colorScheme={tab === 'Not Nominated' ? 'red' : 'blue'} borderRadius="full">{communicationGroups[tab]?.length || 0}</Badge>
-                  </Tab>
-                ))}
+                {TABS.map(tab => {
+                  const badgeColor = tab === 'Not Nominated' ? 'red' : tab === 'Shortlisted Nominees' ? 'teal' : 'blue'
+                  const tabIcon = tab === 'Shortlisted Nominees' ? '📋 ' : tab === 'Not Nominated' ? '❌ ' : '🏆 '
+                  return (
+                    <Tab key={tab} whiteSpace="nowrap" fontWeight="600">
+                      {tabIcon}{tab} <Badge ml={2} colorScheme={badgeColor} borderRadius="full">{communicationGroups[tab]?.length || 0}</Badge>
+                    </Tab>
+                  )
+                })}
               </TabList>
             </Tabs>
           </Box>
@@ -355,7 +368,11 @@ function ComposeModal({ isOpen, onClose, communicationGroups = {}, onRefresh }) 
                               <Text fontSize="12px" fontWeight={n.is_top_pick ? '700' : '500'} noOfLines={1}>{n.name}</Text>
                             </HStack>
                             <Text fontSize="10px" color={subColor} noOfLines={1}>
-                              {activeTab === 'Not Nominated' && n.rejected_awards ? `Rejected: ${n.rejected_awards}` : `${n.gender || ''} · ${n.batch || ''}`}
+                              {activeTab === 'Not Nominated' && n.rejected_awards
+                                ? `Rejected: ${n.rejected_awards}`
+                                : activeTab === 'Shortlisted Nominees' && n.award_name
+                                ? `${n.award_name} · ${n.gender || ''}`
+                                : `${n.gender || ''} · ${n.batch || ''}`}
                             </Text>
                           </VStack>
                           {isSent && <Badge colorScheme="green" fontSize="8px" borderRadius="full" flexShrink={0}>Sent</Badge>}

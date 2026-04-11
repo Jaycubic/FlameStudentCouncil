@@ -252,21 +252,39 @@ async function getCommunicationGroups(req, res) {
             }
         }
 
-        // Attach last email status based on logs (Bulletproof JSON comparison)
-        const plainLogs = emailLogs.map(log => log.toJSON());
+        // ─── Build Shortlisted Nominees group (all nominees, deduplicated by email) ──
+        // Ceremony invitation email — sent to ALL nominees before winners are announced.
+        // award_name is preserved so the frontend subtitle shows which award they're in.
+        const plainLogs = emailLogs.map(log => log.toJSON());   // declared here — used below
 
+        const shortlistedMap = new Map();
+        for (const nom of nominations) {
+            const email = (nom.email || '').toLowerCase().trim();
+            if (!email) continue;
+            const existing = shortlistedMap.get(email);
+            if (!existing) {
+                shortlistedMap.set(email, { ...nom.toJSON() });
+            } else {
+                // Student shortlisted for multiple awards — append award name
+                if (!existing.award_name.includes(nom.award_name)) {
+                    existing.award_name = `${existing.award_name} & ${nom.award_name}`;
+                }
+            }
+        }
+        groups['Shortlisted Nominees'] = Array.from(shortlistedMap.values());
+
+        // ─── Attach last email status to every group member (including Shortlisted) ──
         for (const [awardName, members] of Object.entries(groups)) {
             for (const member of members) {
                 const memberEmail = (member.email || '').toLowerCase().trim();
-                const memberLogs = plainLogs.filter(log => 
-                    log.email.toLowerCase().trim() === memberEmail && 
+                const memberLogs = plainLogs.filter(log =>
+                    log.email.toLowerCase().trim() === memberEmail &&
                     log.award_category === awardName
                 );
-                
                 if (memberLogs.length > 0) {
-                    member.last_email_status = memberLogs[0].status;
+                    member.last_email_status  = memberLogs[0].status;
                     member.last_email_sent_at = memberLogs[0].sent_at;
-                    member.last_email_error = memberLogs[0].error_message;
+                    member.last_email_error   = memberLogs[0].error_message;
                 }
             }
         }
