@@ -4,6 +4,10 @@
 # using the Sheets API with USER_ENTERED (same proven approach as
 # insert_photo_formula.py which works reliably for individual student sheets).
 #
+# Photos are served from the local server (https://flameawards.in/api/photos/<student_id>)
+# which never expires — unlike Google Drive URLs that break when a student's
+# OAuth token is revoked.
+#
 # Also applies mergeCells on the AllAwards tab so same-student rows share
 # one photo cell.
 #
@@ -15,11 +19,12 @@
 #
 # photo_data_base64: base64-encoded JSON:
 # {
-#   "AllAwards":        [{ "photo_drive_id": "...", "email": "..." }, ...],
-#   "SportsAward":      [{ "photo_drive_id": "...", "email": "..." }, ...],
-#   "CulturalAward":    [{ "photo_drive_id": "...", "email": "..." }, ...],
-#   "TrailblazerAward": [{ "photo_drive_id": "...", "email": "..." }, ...]
+#   "AllAwards":        [{ "photo_url": "https://flameawards.in/api/photos/<sid>", "email": "..." }, ...],
+#   "SportsAward":      [{ "photo_url": "...", "email": "..." }, ...],
+#   "CulturalAward":    [{ "photo_url": "...", "email": "..." }, ...],
+#   "TrailblazerAward": [{ "photo_url": "...", "email": "..." }, ...]
 # }
+# If photo_url is empty for a student, their Photo cell is left blank (no broken image).
 #
 # Returns: { "success": true, "stats": {...} }
 #       OR { "success": false, "error": "..." }
@@ -43,8 +48,6 @@ SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive',
 ]
-
-PHOTO_BASE_URL = 'https://lh3.googleusercontent.com/d/'
 
 
 def execute_with_retry(request, max_retries=4):
@@ -75,10 +78,16 @@ def build_credentials(access_token, refresh_token):
     return creds
 
 
-def get_photo_formula(drive_file_id):
-    if not drive_file_id:
+def get_photo_formula(photo_url):
+    """Return =IMAGE() formula using the given local server URL, or '' if empty.
+
+    photo_url should be a fully-qualified HTTPS URL such as:
+        https://flameawards.in/api/photos/<student_id>
+    An empty string means the student has no uploaded photo — leave the cell blank.
+    """
+    if not photo_url:
         return ''
-    return f'=IMAGE("{PHOTO_BASE_URL}{drive_file_id}")'
+    return f'=IMAGE("{photo_url}")'
 
 
 def build_merge_requests(sheet_gid, rows, start_row_index=1):
@@ -125,20 +134,20 @@ def main():
         print(json.dumps({'success': False, 'error': f'Invalid photo_data JSON: {e}'}))
         return
 
-    # ── Diagnostic: count how many photo_drive_ids are non-empty ──────────────
+    # ── Diagnostic: count how many photo_urls are non-empty ───────────────────────
     stats = {}
     for tab_name, rows in photo_data.items():
         total      = len(rows)
-        with_photo = sum(1 for r in rows if r.get('photo_drive_id'))
+        with_photo = sum(1 for r in rows if r.get('photo_url'))
         stats[tab_name] = {'total': total, 'with_photo': with_photo}
         # Log to stderr for Node.js debug visibility
-        print(f"[PhotoInsert] {tab_name}: {with_photo}/{total} rows have photo_drive_id", file=sys.stderr)
+        print(f"[PhotoInsert] {tab_name}: {with_photo}/{total} rows have photo_url", file=sys.stderr)
 
     all_have_photo = sum(s['with_photo'] for s in stats.values())
     if all_have_photo == 0:
         print(json.dumps({
             'success': True,
-            'warning': 'No photo_drive_id found for any student — wrote empty Photo column',
+            'warning': 'No photo_url found for any student — wrote empty Photo column',
             'stats': stats
         }))
         return
@@ -159,7 +168,7 @@ def main():
                 continue
             values = [['Photo']]    # row 1: header
             for record in rows:
-                formula = get_photo_formula(record.get('photo_drive_id', ''))
+                formula = get_photo_formula(record.get('photo_url', ''))
                 values.append([formula])    # rows 2..N: data
             value_data.append({
                 'range':  f"'{tab_name}'!A1",

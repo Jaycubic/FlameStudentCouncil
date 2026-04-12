@@ -7,14 +7,15 @@
 # json_data_base64: base64-encoded JSON read from STDIN (not a CLI arg).
 # Passing it via stdin avoids the Linux ARG_MAX (E2BIG) limit.
 #   Keys: all[]  sports[]  cultural[]  trailblazer[]
-#   Each row includes: photo_drive_id, student_id, name, email, gender, batch,
+#   Each row includes: photo_url, student_id, name, email, gender, batch,
 #   mobile_number, academic_score, sports_score, cultural_score,
 #   sports_verified_score, cultural_verified_score, academic_verified_score,
 #   total_verified_score, submission_date, Sports/Cultural/Academic Sheet Link
 #
 # Photo column logic:
-#   • ALL tab   — col A, =IMAGE() formula, cells MERGED for same-student rows
-#   • Other tabs — col A, =IMAGE() formula, one row per student (no merge)
+#   • ALL tab   — col A, =IMAGE() formula using local server URL, cells MERGED for same-student rows
+#   • Other tabs — col A, =IMAGE() formula using local server URL, one row per student (no merge)
+#   • If photo_url is empty (student has no local photo) — cell is blank (no broken image)
 #
 # Returns: { success, sheet_id, url }
 
@@ -45,7 +46,6 @@ SCOPES = [
 ]
 
 PROTECTED_COLS  = ['student_id', 'name', 'email']   # warning-only protection
-PHOTO_BASE_URL  = 'https://lh3.googleusercontent.com/d/'
 PHOTO_COL_WIDTH  = 22       # column A width (pixels/chars) for the photo column
 PHOTO_ROW_HEIGHT = 90      # row height when photo is present
 
@@ -117,11 +117,17 @@ def build_credentials(access_token, refresh_token):
     return creds
 
 
-def get_photo_formula(drive_file_id):
-    """Return =IMAGE() formula string, or '' if no drive_file_id."""
-    if not drive_file_id:
+def get_photo_formula(photo_url):
+    """Return =IMAGE() formula using the given URL, or '' if no URL.
+
+    The URL should be the local server endpoint (e.g.
+    https://flameawards.in/api/photos/<student_id>) which never expires.
+    If photo_url is empty (student has no uploaded photo) return '' so the
+    cell is left blank rather than showing a broken image.
+    """
+    if not photo_url:
         return ''
-    return f'=IMAGE("{PHOTO_BASE_URL}{drive_file_id}")'
+    return f'=IMAGE("{photo_url}")'
 
 
 def row_to_cells(record, cols):
@@ -187,14 +193,14 @@ def write_sheet(ws, cols, rows, merge_photo=False):
 
     # ── Data rows ─────────────────────────────────────────────────────────────
     for ri, record in enumerate(rows, 2):
-        drive_id = record.get('photo_drive_id', '')
-        formula  = get_photo_formula(drive_id)
+        photo_url = record.get('photo_url', '')
+        formula   = get_photo_formula(photo_url)
 
         # Col A: Photo formula (or empty)
         photo_cell = ws.cell(row=ri, column=1, value=formula)
         photo_cell.alignment = Alignment(horizontal='center', vertical='center')
         photo_cell.border    = border
-        if drive_id:
+        if photo_url:
             ws.row_dimensions[ri].height = PHOTO_ROW_HEIGHT
 
         # Col B+: data values
@@ -430,7 +436,7 @@ def main():
                 continue
             values = [['Photo']]   # header
             for record in rows:
-                formula = get_photo_formula(record.get('photo_drive_id', ''))
+                formula = get_photo_formula(record.get('photo_url', ''))
                 values.append([formula])
             photo_data.append({'range': f"'{tab_name}'!A1", 'values': values})
 

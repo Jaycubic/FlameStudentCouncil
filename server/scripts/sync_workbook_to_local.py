@@ -4,6 +4,11 @@
 # Returns JSON: { success, rows: [{ student_id, ... editable fields ... }] }
 # Never returns student_id / name / email as editable (controller enforces this).
 #
+# Photo column (col A) is intentionally ignored on read-back:
+#   • It contains a =IMAGE() formula (local server URL) — not a data value.
+#   • It must never be synced back to the DB; the formula is re-inserted
+#     by the controller/Python layer on every sync push.
+#
 # Usage:
 #   python3 sync_workbook_to_local.py <workbook_id> <master_access_token> <master_refresh_token>
 
@@ -18,6 +23,9 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/spreadsheets.readonly',
 ]
+
+# Column A header is always 'Photo' (formula column — skip on read-back)
+PHOTO_COL = 'Photo'
 
 # Columns that CAN be synced back to local (all others are ignored)
 SYNCABLE_FIELDS = {
@@ -41,7 +49,12 @@ def build_credentials(access_token, refresh_token):
 
 
 def read_tab(sheets_service, spreadsheet_id, tab_name):
-    """Read a tab and return list of {col: val} dicts."""
+    """Read a tab and return list of {col: val} dicts.
+
+    The Photo column (col A, header='Photo') is always skipped:
+    it holds a =IMAGE() formula — not a data value — and must never
+    be returned to the controller as a syncable field.
+    """
     try:
         result = sheets_service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
@@ -58,7 +71,10 @@ def read_tab(sheets_service, spreadsheet_id, tab_name):
     rows = []
     for row in values[1:]:
         padded = row + [''] * (len(headers) - len(row))
-        rows.append(dict(zip(headers, padded)))
+        record = dict(zip(headers, padded))
+        # Drop the Photo col — it's a formula string, not real data
+        record.pop(PHOTO_COL, None)
+        rows.append(record)
     return rows
 
 
@@ -88,7 +104,8 @@ def main():
         cultural_rows  = {r['student_id']: r for r in read_tab(sheets_service, workbook_id, 'CulturalAward')  if r.get('student_id')}
         trail_rows     = {r['student_id']: r for r in read_tab(sheets_service, workbook_id, 'TrailblazerAward') if r.get('student_id')}
 
-        output = []
+        output_map = {}   # student_id → merged safe dict (deduplicates multi-award students)
+
         for row in all_rows:
             sid = row.get('student_id', '').strip()
             if not sid:
@@ -106,10 +123,19 @@ def main():
             safe = {'student_id': sid}
             for field in SYNCABLE_FIELDS:
                 val = merged.get(field, '') or ''
-                safe[field] = val if val.strip() else None
+                safe[field] = val.strip() if isinstance(val, str) else val or None
 
-            output.append(safe)
+            # Merge into output_map: prefer non-empty values if student appears
+            # multiple times in AllAwards (one row per award type)
+            if sid not in output_map:
+                output_map[sid] = safe
+            else:
+                existing = output_map[sid]
+                for field in SYNCABLE_FIELDS:
+                    if not existing.get(field) and safe.get(field):
+                        existing[field] = safe[field]
 
+        output = list(output_map.values())
         print(json.dumps({"success": True, "rows": output}))
 
     except Exception as e:

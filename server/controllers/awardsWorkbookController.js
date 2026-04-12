@@ -1,11 +1,12 @@
 // server/controllers/awardsWorkbookController.js
 const path   = require('path');
+const fs     = require('fs');
 const { spawn } = require('child_process');
 const { Op }  = require('sequelize');
 const {
     TrailblazerAward, SportsPersonAward, CulturalPersonAward,
     SportsUserSheet, CulturalUserSheet, AcademicUserSheet,
-    AwardsWorkbook, User, PhotoDriveUpload,
+    AwardsWorkbook, User,
 } = require('../models');
 const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
 const { syncVerifiedScores } = require('../services/scoresSyncService');
@@ -13,6 +14,23 @@ const { syncVerifiedScores } = require('../services/scoresSyncService');
 const MASTER_EMAIL        = 'student.awards@flame.edu.in';
 const FOLDER_ID           = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
 const ATTACHMENT_BASE_URL = 'https://flameawards.in/api/attachments'; // served via /api/ route (nginx-safe)
+const PHOTO_BASE_URL      = 'https://flameawards.in/api/photos';      // local photo server — never expires
+const LOCAL_PHOTOS_DIR    = '/opt/View/StudentTrackingSystem/server/Photos';
+
+/**
+ * Returns the local server URL for a student's photo if the file exists on disk,
+ * or '' if no photo has been uploaded. This avoids any Google Drive token issues.
+ */
+function getLocalPhotoUrl(studentId) {
+    if (!studentId) return '';
+    const exts = ['.jpg', '.jpeg', '.png'];
+    for (const ext of exts) {
+        if (fs.existsSync(path.join(LOCAL_PHOTOS_DIR, `${studentId}${ext}`))) {
+            return `${PHOTO_BASE_URL}/${studentId}`;
+        }
+    }
+    return '';
+}
 
 // ─── Immutable columns — NEVER updated by either sync direction ───────────────
 const IMMUTABLE = new Set(['student_id', 'email', 'name']);
@@ -88,7 +106,11 @@ async function collectAllData() {
     const culturalSheetMap = Object.fromEntries(culturalSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
     const academicSheetMap = Object.fromEntries(academicSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
 
-    // Build student_id → Drive photo file ID map (for =IMAGE() in workbook Photo column)
+    // ── Build student_id → local photo URL map (disk-based, never expires) ──
+    // We check the local Photos directory for each student ID instead of querying
+    // the photo_drive_uploads table. This avoids Google Drive token-expiry issues
+    // where a Drive-hosted image becomes inaccessible after the student's OAuth
+    // token is revoked, causing broken or mismatched images in the workbook.
     const allStudentIds = [
         ...new Set([
             ...sportsRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean),
@@ -97,41 +119,10 @@ async function collectAllData() {
         ])
     ];
 
-    // ── DEBUG: show exactly what IDs we're querying with ─────────────────────
-    log.info({
-        allStudentIds,
-        // JSON.stringify shows hidden chars (spaces show as \u0020)
-        allStudentIdsJSON: JSON.stringify(allStudentIds),
-        count: allStudentIds.length,
-    }, '[Workbook][DEBUG] Student IDs used for PhotoDriveUpload lookup');
-
-    const photoRecords = allStudentIds.length > 0
-        ? await PhotoDriveUpload.findAll({
-            where: { student_id: { [Op.in]: allStudentIds } },
-            attributes: ['student_id', 'drive_file_id'],
-          })
-        : [];
-
-    // ── DEBUG: show raw DB rows returned ─────────────────────────────────────
-    log.info({
-        rowCount: photoRecords.length,
-        rows: photoRecords.map(p => ({
-            student_id:     p.student_id,
-            student_id_len: p.student_id?.length,
-            student_id_JSON:JSON.stringify(p.student_id),
-            drive_file_id:  p.drive_file_id,
-        })),
-    }, '[Workbook][DEBUG] Raw PhotoDriveUpload rows from DB');
-
-    const photoMap = Object.fromEntries(
-        photoRecords.map(p => [p.student_id.toString().trim(), p.drive_file_id])
-    );
-
-    // ── DEBUG: show final photoMap keys ──────────────────────────────────────
-    log.info({
-        photoMapKeys: Object.keys(photoMap),
-        photoMapKeysJSON: JSON.stringify(Object.keys(photoMap)),
-    }, '[Workbook][DEBUG] Final photoMap keys (trimmed)');
+    const withPhoto    = allStudentIds.filter(sid => getLocalPhotoUrl(sid) !== '').length;
+    const withoutPhoto = allStudentIds.length - withPhoto;
+    log.info({ total: allStudentIds.length, withPhoto, withoutPhoto },
+        '[Workbook] Local photo disk check complete');
 
     const AWARD_MERGE_KEY = {
         'Sports Award':      'sport',
@@ -153,7 +144,7 @@ async function collectAllData() {
             ? `${ATTACHMENT_BASE_URL}/${sub}/${sid}_${mergeKey}_merged.pdf`
             : '';
         return {
-            photo_drive_id:           photoMap[sid] || '',
+            photo_url:                getLocalPhotoUrl(sid),
             student_id:               sid,
             name:                     r.name         || '',
             email:                    r.email        || '',
@@ -270,15 +261,15 @@ async function openOrCreate(req, res) {
                 const photoScriptPath = path.join(__dirname, '../scripts/insert_workbook_photos.py');
                 // Build photo payload: { tabName: [{ photo_drive_id, email }, ...] }
                 const photoPayload = {
-                    AllAwards:        data.all.map(r        => ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
-                    SportsAward:      data.sports.map(r     => ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
-                    CulturalAward:    data.cultural.map(r   => ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
-                    TrailblazerAward: data.trailblazer.map(r=> ({ photo_drive_id: r.photo_drive_id || '', email: r.email || '' })),
+                    AllAwards:        data.all.map(r        => ({ photo_url: r.photo_url || '', email: r.email || '' })),
+                    SportsAward:      data.sports.map(r     => ({ photo_url: r.photo_url || '', email: r.email || '' })),
+                    CulturalAward:    data.cultural.map(r   => ({ photo_url: r.photo_url || '', email: r.email || '' })),
+                    TrailblazerAward: data.trailblazer.map(r=> ({ photo_url: r.photo_url || '', email: r.email || '' })),
                 };
 
                 // Diagnostic: log how many rows actually have a photo_drive_id
                 for (const [tab, rows] of Object.entries(photoPayload)) {
-                    const withPhoto = rows.filter(r => r.photo_drive_id).length;
+                    const withPhoto = rows.filter(r => r.photo_url).length;
                     log.info({ tab, total: rows.length, withPhoto }, '[Workbook] Photo payload stats');
                 }
 

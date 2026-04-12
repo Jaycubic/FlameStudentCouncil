@@ -2,18 +2,22 @@
 #
 # Overwrites all 4 tabs in the awards workbook with fresh local data.
 # Mirrors the column layout from generate_awards_workbook.py:
-#   • Column A  — Photo  (=IMAGE() formula)
+#   • Column A  — Photo  (=IMAGE() formula using local server URL)
 #   • Column B+ — data columns
 #
 # AllAwards tab photo column: intelligently merges same-student rows
 # (unmerge → clear → rewrite → re-merge on every sync).
 #
+# Photo URL pattern: https://flameawards.in/api/photos/<student_id>
+#   • Served from local disk — never expires (no Google Drive token issues)
+#   • If photo_url is '' (no local photo) — cell is left blank, no broken image
+#
 # Usage:
 #   python3 sync_local_to_workbook.py \
-#       <workbook_id> <master_access_token> <master_refresh_token> <json_data_base64>
+#       <workbook_id> <master_access_token> <master_refresh_token>  (json_data_base64 via stdin)
 #
 # json_data_base64: same schema as generate_awards_workbook.py
-#   (each row has photo_drive_id, student_id, name, email, …)
+#   (each row has photo_url, student_id, name, email, …)
 
 import sys, json, os, base64, socket, time
 from itertools import groupby
@@ -29,7 +33,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
 ]
 
-PHOTO_BASE_URL = 'https://lh3.googleusercontent.com/d/'
+PHOTO_COL_WIDTH  = 22   # kept for reference — width is already set at workbook creation time
 
 # Data columns (same order as generate_awards_workbook.py — Photo is prepended separately)
 ALL_COLS     = ['student_id','name','email','gender','batch','mobile_number',
@@ -88,24 +92,29 @@ def build_credentials(access_token, refresh_token):
     return creds
 
 
-def get_photo_formula(drive_file_id):
-    if not drive_file_id:
+def get_photo_formula(photo_url):
+    """Return =IMAGE() formula using the given local server URL, or '' if empty.
+
+    photo_url is a fully-qualified HTTPS URL like:
+        https://flameawards.in/api/photos/<student_id>
+    An empty string means no photo was uploaded — leave the cell blank.
+    """
+    if not photo_url:
         return ''
-    return f'=IMAGE("{PHOTO_BASE_URL}{drive_file_id}")'
+    return f'=IMAGE("{photo_url}")'
 
 
 def rows_to_values(cols, rows):
     """
     Build 2D array suitable for values().batchUpdate().
     Row[0] = header  → ['Photo', col1, col2, …]
-    Row[n] = data    → [=IMAGE(...), val1, val2, …]
+    Row[n] = data    → [=IMAGE(<local_url>), val1, val2, …]
     URL columns are wrapped in =HYPERLINK() for short clickable labels.
     """
     header = ['Photo'] + list(cols)
     result = [header]
     for record in rows:
-        drive_id = record.get('photo_drive_id', '')
-        photo    = get_photo_formula(drive_id)
+        photo    = get_photo_formula(record.get('photo_url', ''))
         row = [photo]
         for col in cols:
             val = record.get(col, '') or ''
