@@ -85,6 +85,58 @@ def get_html_body(student_name, award_label, award_icon, award_color, submission
 </body>
 </html>"""
 
+def get_rejection_html_body(student_name, award_label):
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>FLAME Awards — Application Update</title>
+  <style>
+    body  {{ margin:0; padding:0; background:#f0f4f8; font-family:'Segoe UI',Arial,sans-serif; }}
+    .wrap {{ max-width:580px; margin:36px auto; background:#ffffff;
+            border-radius:20px; box-shadow:0 8px 40px rgba(0,0,0,0.10); overflow:hidden; }}
+    .hdr  {{ background:linear-gradient(135deg,#475569 0%,#1e293b 100%);
+            padding:32px 40px 28px; text-align:center; }}
+    .hdr h1 {{ color:#fff; margin:0 0 4px; font-size:24px; font-weight:800; letter-spacing:-0.02em; }}
+    .hdr p  {{ color:rgba(255,255,255,0.72); margin:0; font-size:12px; letter-spacing:0.02em; text-transform: uppercase; }}
+    .body {{ padding:32px 40px; color:#1e293b; font-size:14.5px; line-height:1.8; }}
+    .divider {{ border:none; border-top:1px solid #e2e8f0; margin:24px 0; }}
+    .ftr  {{ background:#f8fafc; border-top:1px solid #e2e8f0; padding:18px 40px;
+            text-align:center; font-size:11px; color:#94a3b8; }}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hdr">
+      <h1>🏆 FLAME Awards</h1>
+      <p>APPLICATION UPDATE</p>
+    </div>
+    <div class="body">
+      <p>Dear <strong>{student_name}</strong>,</p>
+      <p>
+        Thank you for your application for the <strong>{award_label}</strong> that you have worked towards. We truly appreciate the time and effort you put into showcasing your achievements.
+      </p>
+      <p>
+        After careful consideration, we regret to inform you that your application has not been selected for this year’s award. This in no way diminishes your accomplishments, and we encourage you to continue pursuing excellence in your endeavors.
+      </p>
+      <p>
+        We hope to see you apply again in the future! If you would like any feedback on your application, feel free to reach out.
+      </p>
+      <p>Wishing you all the best!</p>
+      <hr class="divider"/>
+      <p style="font-size:13px; color:#64748b; margin:0;">
+        If you have any questions, please contact us at
+        <a href="mailto:student.awards@flame.edu.in" style="color:#2563eb;">student.awards@flame.edu.in</a>
+      </p>
+    </div>
+    <div class="ftr">
+      FLAME University Awards Office &nbsp;·&nbsp; This is an automated message — please do not reply.
+    </div>
+  </div>
+</body>
+</html>"""
+
 def main():
     print("===========================================")
     print("  Manual Award Submission Email Sender   ")
@@ -94,6 +146,16 @@ def main():
         print("ERROR: EMAIL_USER or EMAIL_PASS not found in environment or .env file.")
         print("Please ensure your .env file in the /server dir is loaded propertly.")
         return
+
+    print("\nSelect Email Type:")
+    print("  [1]. Submission Confirmation")
+    print("  [2]. Application Rejection")
+    
+    email_type_choice = input("\nEnter choice (1/2): ").strip()
+    if email_type_choice not in ['1', '2']:
+        print("Invalid choice. Exiting.")
+        return
+    is_rejection = (email_type_choice == '2')
 
     print("\nSelect Award Type:")
     for key, val in AWARD_LABELS.items():
@@ -108,21 +170,33 @@ def main():
     
     student_name = input("Enter Student Full Name: ").strip()
     student_email = input("Enter Student Email: ").strip()
-    submission_id = input("Enter Submission ID # (e.g. 104): ").strip()
     
+    submission_id = None
+    if not is_rejection:
+        submission_id = input("Enter Submission ID # (e.g. 104): ").strip()
+    
+    email_type_str = "Rejection" if is_rejection else "Confirmation"
+
     print("\n--- Summary ---")
     print(f"  To:     {student_email}")
     print(f"  Name:   {student_name}")
     print(f"  Award:  {award['label']}")
-    print(f"  Sub ID: #{submission_id}")
-    confirm = input("\nSend confirmation email? (y/n): ").strip().lower()
+    print(f"  Type:   {email_type_str}")
+    if not is_rejection:
+        print(f"  Sub ID: #{submission_id}")
+    
+    confirm = input(f"\nSend {email_type_str.lower()} email? (y/n): ").strip().lower()
     
     if confirm != 'y':
         print("Cancelled.")
         return
         
-    subject = f"{award['icon']} Submission Confirmed — {award['label']}"
-    html_content = get_html_body(student_name, award['label'], award['icon'], award['color'], submission_id)
+    if is_rejection:
+        subject = "Update on Your Application for the Annual Student Awards"
+        html_content = get_rejection_html_body(student_name, award['label'])
+    else:
+        subject = f"{award['icon']} Submission Confirmed — {award['label']}"
+        html_content = get_html_body(student_name, award['label'], award['icon'], award['color'], submission_id)
 
     msg = EmailMessage()
     msg['Subject'] = subject
