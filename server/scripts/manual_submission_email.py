@@ -1,5 +1,7 @@
 import os
 import smtplib
+import re
+import time
 from email.message import EmailMessage
 from datetime import datetime
 
@@ -137,6 +139,27 @@ def get_rejection_html_body(student_name, award_label):
 </body>
 </html>"""
 
+def parse_batch_file(filepath):
+    if not os.path.exists(filepath):
+        print(f"Error: File '{filepath}' not found.")
+        return []
+        
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+        names = dict(re.findall(r'NAME_(\d+)\s*=\s*["\'](.*?)["\']', content))
+        emails = dict(re.findall(r'EMAIL_(\d+)\s*=\s*["\'](.*?)["\']', content))
+        
+        recipients = []
+        for idx in sorted(names.keys(), key=lambda x: int(x)):
+            if idx in emails:
+                recipients.append({'name': names[idx], 'email': emails[idx]})
+        return recipients
+    except Exception as e:
+        print(f"Error reading batch file: {e}")
+        return []
+
 def main():
     print("===========================================")
     print("  Manual Award Submission Email Sender   ")
@@ -157,6 +180,12 @@ def main():
         return
     is_rejection = (email_type_choice == '2')
 
+    print("\nSelect Input Method:")
+    print("  [1]. Single Recipient (Manual Entry)")
+    print("  [2]. Batch Recipients (From txt file)")
+    input_method = input("\nEnter choice (1/2): ").strip()
+    is_batch = (input_method == '2')
+
     print("\nSelect Award Type:")
     for key, val in AWARD_LABELS.items():
         print(f"  [{key}]. {val['label']}")
@@ -167,53 +196,88 @@ def main():
         return
         
     award = AWARD_LABELS[choice]
-    
-    student_name = input("Enter Student Full Name: ").strip()
-    student_email = input("Enter Student Email: ").strip()
-    
-    submission_id = None
-    if not is_rejection:
-        submission_id = input("Enter Submission ID # (e.g. 104): ").strip()
-    
     email_type_str = "Rejection" if is_rejection else "Confirmation"
 
-    print("\n--- Summary ---")
-    print(f"  To:     {student_email}")
-    print(f"  Name:   {student_name}")
-    print(f"  Award:  {award['label']}")
-    print(f"  Type:   {email_type_str}")
-    if not is_rejection:
-        print(f"  Sub ID: #{submission_id}")
-    
-    confirm = input(f"\nSend {email_type_str.lower()} email? (y/n): ").strip().lower()
-    
-    if confirm != 'y':
-        print("Cancelled.")
-        return
+    recipients = []
+    if is_batch:
+        filepath = input("Enter path to batch txt file (press Enter for 'batch_rejections.txt'): ").strip()
+        if not filepath:
+            filepath = 'batch_rejections.txt'
         
-    if is_rejection:
-        subject = "Update on Your Application for the Annual Student Awards"
-        html_content = get_rejection_html_body(student_name, award['label'])
+        recipients = parse_batch_file(filepath)
+        if not recipients:
+            print("No valid recipients found. Exiting.")
+            return
+            
+        print(f"\nFound {len(recipients)} recipients in {filepath}:")
+        for i, r in enumerate(recipients[:5]):
+            print(f"  {r['name']} <{r['email']}>")
+        if len(recipients) > 5:
+            print(f"  ... and {len(recipients)-5} more.")
+            
+        confirm = input(f"\nSend {email_type_str.lower()} emails to {len(recipients)} recipients? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Cancelled.")
+            return
     else:
-        subject = f"{award['icon']} Submission Confirmed — {award['label']}"
-        html_content = get_html_body(student_name, award['label'], award['icon'], award['color'], submission_id)
-
-    msg = EmailMessage()
-    msg['Subject'] = subject
-    msg['From'] = f'"FLAME Awards" <{EMAIL_USER}>'
-    msg['To'] = student_email
-    msg.set_content("Please view this email in an HTML-capable email client.")
-    msg.add_alternative(html_content, subtype='html')
+        student_name = input("Enter Student Full Name: ").strip()
+        student_email = input("Enter Student Email: ").strip()
+        
+        submission_id = None
+        if not is_rejection:
+            submission_id = input("Enter Submission ID # (e.g. 104): ").strip()
+            
+        recipients.append({'name': student_name, 'email': student_email, 'submission_id': submission_id})
+        
+        print("\n--- Summary ---")
+        print(f"  To:     {student_email}")
+        print(f"  Name:   {student_name}")
+        print(f"  Award:  {award['label']}")
+        print(f"  Type:   {email_type_str}")
+        if not is_rejection:
+            print(f"  Sub ID: #{submission_id}")
+        
+        confirm = input(f"\nSend {email_type_str.lower()} email? (y/n): ").strip().lower()
+        
+        if confirm != 'y':
+            print("Cancelled.")
+            return
 
     try:
         print(f"\nConnecting to SMTP via {EMAIL_HOST}:{EMAIL_PORT}...")
         with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
             server.starttls()
             server.login(EMAIL_USER, EMAIL_PASS)
-            server.send_message(msg)
-        print(f"✅ Success! Email manually sent to {student_email}.")
+            
+            for i, rec in enumerate(recipients, 1):
+                student_name = rec['name']
+                student_email = rec['email']
+                submission_id = rec.get('submission_id')
+
+                if is_rejection:
+                    subject = "Update on Your Application for the Annual Student Awards"
+                    html_content = get_rejection_html_body(student_name, award['label'])
+                else:
+                    subject = f"{award['icon']} Submission Confirmed — {award['label']}"
+                    html_content = get_html_body(student_name, award['label'], award['icon'], award['color'], submission_id)
+
+                msg = EmailMessage()
+                msg['Subject'] = subject
+                msg['From'] = f'"FLAME Awards" <{EMAIL_USER}>'
+                msg['To'] = student_email
+                msg.set_content("Please view this email in an HTML-capable email client.")
+                msg.add_alternative(html_content, subtype='html')
+
+                print(f"[{i}/{len(recipients)}] Sending to {student_name} ({student_email})...", end=" ")
+                server.send_message(msg)
+                print("✅")
+                
+                if is_batch and i < len(recipients):
+                    time.sleep(1) # sleep to prevent SMTP rate limits
+                    
+        print(f"\n✅ Success! All {len(recipients)} email(s) sent.")
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"❌ Failed to send email(s): {e}")
 
 if __name__ == "__main__":
     main()
