@@ -25,7 +25,7 @@ const MotionVStack = motion(VStack);
 const MotionHStack = motion(HStack);
 
 // ─── Allowed domains for sheet URLs returned by the server ───────────────────
-const ALLOWED_SHEET_HOSTS = ['docs.google.com', 'flameawards.in'];
+const ALLOWED_SHEET_HOSTS = ['docs.google.com', 'flamestudentcouncil.in'];
 
 /**
  * Safely open a URL returned by the server.

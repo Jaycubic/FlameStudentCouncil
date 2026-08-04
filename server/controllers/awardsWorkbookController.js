@@ -13,8 +13,8 @@ const { syncVerifiedScores } = require('../services/scoresSyncService');
 
 const MASTER_EMAIL        = 'student.awards@flame.edu.in';
 const FOLDER_ID           = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
-const ATTACHMENT_BASE_URL = 'https://flameawards.in/api/attachments'; // served via /api/ route (nginx-safe)
-const PHOTO_BASE_URL      = 'https://flameawards.in/api/photos';      // local photo server — never expires
+const ATTACHMENT_BASE_URL = 'https://flamestudentcouncil.in/api/attachments'; // served via /api/ route (nginx-safe)
+const PHOTO_BASE_URL      = 'https://flamestudentcouncil.in/api/photos';      // local photo server — never expires
 const LOCAL_PHOTOS_DIR    = '/opt/View/StudentTrackingSystem/server/Photos';
 
 /**

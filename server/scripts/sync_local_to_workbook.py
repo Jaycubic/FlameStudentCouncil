@@ -8,7 +8,7 @@
 # AllAwards tab photo column: intelligently merges same-student rows
 # (unmerge → clear → rewrite → re-merge on every sync).
 #
-# Photo URL pattern: https://flameawards.in/api/photos/<student_id>
+# Photo URL pattern: https://flamestudentcouncil.in/api/photos/<student_id>
 #   • Served from local disk — never expires (no Google Drive token issues)
 #   • If photo_url is '' (no local photo) — cell is left blank, no broken image
 #
@@ -96,7 +96,7 @@ def get_photo_formula(photo_url):
     """Return =IMAGE() formula using the given local server URL, or '' if empty.
 
     photo_url is a fully-qualified HTTPS URL like:
-        https://flameawards.in/api/photos/<student_id>
+        https://flamestudentcouncil.in/api/photos/<student_id>
     An empty string means no photo was uploaded — leave the cell blank.
     """
     if not photo_url:

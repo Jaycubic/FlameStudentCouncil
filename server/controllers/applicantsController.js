@@ -7,8 +7,8 @@ const { TrailblazerAward, SportsPersonAward, CulturalPersonAward,
 const { Op } = require('sequelize');
 const { syncVerifiedScores } = require('../services/scoresSyncService');
 
-const ATTACHMENT_DIR  = '/opt/View/FlameAwards/server/Attachments';
-const MERGED_PDF_BASE = 'https://flameawards.in/api/attachments';
+const ATTACHMENT_DIR  = '/opt/View/FlameStudentCouncil/server/Attachments';
+const MERGED_PDF_BASE = 'https://flamestudentcouncil.in/api/attachments';
 const PHOTO_DIR       = '/opt/View/StudentTrackingSystem/server/Photos';
 const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
 const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];

@@ -121,7 +121,7 @@ def get_photo_formula(photo_url):
     """Return =IMAGE() formula using the given URL, or '' if no URL.
 
     The URL should be the local server endpoint (e.g.
-    https://flameawards.in/api/photos/<student_id>) which never expires.
+    https://flamestudentcouncil.in/api/photos/<student_id>) which never expires.
     If photo_url is empty (student has no uploaded photo) return '' so the
     cell is left blank rather than showing a broken image.
     """

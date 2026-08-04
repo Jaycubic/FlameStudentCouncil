@@ -31,7 +31,7 @@ const SCORE_SCRIPT_PATH = path.join(__dirname, '../scripts/read_sheet_score.py')
 
 // ─── Storage config ───────────────────────────────────────────────────────────
 
-const ATTACHMENT_DIR = '/opt/View/FlameAwards/server/Attachments';
+const ATTACHMENT_DIR = '/opt/View/FlameStudentCouncil/server/Attachments';
 const PHOTO_DIR = '/opt/View/StudentTrackingSystem/server/Photos';
 
 ['photos', 'sport', 'cultural', 'academic'].forEach(sub => {

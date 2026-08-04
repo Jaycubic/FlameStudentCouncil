@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const { Sequelize } = require('sequelize');
 
-const DBP_NAME = process.env.DBP_NAME || 'flameawards';
+const DBP_NAME = process.env.DBP_NAME || 'studentcouncil';
 const DBP_USER = process.env.DBP_USER || 'jofrey';
 const DBP_PASSWORD = process.env.DBP_PASSWORD || '2025';
 const DBP_HOST = process.env.DBP_HOST || '127.0.0.1';
@@ -34,9 +34,9 @@ const sequelize = new Sequelize(DBP_NAME, DBP_USER, DBP_PASSWORD, {
 
 sequelize
     .authenticate()
-    .then(() => console.log("✅ Connected to PostgreSQL FlameAwards database via Sequelize"))
+    .then(() => console.log("✅ Connected to PostgreSQL studentcouncil database via Sequelize"))
     .catch(err => {
-        console.error("❌ Error connecting to PostgreSQL FlameAwards database:", err);
+        console.error("❌ Error connecting to PostgreSQL studentcouncil database:", err);
     });
 
 module.exports = sequelize;

@@ -4,7 +4,7 @@
 # using the Sheets API with USER_ENTERED (same proven approach as
 # insert_photo_formula.py which works reliably for individual student sheets).
 #
-# Photos are served from the local server (https://flameawards.in/api/photos/<student_id>)
+# Photos are served from the local server (https://flamestudentcouncil.in/api/photos/<student_id>)
 # which never expires — unlike Google Drive URLs that break when a student's
 # OAuth token is revoked.
 #
@@ -19,7 +19,7 @@
 #
 # photo_data_base64: base64-encoded JSON:
 # {
-#   "AllAwards":        [{ "photo_url": "https://flameawards.in/api/photos/<sid>", "email": "..." }, ...],
+#   "AllAwards":        [{ "photo_url": "https://flamestudentcouncil.in/api/photos/<sid>", "email": "..." }, ...],
 #   "SportsAward":      [{ "photo_url": "...", "email": "..." }, ...],
 #   "CulturalAward":    [{ "photo_url": "...", "email": "..." }, ...],
 #   "TrailblazerAward": [{ "photo_url": "...", "email": "..." }, ...]
@@ -82,7 +82,7 @@ def get_photo_formula(photo_url):
     """Return =IMAGE() formula using the given local server URL, or '' if empty.
 
     photo_url should be a fully-qualified HTTPS URL such as:
-        https://flameawards.in/api/photos/<student_id>
+        https://flamestudentcouncil.in/api/photos/<student_id>
     An empty string means the student has no uploaded photo — leave the cell blank.
     """
     if not photo_url:

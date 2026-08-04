@@ -638,7 +638,7 @@ const authController = {
 
   async googleCallback(req, res) {
     const { code, state } = req.query;
-    const frontendUrl = process.env.FRONTEND_URL || 'https://flameawards.in';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://flamestudentcouncil.in';
     if (!code) {
       return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Authentication failed. Please try again.')}`);
     }

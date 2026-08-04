@@ -23,7 +23,7 @@ def sync_data():
         'host': os.getenv('DBP_HOST', '127.0.0.1'),
         'user': os.getenv('DBP_USER', ''),
         'password': os.getenv('DBP_PASSWORD', ''),
-        'database': os.getenv('DBP_NAME', 'flameawards'),
+        'database': os.getenv('DBP_NAME', 'studentcouncil'),
         'port': int(os.getenv('DBP_PORT', 5432))
     }
 

@@ -19,7 +19,7 @@ let ioInstance = null;
 function setupSocket(server) {
   const io = socketIo(server, {
     cors: {
-      origin: "https://flameawards.in",
+      origin: "https://flamestudentcouncil.in",
       methods: ["GET", "POST"],
     },
   });

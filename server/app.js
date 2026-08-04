@@ -46,9 +46,9 @@ app.use(cookieParser());
 
 // Load SSL certificates
 const sslOptions = {
-  cert: fs.readFileSync('/opt/View/sslcertificates/flameawards.crt'),
-  ca: fs.readFileSync('/opt/View/sslcertificates/flameawards/ca_bundle.crt'),
-  key: fs.readFileSync('/opt/View/sslcertificates/flameawards.key'),
+  cert: fs.readFileSync('/opt/View/sslcertificates/council_certificate.crt'),
+  ca: fs.readFileSync('/opt/View/sslcertificates/council_bundle.crt'),
+  key: fs.readFileSync('/opt/View/sslcertificates/council.key'),
 };
 
 // Create HTTPS server and bind Socket.IO
@@ -58,7 +58,7 @@ const io = setupSocket(server);
 
 // Middleware
 app.use(cors({
-  origin: 'https://flameawards.in',
+  origin: 'https://flamestudentcouncil.in',
   credentials: true
 }));
 app.use(express.json());
@@ -69,7 +69,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Serves attachments directly from disk (sport/, cultural/, academic/ subfolders).
 // Registered under BOTH /attachments and /api/attachments so it works regardless
 // of whether nginx proxies only /api/* or all paths to this server.
-const ATTACHMENT_BASE = '/opt/View/FlameAwards/server/Attachments';
+const ATTACHMENT_BASE = '/opt/View/FlameStudentCouncil/server/Attachments';
 const attachmentStatic = express.static(ATTACHMENT_BASE, {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.pdf')) {

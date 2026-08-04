@@ -7,7 +7,7 @@ const helmet = require('helmet');
 
 const app = express();
 
-const REMOTE_PHOTO_BASE = 'https://flameawards.in/api/photos';
+const REMOTE_PHOTO_BASE = 'https://flamestudentcouncil.in/api/photos';
 
 // ---- SECURITY / CSP ----
 app.use(
@@ -30,12 +30,12 @@ app.use(
           "data:",
           "blob:",
           "https://cdn-icons-png.flaticon.com",
-          "https://flameawards.in",
+          "https://flamestudentcouncil.in",
           "https://via.placeholder.com",
         ],
         connectSrc: [
           "'self'",
-          "https://flameawards.in",
+          "https://flamestudentcouncil.in",
           "https://cloudflareinsights.com", // ← Cloudflare sends beacon data here
         ],
         fontSrc: [
@@ -146,7 +146,7 @@ app.use('/generated_pdfs', express.static('/opt/View/StudentTrackingSystem/serve
 // Serves /attachments/{sport|cultural|academic}/{filename} directly from disk.
 // sport/, cultural/, academic/ already exist; no merged/ subfolder needed.
 // MUST be before the SPA catch-all (*) so Express handles it, not React Router.
-app.use('/attachments', express.static('/opt/View/FlameAwards/server/Attachments', {
+app.use('/attachments', express.static('/opt/View/FlameStudentCouncil/server/Attachments', {
   index: false,
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.pdf')) {
@@ -171,11 +171,11 @@ const HOST = '0.0.0.0';
 
 // Load SSL certificates
 const sslOptions = {
-  cert: fs.readFileSync('/opt/View/sslcertificates/flameawards.crt'),
-  ca: fs.readFileSync('/opt/View/sslcertificates/flameawards/ca_bundle.crt'),
-  key: fs.readFileSync('/opt/View/sslcertificates/flameawards.key'),
+  cert: fs.readFileSync('/opt/View/sslcertificates/council_certificate.crt'),
+  ca: fs.readFileSync('/opt/View/sslcertificates/council_bundle.crt'),
+  key: fs.readFileSync('/opt/View/sslcertificates/council.key'),
 };
 
 https.createServer(sslOptions, app).listen(PORT, HOST, () => {
-  console.log(`Frontend server running on https://flameawards.in:${PORT}`);
+  console.log(`Frontend server running on https://flamestudentcouncil.in:${PORT}`);
 });

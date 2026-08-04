@@ -147,7 +147,7 @@ function Dashboard() {
 
   // Socket.IO — live updates
   useEffect(() => {
-    const socket = io('https://flameawards.in');
+    const socket = io('https://flamestudentcouncil.in');
     socketRef.current = socket;
 
     socket.on('connect', () => {

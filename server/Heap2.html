@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>TOC - 30 Comprehensive Conceptual Problems</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-size: 8pt;
+            line-height: 1.35;
+            color: #000;
+            margin: 15px;
+            background-color: #fff;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            column-span: all;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 16pt;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            font-size: 10pt;
+            background: #eee;
+            padding: 4px;
+            border-left: 4px solid #000;
+            margin-top: 15px;
+            column-span: all;
+        }
+
+        .content {
+            column-count: 2;
+            column-gap: 8mm;
+            column-rule: 1px solid #aaa;
+        }
+
+        .question-block {
+            margin-bottom: 18px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            border: 1px solid #ccc;
+            padding: 8px;
+            background-color: #fafafa;
+        }
+
+        .q-text {
+            font-size: 8.5pt;
+            font-weight: bold;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 3px;
+        }
+
+        .mental-model {
+            font-weight: bold;
+            font-size: 7.5pt;
+            text-transform: uppercase;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .answer {
+            font-size: 7.5pt;
+            margin-bottom: 5px;
+        }
+
+        pre {
+            background: #eee;
+            padding: 5px;
+            font-family: monospace;
+            font-size: 7pt;
+            overflow-x: hidden;
+            white-space: pre-wrap;
+            border-left: 2px solid #555;
+        }
+
+        .mermaid {
+            text-align: center;
+            margin-top: 5px;
+            transform: scale(0.85);
+            transform-origin: top center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 5px 0;
+            font-size: 7pt;
+            background: #fff;
+        }
+
+        th,
+        td {
+            border: 1px solid #888;
+            padding: 3px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #e0e0e0;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+            }
+
+            .content {
+                column-count: 2;
+            }
+
+            .question-block {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Theory of Computation: Concept & Proof Mastery</h1>
+        <p>Box Machines, Python Evaluators, Trees, Word Problems, and Turing Proofs</p>
+    </div>
+
+    <div class="content">
+
+        <h2>PART I: PYTHON EVALUATORS & CODE MODELS</h2>
+
+        <div class="question-block">
+            <div class="q-text">Q1: Python Maze FSM (Word Problem)</div>
+            <div class="mental-model">Mental Model: The Memoryless Walker</div>
+            <div class="answer"><b>Concept:</b> Model a maze where choices are fixed (Left-Right-Up-Down) using only F
+                (Forward) and B (Backward).</div>
+            <pre>
+class MazeDFA:
+    def __init__(self):
+        self.state = "START"
+    def step(self, move):
+        if self.state == "START" and move == "F":
+            self.state = "CORRIDOR"
+        elif self.state == "CORRIDOR":
+            if move == "F": self.state = "EXIT"
+            if move == "B": self.state = "START"
+    def is_solved(self):
+        return self.state == "EXIT"
+        </pre>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q2: Python CFG Recognizer (Recursive Descent)</div>
+            <div class="mental-model">Mental Model: The Shrinking Sandwich</div>
+            <div class="answer"><b>Concept:</b> Write a Python evaluator for grammar S &rarr; 0S1 | &epsilon;</div>
+            <pre>
+def parse_0S1(s):
+    if s == "": return True
+    if s.startswith("0") and s.endswith("1"):
+        return parse_0S1(s[1:-1])
+    return False
+        </pre>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q3: DPDA Python Stack Evaluator</div>
+            <div class="mental-model">Mental Model: The Push-Pop Balance</div>
+            <div class="answer"><b>Concept:</b> Python script for DPDA recognizing balanced parentheses.</div>
+            <pre>
+def is_balanced(w):
+    stack = ['Z0']
+    for char in w:
+        if char == '(': stack.append('X')
+        elif char == ')':
+            if stack[-1] == 'X': stack.pop()
+            else: return False
+    return stack == ['Z0']
+        </pre>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q4: Python NFA Parallel Simulation</div>
+            <div class="mental-model">Mental Model: Quantum State Tracking</div>
+            <div class="answer"><b>Concept:</b> Simulate an NFA finding substring "11". We track a <i>set</i> of active
+                states simultaneously.</div>
+            <pre>
+def nfa_has_11(w):
+    active_states = {0}
+    for char in w:
+        next_states = {0} # Always guess start
+        if 0 in active_states and char == '1':
+            next_states.add(1)
+        if 1 in active_states and char == '1':
+            next_states.add(2)
+        active_states = next_states
+    return 2 in active_states
+        </pre>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q5: Python TM Simulator (Unary Increment)</div>
+            <div class="mental-model">Mental Model: The Array Head</div>
+            <div class="answer"><b>Concept:</b> Simulate a TM Tape using a Python list and a head pointer.</div>
+            <pre>
+def tm_increment(tape):
+    tape = list(tape) + ['_']
+    head = 0
+    # Scan right
+    while tape[head] == '1': head += 1
+    # Replace blank with 1
+    if tape[head] == '_': tape[head] = '1'
+    return "".join(tape).strip('_')
+        </pre>
+        </div>
+
+        <h2>PART II: BOX MACHINES & TM CONCEPTUALS</h2>
+
+        <div class="question-block">
+            <div class="q-text">Q6: The Box & Paper TM Analogy</div>
+            <div class="mental-model">Mental Model: The Infinite Hallway</div>
+            <div class="answer"><b>Concept:</b> Map the "Box and Paper" analogy to a formal TM.<br>
+                - <b>Boxes:</b> Represent the infinite Tape divided into cells.<br>
+                - <b>Paper Slips:</b> Represent the Tape Alphabet (&Gamma;).<br>
+                - <b>The Clerk:</b> Represents the Finite Control (Q) and Read/Write Head. Reads a slip, consults the
+                rulebook (&delta;), replaces slip, moves Left/Right.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q7: TM - Shift Input One Place Right</div>
+            <div class="mental-model">Mental Model: The Memory State Carrier</div>
+            <div class="answer"><b>Concept:</b> To shift a string right, the TM must read a symbol, remember it in its
+                state, move right, write it down, and read the next symbol.</div>
+            <div class="mermaid">
+                stateDiagram-v2
+                direction LR
+                [*] --> q_start
+                q_start --> q_hold_0 : 0/_,R
+                q_start --> q_hold_1 : 1/_,R
+                q_hold_0 --> q_hold_0 : 0/0,R
+                q_hold_0 --> q_hold_1 : 1/0,R
+                q_hold_1 --> q_hold_0 : 0/1,R
+                q_hold_1 --> q_hold_1 : 1/1,R
+                q_hold_0 --> q_acc : _/0,R
+                q_hold_1 --> q_acc : _/1,R
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q8: TM - Change all 0s to 1s</div>
+            <div class="mental-model">Mental Model: The Simple Sweeper</div>
+            <div class="answer"><b>Concept:</b> A TM that scans right, changing 0 to 1, and halting on blank.</div>
+            <table>
+                <tr>
+                    <th>State</th>
+                    <th>Read</th>
+                    <th>Write</th>
+                    <th>Move</th>
+                    <th>Next</th>
+                </tr>
+                <tr>
+                    <td>q0</td>
+                    <td>0</td>
+                    <td>1</td>
+                    <td>R</td>
+                    <td>q0</td>
+                </tr>
+                <tr>
+                    <td>q0</td>
+                    <td>1</td>
+                    <td>1</td>
+                    <td>R</td>
+                    <td>q0</td>
+                </tr>
+                <tr>
+                    <td>q0</td>
+                    <td>_</td>
+                    <td>_</td>
+                    <td>L</td>
+                    <td>q_acc</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q9: Divison by 2 (Binary TM)</div>
+            <div class="mental-model">Mental Model: The LSB Truncator</div>
+            <div class="answer"><b>Concept:</b> In binary, dividing by 2 (integer division) simply means erasing the
+                right-most bit (the Least Significant Bit). The TM scans right until it finds the end marker '!', steps
+                left, overwrites the bit with a blank, and accepts.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q10: Decidable vs Recognizable</div>
+            <div class="mental-model">Mental Model: The Infinite Loop Danger</div>
+            <div class="answer"><b>Concept:</b><br>
+                - <b>Decidable:</b> The TM will <i>always</i> halt (Accept or Reject) for any input.<br>
+                - <b>Recognizable:</b> The TM will halt and Accept if the string is in the language. If it is NOT, it
+                might Reject, or it might loop forever.</div>
+        </div>
+
+        <h2>PART III: TREES, GRAMMARS & NORMAL FORMS</h2>
+
+        <div class="question-block">
+            <div class="q-text">Q11: Parse Tree Generation</div>
+            <div class="mental-model">Mental Model: The Derivation Branch</div>
+            <div class="answer"><b>Concept:</b> Given S &rarr; AB, A &rarr; aa, B &rarr; bb. Parse tree for "aabb".
+            </div>
+            <div class="mermaid">
+                graph TD
+                S --> A
+                S --> B
+                A --> a1[a]
+                A --> a2[a]
+                B --> b1[b]
+                B --> b2[b]
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q12: Ambiguous Grammars Proof</div>
+            <div class="mental-model">Mental Model: The Two-Path Conflict</div>
+            <div class="answer"><b>Concept:</b> A CFG is ambiguous if a string has <i>two or more distinct leftmost
+                    derivations</i> (or parse trees).<br>
+                Example: E &rarr; E+E | E*E | a.<br>
+                "a+a*a" can be parsed as (a+a)*a or a+(a*a), generating two different root trees.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q13: Chomsky Normal Form (CNF)</div>
+            <div class="mental-model">Mental Model: The Binary Tree Enforcer</div>
+            <div class="answer"><b>Concept:</b> Convert S &rarr; aSb | &epsilon; to CNF.<br>
+                1. Eliminate &epsilon;: S &rarr; aSb | ab.<br>
+                2. Terminal proxies: U &rarr; a, V &rarr; b. <br>
+                3. Break chains: S &rarr; U X, X &rarr; S V. S &rarr; U V.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q14: Pumping Lemma for CFLs</div>
+            <div class="mental-model">Mental Model: The Dual Pump (v & y)</div>
+            <div class="answer"><b>Concept:</b> Prove L = {a^n b^n c^n} is not CFL. Split string s = uvwxy where |vwx|
+                &le; p. Because the window vwx is small, it can cover at most two symbol types (e.g., a's and b's). If
+                we pump it, a and b increase, but c does not. The equality is broken.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q15: Closure of CFLs</div>
+            <div class="mental-model">Mental Model: The Intersection Trap</div>
+            <div class="answer"><b>Concept:</b> CFLs are closed under Union (S &rarr; S1 | S2), but <b>NOT closed under
+                    Intersection</b>.<br>
+                Proof: L1 = {a^n b^n c^m} is CFL. L2 = {a^m b^n c^n} is CFL. <br>
+                L1 &cap; L2 = {a^n b^n c^n}, which is NOT a CFL.</div>
+        </div>
+
+        <h2>PART IV: STATE MODELING & WORD PUZZLES</h2>
+
+        <div class="question-block">
+            <div class="q-text">Q16: Jar Measurement Puzzle FSM</div>
+            <div class="mental-model">Mental Model: The Coordinate State</div>
+            <div class="answer"><b>Concept:</b> 3L and 5L jars. State is (x, y) representing water volume. Transitions
+                are actions (Fill A, Empty B, Pour A to B).</div>
+            <div class="mermaid">
+                stateDiagram-v2
+                direction LR
+                (0,0) --> (3,0) : Fill 3L
+                (3,0) --> (0,3) : Pour 3L->5L
+                (0,3) --> (3,3) : Fill 3L
+                (3,3) --> (1,5) : Pour 3L->5L
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q17: Text File Blank Line Processor</div>
+            <div class="mental-model">Mental Model: The Delimiter Tracker</div>
+            <div class="answer"><b>Concept:</b> DFA to track lines (L) and blank lines (B). Ensuring output has exactly
+                one B between Ls.</div>
+            <div class="mermaid">
+                stateDiagram-v2
+                direction LR
+                [*] --> Start
+                Start --> Start : B
+                Start --> LineSeen : L
+                LineSeen --> WaitNext : B
+                WaitNext --> LineSeen : L
+                WaitNext --> WaitNext : B
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q18: Reversing DFA Arrows</div>
+            <div class="mental-model">Mental Model: The NFA Transformation</div>
+            <div class="answer"><b>Concept:</b> If you reverse all arrows of a DFA, swap Start and Accept states, is it
+                still a DFA? <br><b>NO.</b> It becomes an NFA. A state in the original DFA might have multiple incoming
+                arrows for the same symbol; reversing them creates multiple outgoing arrows (non-determinism).</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q19: DFA Substring Loop Removal</div>
+            <div class="mental-model">Mental Model: The Pumping Cut</div>
+            <div class="answer"><b>Concept:</b> If a DFA has k states and reads a string of length &ge; k, it MUST
+                repeat a state (Pigeonhole Principle). This forms a loop. If reading string '0' caused the loop, you can
+                "pump down" (remove the 0) or "pump up" (insert '00') and the machine still ends in the exact same
+                accept state.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q20: Product Construction (Even 0s & 1s)</div>
+            <div class="mental-model">Mental Model: The Cartesian Grid</div>
+            <div class="answer"><b>Concept:</b> Intersecting two DFAs. States are pairs (Q1, Q2).</div>
+            <table>
+                <tr>
+                    <th>State</th>
+                    <th>Read 0</th>
+                    <th>Read 1</th>
+                </tr>
+                <tr>
+                    <td>(E0, E1)*</td>
+                    <td>(O0, E1)</td>
+                    <td>(E0, O1)</td>
+                </tr>
+                <tr>
+                    <td>(O0, E1)</td>
+                    <td>(E0, E1)</td>
+                    <td>(O0, O1)</td>
+                </tr>
+            </table>
+        </div>
+
+        <h2>PART V: ADVANCED PROOFS & UNDECIDABILITY</h2>
+
+        <div class="question-block">
+            <div class="q-text">Q21: Prime Length Strings are Irregular</div>
+            <div class="mental-model">Mental Model: The Composite Pump</div>
+            <div class="answer"><b>Concept:</b> Prove L = {a^p | p is prime} is not regular. Assume regular, pumping
+                length k. Pick prime p > k. String s = a^p. Pump y (length m) p+1 times. New length is p + pm = p(1+m).
+                Since p(1+m) is composite, the pumped string is outside L. Contradiction.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q22: The Halting Problem Word Analogy</div>
+            <div class="mental-model">Mental Model: The Paradox Machine</div>
+            <div class="answer"><b>Concept:</b> Cannot write a TM 'H' that predicts if TM 'M' halts. If H exists, we
+                build machine 'D' that asks H what 'D' itself will do. If H says 'D halts', D intentionally loops
+                forever. If H says 'D loops', D intentionally halts. H is broken.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q23: Post Correspondence Problem (PCP)</div>
+            <div class="mental-model">Mental Model: The Domino Match</div>
+            <div class="answer"><b>Concept:</b> Given dominoes with top and bottom strings, can you line them up so the
+                top sequence equals the bottom sequence? <br><b>Result:</b> Undecidable. Used via mapping reductions to
+                prove CFG ambiguity is also undecidable.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q24: Mapping Reduction (A_tm &rarr; Halt_tm)</div>
+            <div class="mental-model">Mental Model: The Loop Trap</div>
+            <div class="answer"><b>Concept:</b> To prove HALT is undecidable, we reduce A_tm (Acceptance) to it. If we
+                had a Halting solver, we could solve A_tm by wrapping the input TM in a shell that forces an infinite
+                loop if it rejects. Then "Halting" becomes synonymous with "Accepting".</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q25: Rice's Theorem</div>
+            <div class="mental-model">Mental Model: The Semantic Wall</div>
+            <div class="answer"><b>Concept:</b> ANY non-trivial property of the language recognized by a Turing Machine
+                is undecidable. You cannot write a program that analyzes another program's source code to determine
+                <i>what</i> it computes (e.g., "does this code output 0?").</div>
+        </div>
+
+        <h2>PART VI: MIXED CONCEPTUAL COMPARISONS</h2>
+
+        <div class="question-block">
+            <div class="q-text">Q26: Why are NFA and DFA equivalent?</div>
+            <div class="mental-model">Mental Model: The Powerset Universe</div>
+            <div class="answer"><b>Concept:</b> They recognize the exact same class of languages (Regular). A DFA can
+                simulate an NFA's "magic guessing" by keeping track of all possible states the NFA could be in
+                simultaneously (Subset Construction). This creates at most 2^Q states.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q27: Why are DPDA and NPDA NOT equivalent?</div>
+            <div class="mental-model">Mental Model: The Unknowable Center</div>
+            <div class="answer"><b>Concept:</b> NPDAs recognize all CFLs. DPDAs only recognize Deterministic CFLs. A
+                DPDA cannot guess. Therefore, a language like Even Palindromes (ww^R) cannot be solved by a DPDA because
+                it doesn't know where the middle of the string is without a center marker.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q28: TM Enumerators</div>
+            <div class="mental-model">Mental Model: The Infinite Printer</div>
+            <div class="answer"><b>Concept:</b> An enumerator starts with a blank tape and prints out strings to a
+                printer. A language is Turing-Recognizable if and only if some enumerator prints it. If the language is
+                infinite, the enumerator runs forever.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q29: Myhill-Nerode Theorem</div>
+            <div class="mental-model">Mental Model: Indistinguishable Futures</div>
+            <div class="answer"><b>Concept:</b> If two strings 'x' and 'y' lead to the exact same future outcomes for
+                all possible appended strings 'z', they belong to the same equivalence class. This proves the minimum
+                number of states required for a DFA is exactly the number of these equivalence classes.</div>
+        </div>
+
+        <div class="question-block">
+            <div class="q-text">Q30: P vs NP & Cook-Levin Theorem</div>
+            <div class="mental-model">Mental Model: Verification vs Solving</div>
+            <div class="answer"><b>Concept:</b> <br><b>P:</b> Solvable quickly (polynomial time).<br><b>NP:</b>
+                Verifiable quickly. <br><b>Cook-Levin:</b> Proved Boolean SAT is NP-Complete (the anchor problem). If
+                SAT can be solved in P, then P=NP, meaning solving puzzles from scratch is mathematically as easy as
+                checking the answer key.</div>
+        </div>
+
+    </div>
+</body>
+
+</html>
