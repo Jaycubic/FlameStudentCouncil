@@ -14,7 +14,7 @@ const SheetPool = sequelize.define('SheetPool', {
         primaryKey:    true,
     },
     type: {
-        type:      DataTypes.ENUM('cultural', 'sports', 'academic'),
+        type:      DataTypes.STRING(50),
         allowNull: false,
     },
     sheet_id: {

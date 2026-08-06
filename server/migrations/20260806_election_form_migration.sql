@@ -6,10 +6,14 @@
 
 BEGIN;
 
--- 1. Drop old award tables (CASCADE removes dependent foreign keys)
+-- 1. Drop old award tables
 DROP TABLE IF EXISTS app.cultural_person_awards CASCADE;
 DROP TABLE IF EXISTS app.sports_person_awards CASCADE;
 DROP TABLE IF EXISTS app.trailblazer_awards CASCADE;
+
+-- 2. Convert sheet_pool 'type' column to VARCHAR(50) and remove old non-workbook sheets
+ALTER TABLE app.sheet_pool ALTER COLUMN type TYPE VARCHAR(50);
+DELETE FROM app.sheet_pool WHERE type != 'workbook';
 
 -- 2. Create ElectionFormResponse (mirrors TrailblazerAward + new columns)
 CREATE TABLE IF NOT EXISTS app.election_form_responses (

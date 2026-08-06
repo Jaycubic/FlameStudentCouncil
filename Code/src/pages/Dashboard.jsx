@@ -156,7 +156,7 @@ function Dashboard() {
 
   // Redirect students
   useEffect(() => {
-    if (user?.role === 'Student') navigate('/award-form', { replace: true });
+    if (user?.role === 'Student') navigate('/election-form', { replace: true });
   }, [user, navigate]);
 
   // Initial HTTP fetch

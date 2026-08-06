@@ -79,7 +79,7 @@ function Login() {
       if (parsedUser?.email) {
         localStorage.setItem('lastGoogleEmail', parsedUser.email);
       }
-      const redirectPath = parsedUser?.role === 'Student' ? '/award-form' : '/';
+      const redirectPath = parsedUser?.role === 'Student' ? '/election-form' : '/';
       toast({ title: 'Login Successful', status: 'success', duration: 3000 });
       setIsNavigating(true);
       setTimeout(() => navigate(redirectPath, { replace: true }), 1500);
@@ -164,7 +164,7 @@ function Login() {
         localStorage.setItem('token', response.token);
         localStorage.setItem('expiresAt', response.expiresAt);
         localStorage.setItem('user', JSON.stringify(response.user));
-        const redirectPath = response.user?.role === 'Student' ? '/award-form' : '/';
+        const redirectPath = response.user?.role === 'Student' ? '/election-form' : '/';
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
         setIsNavigating(true);
         setTimeout(() => navigate(redirectPath), 1500);
@@ -196,7 +196,7 @@ function Login() {
         localStorage.setItem('token', response.token);
         localStorage.setItem('expiresAt', response.expiresAt);
         localStorage.setItem('user', JSON.stringify(response.user));
-        const redirectPath = response.user?.role === 'Student' ? '/award-form' : '/';
+        const redirectPath = response.user?.role === 'Student' ? '/election-form' : '/';
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
         setIsNavigating(true);
         setTimeout(() => navigate(redirectPath), 1500);
@@ -234,7 +234,7 @@ function Login() {
         localStorage.setItem('token', response.token);
         localStorage.setItem('expiresAt', response.expiresAt);
         localStorage.setItem('user', JSON.stringify(response.user));
-        const redirectPath = response.user?.role === 'Student' ? '/award-form' : '/';
+        const redirectPath = response.user?.role === 'Student' ? '/election-form' : '/';
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
         setIsNavigating(true);
         setTimeout(() => navigate(redirectPath), 1500);
@@ -260,7 +260,7 @@ function Login() {
       if (result && result.type === 'fast_success') {
         localStorage.setItem('expiresAt', result.expiresAt);
         localStorage.setItem('user', JSON.stringify(result.user));
-        const redirectPath = result.user?.role === 'Student' ? '/award-form' : '/';
+        const redirectPath = result.user?.role === 'Student' ? '/election-form' : '/';
         toast({ title: 'Login Successful', status: 'success', duration: 3000 });
         setIsNavigating(true);
         setTimeout(() => navigate(redirectPath), 1500);

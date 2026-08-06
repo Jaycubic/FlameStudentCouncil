@@ -6,8 +6,8 @@
 # Usage:
 #   python3 copy_sheet.py <type> <master_access_token> <master_refresh_token>
 #
-# Template Drive IDs are read from environment variables:
-#   SPORTS_TEMPLATE_ID, CULTURAL_TEMPLATE_ID, ACADEMIC_TEMPLATE_ID
+# Template Drive ID is read from environment variable:
+#   WORKBOOK_TEMPLATE_ID
 #
 # Returns: { success, sheet_id } or { success: false, error }
 
@@ -22,16 +22,14 @@ from googleapiclient.errors import HttpError
 
 
 ENV_KEY_MAP = {
-    'sports':   'SPORTS_TEMPLATE_ID',
-    'cultural': 'CULTURAL_TEMPLATE_ID',
-    'academic': 'ACADEMIC_TEMPLATE_ID',
+    'workbook': 'WORKBOOK_TEMPLATE_ID',
 }
 
 NAME_MAP = {
-    'sports':   'Sports Matrix',
-    'cultural': 'Socio-Cultural Matrix',
-    'academic': 'Academic Matrix',
+    'workbook': 'Student Council Workbook',
 }
+
+DEFAULT_TEMPLATE_ID = '1qB2m7mRO21NkhWZWxw68K4nkjBTuERJSy5M8ctFnyeE'
 
 # Master-owned private folder — same one used in generate_sheet.py
 FOLDER_ID = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI'
@@ -52,22 +50,12 @@ def main():
     if sheet_type not in ENV_KEY_MAP:
         print(json.dumps({
             "success": False,
-            "error": f"Invalid type '{sheet_type}'. Expected: sports, cultural, academic"
+            "error": f"Invalid type '{sheet_type}'. Expected: workbook"
         }))
         return
 
     env_key     = ENV_KEY_MAP[sheet_type]
-    template_id = os.environ.get(env_key, '').strip()
-
-    if not template_id:
-        print(json.dumps({
-            "success": False,
-            "error": (
-                f"Environment variable '{env_key}' is not set. "
-                f"Add it to your .env file: {env_key}=<Google Drive file ID>"
-            )
-        }))
-        return
+    template_id = os.environ.get(env_key, '').strip() or DEFAULT_TEMPLATE_ID
 
     creds = Credentials(
         token=access_token,

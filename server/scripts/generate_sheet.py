@@ -5,40 +5,44 @@
 #                             <student_access_token> <student_refresh_token>
 #                             <master_email> <master_access_token> <master_refresh_token>
 #                             <folder_id>
+#                             [student_id]
 #
-# Two-token hybrid flow:
+# Fallback path: used when the pre-built pool is empty.
 #
-#   STUDENT TOKEN (heavy work — quota on student):
-#     1. Snapshot local template to temp file (race-free)
-#     2. Upload file → student becomes owner
-#     3. Add master as writer
-#     4. Transfer ownership to master (must be pushed by current owner)
+# Since the template is a native Google Sheet, we use files.copy() on the
+# master account (fast, server-side, no upload needed).
 #
-#   MASTER TOKEN (lightweight — 2 API calls):
-#     5. Move file into private master-only folder
-#        → breaks domain-wide inheritance → explicit permissions only
-#     6. List permissions → capture student's permissionId
+# Flow:
+#   1. Master copies the template via files.copy()  → master owns the copy
+#   2. Master shares (writer) with the student
+#   3. Master moves copy into private folder
+#   4. Return { success, sheet_id, link, student_permission_id }
 #
-#   Returns: { success, sheet_id, link, student_permission_id }
-#
-#   student_permission_id stored in DB.
-#   revoke_access.py deletes it cleanly after form submission.
+# The student does NOT need to own the file — master owns everything.
+# revoke_access.py removes the student's writer permission after submission.
 
 import sys
 import json
 import os
 import time
-import shutil
-import tempfile
 import socket
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
 socket.setdefaulttimeout(90)
+
+# Template Drive ID — native Google Sheet
+DEFAULT_TEMPLATE_ID = '1qB2m7mRO21NkhWZWxw68K4nkjBTuERJSy5M8ctFnyeE'
+
+# Master-owned private folder
+FOLDER_ID = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI'
+
+NAME_MAP = {
+    'workbook': 'Student Council Workbook',
+}
 
 
 # ─── Retry helper ─────────────────────────────────────────────────────────────
@@ -87,143 +91,68 @@ def main():
 
     sheet_type            = sys.argv[1]
     student_email         = sys.argv[2]
-    student_access_token  = sys.argv[3]
-    student_refresh_token = sys.argv[4]
+    # student_access_token and student_refresh_token kept for API compatibility
+    # but no longer needed — master does everything now
     master_email          = sys.argv[5]
     master_access_token   = sys.argv[6]
     master_refresh_token  = sys.argv[7]
-    folder_id             = sys.argv[8]  # Private master-only folder
+    folder_id             = sys.argv[8]
     student_id            = sys.argv[9] if len(sys.argv) > 9 else "Unknown"
 
-    # ── Build both credential objects ─────────────────────────────────────────
+    # Resolve template ID
+    env_key = 'WORKBOOK_TEMPLATE_ID'
+    template_id = os.environ.get(env_key, '').strip() or DEFAULT_TEMPLATE_ID
+
+    # Build master credentials
     try:
-        student_creds = build_credentials(student_access_token, student_refresh_token, 'Student')
-        master_creds  = build_credentials(master_access_token,  master_refresh_token,  'Master')
+        master_creds = build_credentials(master_access_token, master_refresh_token, 'Master')
     except RuntimeError as e:
         print(json.dumps({"success": False, "error": str(e)}))
         return
 
-    # ── Locate & snapshot template ────────────────────────────────────────────
-    templates_dir = os.path.join(os.path.dirname(__file__), '..', 'templates')
-    template_path = os.path.join(templates_dir, f'master_{sheet_type}.xlsx')
-
-    if not os.path.exists(template_path):
-        print(json.dumps({"success": False, "error": "Template not found. Please update via Admin Panel."}))
-        return
-
-    # Snapshot so admin can safely overwrite master template mid-upload
-    tmp_file = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
-    tmp_path = tmp_file.name
-    tmp_file.close()
-    shutil.copy2(template_path, tmp_path)
-
-    file_id = None
-
     try:
-        student_service = build('drive', 'v3', credentials=student_creds)
-        master_service  = build('drive', 'v3', credentials=master_creds)
+        master_service = build('drive', 'v3', credentials=master_creds)
 
-        # ── PHASE 1: Student token ─────────────────────────────────────────────
-        # File created in student's own Drive root (no parent specified).
-        # No parent = no inherited domain folder permissions at creation time.
+        # ── Step 1: Copy the native Google Sheet template ─────────────────────
+        prefix = NAME_MAP.get(sheet_type, sheet_type.capitalize())
+        display_name = f"{prefix} - {student_id}"
 
-        # Step 1 — Upload (student = owner, lands in student's My Drive root)
-        name_map = {
-            'sports': 'Sports Matrix',
-            'cultural': 'Socio-Cultural Matrix',
-            'academic': 'Academic Matrix'
-        }
-        prefix = name_map.get(sheet_type, sheet_type.capitalize())
-        
-        file_metadata = {
-            'name': f"{prefix} - {student_id}",
-            'mimeType': 'application/vnd.google-apps.spreadsheet'
-            # Intentionally NO parents key here
-        }
-        media = MediaFileUpload(
-            tmp_path,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            resumable=True
-        )
-        file = execute_with_retry(
-            student_service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id,webViewLink,parents'
+        copied = execute_with_retry(
+            master_service.files().copy(
+                fileId=template_id,
+                body={
+                    'name':    display_name,
+                    'parents': [folder_id],
+                },
+                fields='id,webViewLink'
             )
         )
-        file_id = file.get('id')
-        original_parent = file.get('parents', [None])[0]  # student's My Drive root
 
-        # Step 2 — Add master as writer, capture permissionId for ownership transfer
-        master_perm = execute_with_retry(
-            student_service.permissions().create(
+        file_id = copied.get('id')
+        if not file_id:
+            print(json.dumps({"success": False, "error": "Copy succeeded but no file ID returned"}))
+            return
+
+        # ── Step 2: Share with student (writer) ───────────────────────────────
+        perm = execute_with_retry(
+            master_service.permissions().create(
                 fileId=file_id,
-                body={'type': 'user', 'role': 'writer', 'emailAddress': master_email},
+                body={
+                    'type': 'user',
+                    'role': 'writer',
+                    'emailAddress': student_email,
+                },
                 fields='id',
                 sendNotificationEmail=False
             )
         )
-        master_perm_id = master_perm.get('id')
 
-        # Step 3 — Transfer ownership to master
-        # Must be called by current owner (student token).
-        # After this: master = owner, student = writer (auto-demoted)
-        execute_with_retry(
-            student_service.permissions().update(
-                fileId=file_id,
-                permissionId=master_perm_id,
-                body={'role': 'owner'},
-                transferOwnership=True,
-                fields='id,role'
-            )
-        )
-
-        # ── PHASE 2: Both tokens — each touches only what it can see ───────────
-
-        # Step 4a — Master adds file to private folder (master can see this folder)
-        execute_with_retry(
-            master_service.files().update(
-                fileId=file_id,
-                addParents=folder_id,
-                fields='id,parents'
-            )
-        )
-
-        # Step 4b — Student removes file from own Drive root (student can see this)
-        # Student is still a writer on the file, and owns their My Drive root.
-        if original_parent:
-            execute_with_retry(
-                student_service.files().update(
-                    fileId=file_id,
-                    removeParents=original_parent,
-                    fields='id,parents'
-                )
-            )
-
-        # Step 5 — List permissions to capture student's exact permissionId.
-        # Stored in DB so revoke_access.py can target it precisely.
-        perms_response = execute_with_retry(
-            master_service.permissions().list(
-                fileId=file_id,
-                fields='permissions(id,emailAddress,role)'
-            )
-        )
-
-        student_perm_id = None
-        for perm in perms_response.get('permissions', []):
-            if perm.get('emailAddress', '').lower() == student_email.lower():
-                student_perm_id = perm.get('id')
-                break
-
-        if not student_perm_id:
-            print(f"[WARN] Could not find student permissionId for {student_email} on {file_id}",
-                  file=sys.stderr)
+        student_perm_id = perm.get('id')
 
         print(json.dumps({
             "success": True,
             "sheet_id": file_id,
-            "link": file.get('webViewLink'),
+            "link": copied.get('webViewLink', f"https://docs.google.com/spreadsheets/d/{file_id}"),
             "student_permission_id": student_perm_id
         }))
 
@@ -231,9 +160,6 @@ def main():
         print(json.dumps({"success": False, "error": f"Google API error: {str(e)}"}))
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
-    finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
 
 
 if __name__ == '__main__':

@@ -87,7 +87,7 @@ function App() {
                 }
               >
                 <Route path="/users" element={<Users />} />
-                <Route path="/award-form" element={<StudentCouncilForm />} />
+                <Route path="/election-form" element={<StudentCouncilForm />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/time-management" element={<TimeManagement />} />

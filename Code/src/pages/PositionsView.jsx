@@ -1,5 +1,5 @@
 // src/pages/PositionsView.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box, Card, CardBody, Flex, Text, VStack, HStack, Input, InputGroup,
   InputLeftElement, InputRightElement, Button, IconButton, Spinner,
@@ -7,7 +7,7 @@ import {
   ModalContent, ModalHeader, ModalBody, ModalCloseButton, ModalFooter,
   useColorModeValue, useToast, useDisclosure, FormControl, FormLabel,
   Textarea, AlertDialog, AlertDialogBody, AlertDialogHeader,
-  AlertDialogContent, AlertDialogOverlay, AlertDialogFooter, useRef
+  AlertDialogContent, AlertDialogOverlay, AlertDialogFooter
 } from '@chakra-ui/react';
 import {
   MagnifyingGlassIcon,
