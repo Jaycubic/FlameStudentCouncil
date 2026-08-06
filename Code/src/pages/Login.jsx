@@ -424,7 +424,7 @@ function Login() {
                 h="100px"
               />
               <Heading size="lg" mb={2}>
-                FLAME Awards
+                Student Council
               </Heading>
               <Text color={textColor}>Please enter your credentials</Text>
             </Box>

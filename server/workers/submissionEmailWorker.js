@@ -43,7 +43,7 @@ function buildConfirmationEmail({ studentName, awardLabel, awardIcon, awardColor
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>FLAME Awards — Submission Confirmed</title>
+  <title>Student Council — Submission Confirmed</title>
   <style>
     body  { margin:0; padding:0; background:#f0f4f8; font-family:'Segoe UI',Arial,sans-serif; }
     .wrap { max-width:580px; margin:36px auto; background:#ffffff;
@@ -70,7 +70,7 @@ function buildConfirmationEmail({ studentName, awardLabel, awardIcon, awardColor
 <body>
   <div class="wrap">
     <div class="hdr">
-      <h1>🏆 FLAME Awards</h1>
+      <h1>🏆 Student Council</h1>
       <p>OFFICIAL SUBMISSION CONFIRMATION</p>
     </div>
 
@@ -100,7 +100,7 @@ function buildConfirmationEmail({ studentName, awardLabel, awardIcon, awardColor
     </div>
 
     <div class="ftr">
-      FLAME University Awards Office &nbsp;·&nbsp; This is an automated message — please do not reply.
+      FLAME University Student Council &nbsp;·&nbsp; This is an automated message — please do not reply.
     </div>
   </div>
 </body>
@@ -127,7 +127,7 @@ const worker = new Worker('submission-email', async (job) => {
     });
 
     await transporter.sendMail({
-        from:    `"FLAME Awards" <${process.env.EMAIL_USER}>`,
+        from:    `"Student Council" <${process.env.EMAIL_USER}>`,
         to:      studentEmail,
         subject: `${cfg.icon} Submission Confirmed — ${cfg.label}`,
         html,

@@ -190,7 +190,7 @@ function Header() {
             color={useColorModeValue("gray.800", "white")}
             lineHeight="1"
           >
-            FLAME Awards
+            Student Council
           </Text>
           <Text
             fontSize={{ base: "9px", md: "11px" }}
@@ -198,7 +198,7 @@ function Header() {
             color={useColorModeValue("gray.600", "whiteAlpha.800")}
             mt={0}
           >
-            Web-based Awarding System
+            Web-based Student Council System
           </Text>
         </Box>
         <Box

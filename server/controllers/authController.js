@@ -55,11 +55,11 @@ const generateVerificationCode = (length = 6) => {
 const sendVerificationEmail = async (email, code) => {
   try {
     await transporter.sendMail({
-      from: `"FLAME Awards" <${process.env.EMAIL_USER}>`,
+      from: `"Student Council" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Your Verification Code',
       html: `
-        <h2>FLAME Awards Verification Code</h2>
+        <h2>Student Council Verification Code</h2>
         <p>Your verification code is: <strong>${code}</strong></p>
         <p>This code will expire in 10 minutes.</p>
         <p>If you did not request this, please ignore this email.</p>

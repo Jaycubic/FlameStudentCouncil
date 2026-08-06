@@ -612,7 +612,7 @@ function ApplicationFormDashboard() {
                 </HStack>
             </Box>
 
-            <PageHeader title={timeSettings?.title || "Trailblazer Awards"} description="FLAME University's Annual Student Awards" />
+            <PageHeader title={timeSettings?.title || "Student Council Elections"} description="FLAME University Student Council" />
 
             <AnimatePresence mode="wait">
                 {!agreedToInstructions ? (

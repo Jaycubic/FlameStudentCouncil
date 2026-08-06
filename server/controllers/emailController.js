@@ -38,7 +38,7 @@ function buildEmailHtml(bodyHtml) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FLAME Awards Notification</title>
+  <title>Student Council Notification</title>
   <style>
     body  { margin:0; padding:0; background:#f0f4f8; font-family:'Segoe UI',Arial,sans-serif; }
     .wrap { max-width:620px; margin:36px auto; background:#ffffff;
@@ -60,12 +60,12 @@ function buildEmailHtml(bodyHtml) {
 <body>
   <div class="wrap">
     <div class="hdr">
-      <h1>🏆 FLAME Awards</h1>
-      <p>Official Award Notification &nbsp;·&nbsp; student.awards@flame.edu.in</p>
+      <h1>🏆 Student Council</h1>
+      <p>Official Notification &nbsp;·&nbsp; student.awards@flame.edu.in</p>
     </div>
     <div class="body">${bodyHtml}</div>
     <div class="ftr">
-      This email was sent by the FLAME Awards system.
+      This email was sent by the Student Council system.
       Please do not reply directly to this message.
     </div>
   </div>
@@ -152,7 +152,7 @@ async function sendNotifications(req, res) {
                 const finalHtml = buildEmailHtml(customizedHtml);
 
                 await transporter.sendMail({
-                    from:    `"FLAME Awards" <${process.env.EMAIL_USER}>`,
+                    from:    `"Student Council" <${process.env.EMAIL_USER}>`,
                     to:      recipientEmail,
                     cc:      ccStr || undefined,
                     subject: customizedSubject.trim(),

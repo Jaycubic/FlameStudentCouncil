@@ -102,7 +102,7 @@ function TimeManagement() {
             await timeSettingsService.updateSettings(formData)
             toast({
                 title: 'Updated!',
-                description: 'Time settings and Award title updated successfully.',
+                description: 'Time settings and Election title updated successfully.',
                 status: 'success',
                 duration: 3000,
             })
@@ -158,7 +158,7 @@ function TimeManagement() {
         <Box p={{ base: 4, md: 8 }}>
             <PageHeader
                 title="Time & Title Management"
-                description="Configure application windows and award titles precisely"
+                description="Configure application windows and election titles precisely"
             />
 
             <Card bg={bgColor} border="1px solid" borderColor={borderColor} shadow="xl" borderRadius="2xl">
@@ -166,7 +166,7 @@ function TimeManagement() {
                     <Tabs variant="soft-rounded" colorScheme="vrv">
                         <TabList mb={6} gap={2} flexWrap="wrap">
                             {[
-                                { name: 'Award Settings', icon: PencilIcon },
+                                { name: 'Election Settings', icon: PencilIcon },
                                 { name: 'Master Sheets', icon: DocumentTextIcon },
                             ].map((tab, index) => (
                                 <Tab
@@ -194,20 +194,20 @@ function TimeManagement() {
                                         <Box>
                                             <HStack mb={4}>
                                                 <Icon as={PencilIcon} boxSize={5} color="blue.500" />
-                                                <Text fontSize="lg" fontWeight="bold">Award Identity</Text>
+                                                <Text fontSize="lg" fontWeight="bold">Student Council Election Identity</Text>
                                             </HStack>
                                             <FormControl isRequired>
-                                                <FormLabel fontWeight="medium">Award Title</FormLabel>
+                                                <FormLabel fontWeight="medium">Student Council Election Title</FormLabel>
                                                 <Input
                                                     name="title"
                                                     value={formData.title}
                                                     onChange={handleChange}
-                                                    placeholder="e.g. Trailblazer Awards 2026"
+                                                    placeholder="e.g. Student Council Elections 2026"
                                                     size="lg"
                                                     borderRadius="xl"
                                                     _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px #4299E1' }}
                                                 />
-                                                <Text fontSize="xs" mt={2} color={textColor}>This title will appear at the top of the application forms for students.</Text>
+                                                <Text fontSize="xs" mt={2} color={textColor}>This title will appear at the top of the nomination & election forms for students.</Text>
                                             </FormControl>
                                         </Box>
 
