@@ -61,12 +61,36 @@ function setupSocket(server) {
           return;
         }
 
-        await ElectionDraft.upsert({
-          email,
-          position_selected:    position_selected    ?? null,
-          community_service:    community_service    ?? null,
-          statement_of_purpose: statement_of_purpose ?? null,
-        });
+        let draft = await ElectionDraft.findOne({ where: { email } });
+        if (draft) {
+          await draft.update({
+            position_selected:    position_selected    ?? draft.position_selected,
+            community_service:    community_service    ?? draft.community_service,
+            statement_of_purpose: statement_of_purpose ?? draft.statement_of_purpose,
+          });
+        } else {
+          await ElectionDraft.create({
+            email,
+            position_selected:    position_selected    ?? null,
+            community_service:    community_service    ?? null,
+            statement_of_purpose: statement_of_purpose ?? null,
+          });
+        }
+
+        // Async surgical update of cell B7 in Google Sheet if student already has an assigned sheet
+        if (position_selected) {
+          const { AcademicUserSheet, User } = require('./models');
+          const { updateSheetPositionCell } = require('./controllers/sheetController');
+          AcademicUserSheet.findOne({ where: { email } }).then(sheet => {
+            if (sheet?.user_sheet_id) {
+              User.findOne({ where: { email: 'student.awards@flame.edu.in' } }).then(masterUser => {
+                if (masterUser?.access_token) {
+                  updateSheetPositionCell(sheet.user_sheet_id, position_selected, masterUser).catch(() => {});
+                }
+              });
+            }
+          }).catch(() => {});
+        }
 
         if (typeof callback === 'function') callback({ success: true });
       } catch (err) {

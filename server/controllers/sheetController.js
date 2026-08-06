@@ -177,6 +177,27 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
     }
 }
 
+// ─── Surgical update of cell B7 (Position Selected) only ──────────────────────
+async function updateSheetPositionCell(sheetId, positionSelected, masterUser) {
+    try {
+        if (!sheetId || !positionSelected) return;
+        const scriptPath = path.join(__dirname, '../scripts/update_position_cell.py');
+        const result = await runPythonScript(scriptPath, [
+            sheetId,
+            masterUser.access_token,
+            masterUser.refresh_token,
+            positionSelected,
+        ]);
+        if (result.success) {
+            log.info({ sheetId, positionSelected }, '[SheetPosition] Surgical cell B7 update succeeded');
+        } else {
+            log.warn({ sheetId, error: result.error }, '[SheetPosition] Surgical cell B7 update returned failure');
+        }
+    } catch (err) {
+        log.error({ sheetId, err: err.message }, '[SheetPosition] Non-fatal error');
+    }
+}
+
 // ─── Atomic pool pop ──────────────────────────────────────────────────────────
 // SELECT FOR UPDATE SKIP LOCKED ensures two concurrent requests never claim
 // the same sheet, even if they hit the DB at the exact same millisecond.
@@ -607,6 +628,8 @@ const sheetController = {
     },
 
     revokeStudentAccess,
+    insertPhotoFormula,
+    updateSheetPositionCell,
 };
 
 module.exports = sheetController;

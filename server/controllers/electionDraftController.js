@@ -20,15 +20,37 @@ const electionDraftController = {
             const email = req.user.email;
             const { position_selected, community_service, statement_of_purpose } = req.body;
 
-            const [draft, created] = await ElectionDraft.upsert(
-                {
+            let draft = await ElectionDraft.findOne({ where: { email } });
+            let created = false;
+            if (draft) {
+                await draft.update({
+                    position_selected:    position_selected    ?? draft.position_selected,
+                    community_service:    community_service    ?? draft.community_service,
+                    statement_of_purpose: statement_of_purpose ?? draft.statement_of_purpose,
+                });
+            } else {
+                draft = await ElectionDraft.create({
                     email,
                     position_selected:    position_selected    ?? null,
                     community_service:    community_service    ?? null,
                     statement_of_purpose: statement_of_purpose ?? null,
-                },
-                { returning: true }
-            );
+                });
+                created = true;
+            }
+
+            if (position_selected) {
+                const { AcademicUserSheet, User } = require('../models');
+                const { updateSheetPositionCell } = require('./sheetController');
+                AcademicUserSheet.findOne({ where: { email } }).then(sheet => {
+                    if (sheet?.user_sheet_id) {
+                        User.findOne({ where: { email: 'student.awards@flame.edu.in' } }).then(masterUser => {
+                            if (masterUser?.access_token) {
+                                updateSheetPositionCell(sheet.user_sheet_id, position_selected, masterUser).catch(() => {});
+                            }
+                        });
+                    }
+                }).catch(() => {});
+            }
 
             return res.json({
                 success: true,

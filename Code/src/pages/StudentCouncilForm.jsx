@@ -12,7 +12,7 @@ import {
     Select
 } from '@chakra-ui/react';
 import { ChevronDownIcon, ArrowForwardIcon, CheckIcon as ChakraCheckIcon } from '@chakra-ui/icons';
-import { FaMale, FaFemale, FaUser, FaCamera, FaChevronLeft, FaFilePdf, FaPlus, FaTimes, FaVoteYea } from 'react-icons/fa';
+import { FaMale, FaFemale, FaUser, FaCamera, FaChevronLeft, FaFilePdf, FaPlus, FaTimes, FaVoteYea, FaSave } from 'react-icons/fa';
 import PageHeader from '../components/layout/PageHeader';
 import { formSubmissionService } from '../services/formSubmissionService';
 import { formProcessingService } from '../services/formProcessingService';
@@ -382,6 +382,56 @@ function StudentCouncilForm() {
                 }
             }, 3000);
         });
+    };
+
+    // ── Save Draft ────────────────────────────────────────────────────────────
+    const handleSaveDraft = async () => {
+        setDraftSaving(true);
+        try {
+            const response = await fetch('/api/election-draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-device-id': localStorage.getItem('deviceId') || '',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    position_selected: positionSelected,
+                    community_service: communityService,
+                    statement_of_purpose: statementOfPurpose,
+                }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast({
+                    title: 'Draft Saved Successfully',
+                    description: 'Your position choice, SOP, and Community Service notes have been saved.',
+                    status: 'success',
+                    duration: 3500,
+                    isClosable: true,
+                });
+            } else {
+                throw new Error(data.message || 'Failed to save draft');
+            }
+
+            if (socketRef.current && formData.email) {
+                socketRef.current.emit('saveDraft', {
+                    email: formData.email,
+                    position_selected: positionSelected,
+                    community_service: communityService,
+                    statement_of_purpose: statementOfPurpose,
+                });
+            }
+        } catch (err) {
+            toast({
+                title: 'Draft Save Failed',
+                description: err.message,
+                status: 'error',
+                duration: 4000,
+            });
+        } finally {
+            setDraftSaving(false);
+        }
     };
 
     // ── Submission ────────────────────────────────────────────────────────────
@@ -805,9 +855,38 @@ function StudentCouncilForm() {
                                             I state that the above is true and I have not provided any false information.
                                         </Checkbox>
                                     </VStack>
-                                    <Button mt={{ base: 6, md: 10 }} size="lg" colorScheme="green" fontWeight="black" w="full" h={{ base: '56px', md: '70px' }} fontSize={{ base: 'md', md: 'xl' }} isLoading={submitting} loadingText="Submitting..." onClick={handleSubmission}>
-                                        SUBMIT ELECTION APPLICATION
-                                    </Button>
+                                    <HStack spacing={4} mt={{ base: 6, md: 10 }}>
+                                         <Button
+                                             size="lg"
+                                             variant="outline"
+                                             colorScheme="blue"
+                                             fontWeight="bold"
+                                             flex="1"
+                                             h={{ base: '56px', md: '70px' }}
+                                             fontSize={{ base: 'sm', md: 'lg' }}
+                                             isLoading={draftSaving}
+                                             loadingText="Saving..."
+                                             onClick={handleSaveDraft}
+                                             leftIcon={<FaSave />}
+                                             borderRadius="xl"
+                                         >
+                                             SAVE AS DRAFT
+                                         </Button>
+                                         <Button
+                                             size="lg"
+                                             colorScheme="green"
+                                             fontWeight="black"
+                                             flex="2"
+                                             h={{ base: '56px', md: '70px' }}
+                                             fontSize={{ base: 'md', md: 'xl' }}
+                                             isLoading={submitting}
+                                             loadingText="Submitting..."
+                                             onClick={handleSubmission}
+                                             borderRadius="xl"
+                                         >
+                                             SUBMIT ELECTION APPLICATION
+                                         </Button>
+                                     </HStack>
                                 </Box>
                             </VStack>
                         </Box>
