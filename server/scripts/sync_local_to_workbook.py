@@ -36,33 +36,20 @@ SCOPES = [
 PHOTO_COL_WIDTH  = 22   # kept for reference — width is already set at workbook creation time
 
 # Data columns (same order as generate_awards_workbook.py — Photo is prepended separately)
-ALL_COLS     = ['student_id','name','email','gender','batch','mobile_number',
-                'academic_score','sports_score','cultural_score',
-                'sports_verified_score','cultural_verified_score',
-                'academic_verified_score','total_verified_score',
-                'submission_date',
-                'Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link',
-                'Attachment']
-SPORTS_COLS  = ['student_id','name','email','gender','batch','mobile_number',
-                'sports_score','sports_verified_score',
-                'submission_date','Sports Sheet Link','Attachment']
-CULTURAL_COLS = ['student_id','name','email','gender','batch','mobile_number',
-                 'cultural_score','cultural_verified_score',
-                 'submission_date','Cultural Sheet Link','Attachment']
-TRAIL_COLS   = ['student_id','name','email','gender','batch','mobile_number',
-                'academic_score','sports_score','cultural_score',
-                'sports_verified_score','cultural_verified_score',
-                'academic_verified_score','total_verified_score',
-                'submission_date',
-                'Sports Sheet Link','Cultural Sheet Link','Academic Sheet Link',
-                'Attachment']
+ELECTION_COLS = [
+    'student_id', 'name', 'email', 'gender', 'batch', 'mobile_number',
+    'position_selected', 'community_service', 'statement_of_purpose', 'more_info',
+    'read_handbook', 'not_on_probation', 'tru_statement',
+    'academic_score', 'sports_score', 'cultural_score',
+    'sports_verified_score', 'cultural_verified_score', 'academic_verified_score',
+    'total_verified_score', 'submission_date',
+    'Workbook Link', 'Attachment'
+]
 
 # URL columns shown as clickable hyperlinks with short labels (USER_ENTERED interprets =HYPERLINK)
 HYPERLINK_COLS = {
-    'Sports Sheet Link':   'Sports Matrix',
-    'Cultural Sheet Link': 'Cultural Matrix',
-    'Academic Sheet Link': 'Academic Matrix',
-    'Attachment':          'View PDF',
+    'Workbook Link': 'Student Workbook',
+    'Attachment':    'View PDF',
 }
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -117,9 +104,16 @@ def rows_to_values(cols, rows):
         photo    = get_photo_formula(record.get('photo_url', ''))
         row = [photo]
         for col in cols:
-            val = record.get(col, '') or ''
-            # Wrap URL columns in =HYPERLINK() formula
-            if col in HYPERLINK_COLS and val:
+            val = record.get(col, '')
+            if isinstance(val, bool):
+                val = 'True' if val else 'False'
+            elif str(val).lower() == 'true':
+                val = 'True'
+            elif str(val).lower() == 'false':
+                val = 'False'
+            elif val is None:
+                val = ''
+            elif col in HYPERLINK_COLS and val:
                 label = HYPERLINK_COLS[col]
                 val = f'=HYPERLINK("{val}", "{label}")'
             else:
@@ -213,13 +207,10 @@ def main():
         print(json.dumps({"success": False, "error": f"Token error: {e}"}))
         return
 
-    all_rows         = data.get('all',         [])
-    sports_rows      = data.get('sports',      [])
-    cultural_rows    = data.get('cultural',    [])
-    trailblazer_rows = data.get('trailblazer', [])
+    all_rows    = data.get('all', [])
+    by_position = data.get('byPosition', {})
 
-    # ─── Sort rows by verified scores (descending) ──────────────────────────
-    def safe_score(row, key):
+    def safe_score(row, key='total_verified_score'):
         try:
             val = row.get(key)
             if val is None or str(val).strip() == '' or str(val).strip() == '—':
@@ -228,49 +219,37 @@ def main():
         except (ValueError, TypeError):
             return 0.0
 
-    sports_rows.sort(key=lambda r: safe_score(r, 'sports_verified_score'), reverse=True)
-    cultural_rows.sort(key=lambda r: safe_score(r, 'cultural_verified_score'), reverse=True)
-    trailblazer_rows.sort(key=lambda r: safe_score(r, 'total_verified_score'), reverse=True)
+    all_rows.sort(key=lambda r: safe_score(r), reverse=True)
+    for pos in by_position:
+        by_position[pos].sort(key=lambda r: safe_score(r), reverse=True)
 
-    tabs = [
-        ('AllAwards',        ALL_COLS,      all_rows),
-        ('SportsAward',      SPORTS_COLS,   sports_rows),
-        ('CulturalAward',    CULTURAL_COLS, cultural_rows),
-        ('TrailblazerAward', TRAIL_COLS,    trailblazer_rows),
-    ]
+    tabs = [('All Responses', ELECTION_COLS, all_rows)]
+
+    used_titles = {'All Responses'}
+    for pos_name, pos_rows in by_position.items():
+        safe_title = pos_name[:31].replace('[', '').replace(']', '').replace('*', '').replace(':', '').replace('?', '').replace('/', '\\')
+        if not safe_title or safe_title in used_titles:
+            safe_title = f"{safe_title[:27]}_{len(used_titles)}"
+        used_titles.add(safe_title)
+        tabs.append((safe_title, ELECTION_COLS, pos_rows))
 
     try:
         sheets_service = build('sheets', 'v4', credentials=creds)
 
-        # ── 1. Get sheet GIDs (needed for merge/unmerge requests) ─────────────
-        meta           = sheets_service.spreadsheets().get(spreadsheetId=workbook_id).execute()
-        gid_map        = {
+        # ── 1. Get sheet GIDs ───────────────────────────────────────────────
+        meta    = sheets_service.spreadsheets().get(spreadsheetId=workbook_id).execute()
+        gid_map = {
             s['properties']['title']: s['properties']['sheetId']
             for s in meta.get('sheets', [])
         }
-        all_gid = gid_map.get('AllAwards')
 
-        # ── 2. Unmerge existing photo-column merges in AllAwards ──────────────
-        # (batchClear only clears values, NOT merge state — so we must unmerge
-        #  explicitly before re-writing, then re-merge after writing)
-        if all_gid is not None and all_rows:
-            unmerge_req = build_unmerge_request(all_gid, len(all_rows))
-            if unmerge_req:
-                try:
-                    sheets_service.spreadsheets().batchUpdate(
-                        spreadsheetId=workbook_id,
-                        body={'requests': [unmerge_req]}
-                    ).execute()
-                except Exception:
-                    # Non-fatal: may fail if no merges existed yet
-                    pass
-
-        # ── 3. Clear all tab values ───────────────────────────────────────────
-        clear_ranges = [f"'{t}'!A:Z" for t, _, __ in tabs]
-        sheets_service.spreadsheets().values().batchClear(
-            spreadsheetId=workbook_id,
-            body={'ranges': clear_ranges},
-        ).execute()
+        # ── 2. Clear all tab values ───────────────────────────────────────────
+        clear_ranges = [f"'{t}'!A:Z" for t, _, __ in tabs if t in gid_map]
+        if clear_ranges:
+            sheets_service.spreadsheets().values().batchClear(
+                spreadsheetId=workbook_id,
+                body={'ranges': clear_ranges},
+            ).execute()
 
         # ── 4. Write fresh values (Photo col A + data cols B+) ────────────────
         data_requests = []

@@ -120,6 +120,10 @@ async function collectAllData() {
             position_selected:        r.position_selected || '',
             community_service:        r.community_service || '',
             statement_of_purpose:     r.statement_of_purpose || '',
+            more_info:                r.more_info || '',
+            read_handbook:            r.read_handbook ? 'True' : 'False',
+            not_on_probation:         r.not_on_probation ? 'True' : 'False',
+            tru_statement:            r.tru_statement ? 'True' : 'False',
             academic_score:           r.academic_score || '',
             sports_score:             r.sports_score || '',
             cultural_score:           r.cultural_score || '',
@@ -226,8 +230,17 @@ async function openOrCreate(req, res) {
             try {
                 const photoScriptPath = path.join(__dirname, '../scripts/insert_workbook_photos.py');
                 const photoPayload = {
-                    AllResponses: data.all.map(r => ({ photo_url: r.photo_url || '', email: r.email || '' })),
+                    'All Responses': data.all.map(r => ({ photo_url: r.photo_url || '', email: r.email || '' })),
                 };
+                const usedTitles = new Set(['All Responses']);
+                for (const [posName, posRows] of Object.entries(data.byPosition)) {
+                    let safeTitle = posName.slice(0, 31).replace(/[\[\]\*:\?\/\\\]/g, '');
+                    if (!safeTitle || usedTitles.has(safeTitle)) {
+                        safeTitle = `${safeTitle.slice(0, 27)}_${usedTitles.size}`;
+                    }
+                    usedTitles.add(safeTitle);
+                    photoPayload[safeTitle] = posRows.map(r => ({ photo_url: r.photo_url || '', email: r.email || '' }));
+                }
 
                 for (const [tab, rows] of Object.entries(photoPayload)) {
                     const withPhoto = rows.filter(r => r.photo_url).length;
