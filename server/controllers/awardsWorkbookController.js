@@ -1,25 +1,29 @@
 // server/controllers/awardsWorkbookController.js
+//
+// Admin workbook controller — generates/syncs a Google Sheets workbook
+// containing all election form responses for admin review.
+// Adapted from the old 3-award-table approach to single ElectionFormResponse.
+
 const path   = require('path');
 const fs     = require('fs');
 const { spawn } = require('child_process');
 const { Op }  = require('sequelize');
 const {
-    TrailblazerAward, SportsPersonAward, CulturalPersonAward,
-    SportsUserSheet, CulturalUserSheet, AcademicUserSheet,
+    ElectionFormResponse,
+    AcademicUserSheet,
     AwardsWorkbook, User,
 } = require('../models');
 const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
 const { syncVerifiedScores } = require('../services/scoresSyncService');
 
 const MASTER_EMAIL        = 'student.awards@flame.edu.in';
-const FOLDER_ID           = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
-const ATTACHMENT_BASE_URL = 'https://flamestudentcouncil.in/api/attachments'; // served via /api/ route (nginx-safe)
-const PHOTO_BASE_URL      = 'https://flamestudentcouncil.in/api/photos';      // local photo server — never expires
+const FOLDER_ID           = '1GBzDVaUcwehFAMrziH9zt8Cnjx-sN7ly';
+const ATTACHMENT_BASE_URL = 'https://flamestudentcouncil.in/api/attachments';
+const PHOTO_BASE_URL      = 'https://flamestudentcouncil.in/api/photos';
 const LOCAL_PHOTOS_DIR    = '/opt/View/StudentTrackingSystem/server/Photos';
 
 /**
- * Returns the local server URL for a student's photo if the file exists on disk,
- * or '' if no photo has been uploaded. This avoids any Google Drive token issues.
+ * Returns the local server URL for a student's photo if the file exists on disk.
  */
 function getLocalPhotoUrl(studentId) {
     if (!studentId) return '';
@@ -43,8 +47,6 @@ const CLOUD_SYNCABLE = [
 ];
 
 // ─── Python runner ────────────────────────────────────────────────────────────
-// stdinData (optional string): written to the child's stdin then closed.
-// Use this for large payloads to avoid the Linux ARG_MAX (E2BIG) limit.
 function runPython(scriptPath, args, timeoutMs = 180_000, stdinData = null) {
     return new Promise((resolve, reject) => {
         const proc = spawn('python3', [scriptPath, ...args]);
@@ -52,7 +54,6 @@ function runPython(scriptPath, args, timeoutMs = 180_000, stdinData = null) {
         proc.stdout.on('data', d => { out += d.toString(); });
         proc.stderr.on('data', d => { err += d.toString(); });
 
-        // Write large payload via stdin (avoids E2BIG on Linux)
         if (stdinData !== null) {
             try {
                 proc.stdin.write(stdinData);
@@ -81,67 +82,32 @@ function runPython(scriptPath, args, timeoutMs = 180_000, stdinData = null) {
 
 // ─── Collect all data for workbook generation / cloud push ───────────────────
 async function collectAllData() {
-    const [sportsRows, culturalRows, trailblazerRows] = await Promise.all([
-        SportsPersonAward.findAll(),
-        CulturalPersonAward.findAll(),
-        TrailblazerAward.findAll(),
-    ]);
+    const allRows = await ElectionFormResponse.findAll();
 
-    // Build email → sheet URL maps
-    const emails = [
-        ...new Set([
-            ...sportsRows.map(r => r.email),
-            ...culturalRows.map(r => r.email),
-            ...trailblazerRows.map(r => r.email),
-        ]),
-    ];
+    // Build email → sheet URL map (single workbook type)
+    const emails = [...new Set(allRows.map(r => r.email))];
 
-    const [sportsSheets, culturalSheets, academicSheets] = await Promise.all([
-        SportsUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
-        CulturalUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
-        AcademicUserSheet.findAll({ where: { email: { [Op.in]: emails } }, attributes: ['email', 'user_sheet_id'] }),
-    ]);
+    const workbookSheets = await AcademicUserSheet.findAll({
+        where: { email: { [Op.in]: emails } },
+        attributes: ['email', 'user_sheet_id']
+    });
+    const sheetMap = Object.fromEntries(
+        workbookSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`])
+    );
 
-    const sportsSheetMap   = Object.fromEntries(sportsSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
-    const culturalSheetMap = Object.fromEntries(culturalSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
-    const academicSheetMap = Object.fromEntries(academicSheets.map(s => [s.email, `https://docs.google.com/spreadsheets/d/${s.user_sheet_id}`]));
-
-    // ── Build student_id → local photo URL map (disk-based, never expires) ──
-    // We check the local Photos directory for each student ID instead of querying
-    // the photo_drive_uploads table. This avoids Google Drive token-expiry issues
-    // where a Drive-hosted image becomes inaccessible after the student's OAuth
-    // token is revoked, causing broken or mismatched images in the workbook.
+    // Photo check
     const allStudentIds = [
-        ...new Set([
-            ...sportsRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean),
-            ...culturalRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean),
-            ...trailblazerRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean),
-        ])
+        ...new Set(allRows.map(r => (r.student_id || '').toString().trim()).filter(Boolean))
     ];
-
     const withPhoto    = allStudentIds.filter(sid => getLocalPhotoUrl(sid) !== '').length;
     const withoutPhoto = allStudentIds.length - withPhoto;
     log.info({ total: allStudentIds.length, withPhoto, withoutPhoto },
         '[Workbook] Local photo disk check complete');
 
-    const AWARD_MERGE_KEY = {
-        'Sports Award':      'sport',
-        'Cultural Award':    'cultural',
-        'Trailblazer Award': 'trailblazer',
-    };
-    // Merged PDFs are stored in existing award-type subfolders (no merged/ dir needed)
-    const AWARD_SUB_FOLDER = {
-        'Sports Award':      'sport',
-        'Cultural Award':    'cultural',
-        'Trailblazer Award': 'academic',
-    };
-
-    const toRow = (r, awardType) => {
-        const sid           = (r.student_id || '').toString().trim();
-        const mergeKey      = AWARD_MERGE_KEY[awardType] || '';
-        const sub           = AWARD_SUB_FOLDER[awardType] || '';
-        const attachmentUrl = (mergeKey && sub && sid)
-            ? `${ATTACHMENT_BASE_URL}/${sub}/${sid}_${mergeKey}_merged.pdf`
+    const toRow = (r) => {
+        const sid = (r.student_id || '').toString().trim();
+        const attachmentUrl = sid
+            ? `${ATTACHMENT_BASE_URL}/election/${sid}_election_merged.pdf`
             : '';
         return {
             photo_url:                getLocalPhotoUrl(sid),
@@ -151,6 +117,9 @@ async function collectAllData() {
             gender:                   r.gender       || '',
             batch:                    r.batch        || '',
             mobile_number:            r.mobile_number || '',
+            position_selected:        r.position_selected || '',
+            community_service:        r.community_service || '',
+            statement_of_purpose:     r.statement_of_purpose || '',
             academic_score:           r.academic_score || '',
             sports_score:             r.sports_score || '',
             cultural_score:           r.cultural_score || '',
@@ -159,33 +128,32 @@ async function collectAllData() {
             academic_verified_score:  r.academic_verified_score || '',
             total_verified_score:     r.total_verified_score ? parseFloat(r.total_verified_score).toFixed(2) : '',
             submission_date:          r.submission_date ? new Date(r.submission_date).toISOString().split('T')[0] : '',
-            'Sports Sheet Link':      sportsSheetMap[r.email]   || '',
-            'Cultural Sheet Link':    culturalSheetMap[r.email] || '',
-            'Academic Sheet Link':    academicSheetMap[r.email] || '',
-            award_type:               awardType,
+            'Workbook Link':          sheetMap[r.email]   || '',
             Attachment:               attachmentUrl,
         };
     };
 
-    const sports      = sportsRows.map(r      => toRow(r, 'Sports Award'));
-    const cultural    = culturalRows.map(r    => toRow(r, 'Cultural Award'));
-    const trailblazer = trailblazerRows.map(r => toRow(r, 'Trailblazer Award'));
-
-    // Sort 'all' by email first (keeps same-student rows adjacent for photo-cell
-    // merging in the Python script), then by name for admin readability.
-    const all = [...sports, ...cultural, ...trailblazer]
+    const all = allRows
+        .map(r => toRow(r))
         .sort((a, b) => {
             const emailCmp = (a.email || '').localeCompare(b.email || '');
             if (emailCmp !== 0) return emailCmp;
-            return (a.award_type || '').localeCompare(b.award_type || '');
+            return (a.position_selected || '').localeCompare(b.position_selected || '');
         });
 
-    return { sports, cultural, trailblazer, all };
+    // Group by position for per-position tabs
+    const byPosition = {};
+    all.forEach(row => {
+        const pos = row.position_selected || 'Unspecified';
+        if (!byPosition[pos]) byPosition[pos] = [];
+        byPosition[pos].push(row);
+    });
+
+    return { all, byPosition };
 }
 
 // ─── Check that workbook still exists on Drive ────────────────────────────────
 async function workbookExistsOnDrive(workbookId, masterUser) {
-    // Quick Sheets API call — if 404 the workbook was deleted
     const scriptPath = path.join(__dirname, '../scripts/sync_workbook_to_local.py');
     try {
         const result = await runPython(scriptPath, [
@@ -212,7 +180,6 @@ async function openOrCreate(req, res) {
         let workbook = await AwardsWorkbook.findOne();
 
         if (workbook) {
-            // Verify it still exists on Drive
             const alive = await workbookExistsOnDrive(workbook.workbook_id, masterUser);
             if (alive) {
                 log.info({ workbook_id: workbook.workbook_id }, '[Workbook] Returning existing workbook');
@@ -223,7 +190,6 @@ async function openOrCreate(req, res) {
                     workbook_id: workbook.workbook_id,
                 });
             }
-            // Stale — delete record and regenerate
             log.warn({ workbook_id: workbook.workbook_id }, '[Workbook] Drive file gone — regenerating');
             await workbook.destroy();
             workbook = null;
@@ -239,7 +205,7 @@ async function openOrCreate(req, res) {
             masterUser.access_token,
             masterUser.refresh_token,
             FOLDER_ID,
-        ], 180_000, dataB64);   // dataB64 passed via stdin — avoids E2BIG
+        ], 180_000, dataB64);
 
         if (!result.success) {
             log.error({ error: result.error }, '[Workbook] Generation failed');
@@ -259,15 +225,10 @@ async function openOrCreate(req, res) {
         setImmediate(async () => {
             try {
                 const photoScriptPath = path.join(__dirname, '../scripts/insert_workbook_photos.py');
-                // Build photo payload: { tabName: [{ photo_drive_id, email }, ...] }
                 const photoPayload = {
-                    AllAwards:        data.all.map(r        => ({ photo_url: r.photo_url || '', email: r.email || '' })),
-                    SportsAward:      data.sports.map(r     => ({ photo_url: r.photo_url || '', email: r.email || '' })),
-                    CulturalAward:    data.cultural.map(r   => ({ photo_url: r.photo_url || '', email: r.email || '' })),
-                    TrailblazerAward: data.trailblazer.map(r=> ({ photo_url: r.photo_url || '', email: r.email || '' })),
+                    AllResponses: data.all.map(r => ({ photo_url: r.photo_url || '', email: r.email || '' })),
                 };
 
-                // Diagnostic: log how many rows actually have a photo_drive_id
                 for (const [tab, rows] of Object.entries(photoPayload)) {
                     const withPhoto = rows.filter(r => r.photo_url).length;
                     log.info({ tab, total: rows.length, withPhoto }, '[Workbook] Photo payload stats');
@@ -284,7 +245,6 @@ async function openOrCreate(req, res) {
                     log.info({
                         workbook_id: result.sheet_id,
                         stats: photoResult.stats,
-                        warning: photoResult.warning || null,
                     }, '[Workbook] ✅ Photo formulas inserted');
                 } else {
                     log.warn({ error: photoResult.error }, '[Workbook] Photo insertion failed (non-fatal)');
@@ -334,13 +294,6 @@ async function syncFromCloud(req, res) {
         const rows = result.rows || [];
         let updated = 0, skipped = 0;
 
-        // MODEL_LIST maps each model to its awardType key for score propagation
-        const MODEL_LIST = [
-            { Model: SportsPersonAward,   type: 'sports' },
-            { Model: CulturalPersonAward, type: 'cultural' },
-            { Model: TrailblazerAward,    type: 'trailblazer' },
-        ];
-
         for (const cloudRow of rows) {
             const sid = cloudRow.student_id?.trim();
             if (!sid) { skipped++; continue; }
@@ -359,26 +312,15 @@ async function syncFromCloud(req, res) {
             }
             if (Object.keys(updates).length === 0) { skipped++; continue; }
 
-            // Update EVERY table that has this student, then propagate scores
-            let found = false;
-            for (const { Model, type } of MODEL_LIST) {
-                const record = await Model.findOne({ where: { student_id: sid } });
-                if (record) {
-                    // Only apply fields that are relevant to this model
-                    const relevant = {};
-                    for (const [k, v] of Object.entries(updates)) {
-                        if (record.rawAttributes && record.rawAttributes[k]) relevant[k] = v;
-                    }
-                    if (Object.keys(relevant).length > 0) {
-                        await record.update(relevant);
-                        // Propagate cross-table in background
-                        setImmediate(() => syncVerifiedScores(record.email, type, relevant));
-                        updated++;
-                        found = true;
-                    }
-                }
+            // Update ElectionFormResponse for this student
+            const record = await ElectionFormResponse.findOne({ where: { student_id: sid } });
+            if (record) {
+                await record.update(updates);
+                setImmediate(() => syncVerifiedScores(record.email, updates));
+                updated++;
+            } else {
+                skipped++;
             }
-            if (!found) skipped++;
         }
 
         log.info({ updated, skipped }, '[Workbook] Cloud → local sync complete');
@@ -411,7 +353,7 @@ async function syncToCloud(req, res) {
             workbook.workbook_id,
             masterUser.access_token,
             masterUser.refresh_token,
-        ], 180_000, dataB64);   // dataB64 passed via stdin — avoids E2BIG
+        ], 180_000, dataB64);
 
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error });

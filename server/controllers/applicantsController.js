@@ -1,23 +1,32 @@
 // server/controllers/applicantsController.js
+//
+// Unified election applicants controller.
+// Single ElectionFormResponse table replaces the old 3-award-table approach.
+
 const path = require('path');
 const fs   = require('fs');
-const { TrailblazerAward, SportsPersonAward, CulturalPersonAward,
-        SportsUserSheet, CulturalUserSheet, AcademicUserSheet,
-        SportAttachment, CulturalAttachment, academicAttachment } = require('../models');
+const { ElectionFormResponse, ElectionAttachment,
+        AcademicUserSheet } = require('../models');
 const { Op } = require('sequelize');
-const { syncVerifiedScores } = require('../services/scoresSyncService');
 
 const ATTACHMENT_DIR  = '/opt/View/FlameStudentCouncil/server/Attachments';
 const MERGED_PDF_BASE = 'https://flamestudentcouncil.in/api/attachments';
 const PHOTO_DIR       = '/opt/View/StudentTrackingSystem/server/Photos';
-const SPORTS_FIELDS      = ['id','name','student_id','gender','batch','email','sports_score','submission_date','sports_verified_score','status','photo'];
-const CULTURAL_FIELDS    = ['id','name','student_id','gender','batch','email','cultural_score','submission_date','cultural_verified_score','status','photo'];
-const TRAILBLAZER_FIELDS = ['id','name','student_id','gender','batch','email','sports_score','cultural_score','academic_score','submission_date','sports_verified_score','cultural_verified_score','academic_verified_score','total_verified_score','status','photo'];
 
-function buildWhere(search, gender, batch) {
+const LIST_FIELDS = [
+    'id', 'name', 'student_id', 'gender', 'batch', 'email',
+    'position_selected',
+    'sports_score', 'cultural_score', 'academic_score',
+    'sports_verified_score', 'cultural_verified_score', 'academic_verified_score',
+    'total_verified_score',
+    'submission_date', 'status', 'photo'
+];
+
+function buildWhere(search, gender, batch, position) {
     const where = {};
-    if (gender) where.gender = gender;
-    if (batch)  where.batch  = batch;
+    if (gender)   where.gender = gender;
+    if (batch)    where.batch  = batch;
+    if (position) where.position_selected = position;
     if (search) {
         where[Op.or] = [
             { name:       { [Op.iLike]: `%${search}%` } },
@@ -26,43 +35,6 @@ function buildWhere(search, gender, batch) {
         ];
     }
     return where;
-}
-
-// Tag rows with award_type using stable internal keys — NEVER display names.
-// These match the API query param (award_type=sports/cultural/trailblazer)
-// and the AWARD_BADGE keys in ApplicantsView.jsx.
-function tagSports(rows) {
-    return rows.map(r => ({
-        ...r.toJSON(),
-        award_type:              'sports',
-        cultural_score:          null,
-        cultural_verified_score: null,
-        academic_score:          null,
-        academic_verified_score: null,
-    }));
-}
-function tagCultural(rows) {
-    return rows.map(r => ({
-        ...r.toJSON(),
-        award_type:              'cultural',
-        sports_score:            null,
-        sports_verified_score:   null,
-        academic_score:          null,
-        academic_verified_score: null,
-    }));
-}
-function tagTrailblazer(rows) {
-    return rows.map(r => {
-        const obj = { ...r.toJSON(), award_type: 'trailblazer' };
-        // Real-time total: sum of whichever verified scores are non-null
-        const vals = [
-            obj.sports_verified_score,
-            obj.cultural_verified_score,
-            obj.academic_verified_score,
-        ].map(v => parseFloat(v)).filter(n => !isNaN(n));
-        obj.total_verified_score = vals.length > 0 ? vals.reduce((a, b) => a + b, 0).toFixed(2) : null;
-        return obj;
-    });
 }
 
 function sortRows(rows, sortField, sortDir) {
@@ -80,7 +52,7 @@ async function getApplicants(req, res) {
     try {
         const {
             search     = '',
-            award_type = 'all',
+            position   = '',
             gender     = '',
             batch      = '',
             sort_field = '',
@@ -89,47 +61,46 @@ async function getApplicants(req, res) {
             limit      = 50,
         } = req.query;
 
-        const where = buildWhere(search.trim(), gender.trim(), batch.trim());
+        const where = buildWhere(search.trim(), gender.trim(), batch.trim(), position.trim());
 
-        const needsSports      = award_type === 'all' || award_type === 'sports';
-        const needsCultural    = award_type === 'all' || award_type === 'cultural';
-        const needsTrailblazer = award_type === 'all' || award_type === 'trailblazer';
+        let rows = await ElectionFormResponse.findAll({
+            where,
+            attributes: LIST_FIELDS,
+        });
 
-        const [sportsRows, culturalRows, trailblazerRows] = await Promise.all([
-            needsSports      ? SportsPersonAward.findAll({ where, attributes: SPORTS_FIELDS })      : [],
-            needsCultural    ? CulturalPersonAward.findAll({ where, attributes: CULTURAL_FIELDS })   : [],
-            needsTrailblazer ? TrailblazerAward.findAll({ where, attributes: TRAILBLAZER_FIELDS }) : [],
-        ]);
-
-        let merged = [
-            ...tagSports(sportsRows),
-            ...tagCultural(culturalRows),
-            ...tagTrailblazer(trailblazerRows),
-        ];
+        let data = rows.map(r => {
+            const obj = r.toJSON();
+            // Recompute total_verified_score in real-time
+            const vals = [
+                obj.sports_verified_score,
+                obj.cultural_verified_score,
+                obj.academic_verified_score,
+            ].map(v => parseFloat(v)).filter(n => !isNaN(n));
+            obj.total_verified_score = vals.length > 0 ? vals.reduce((a, b) => a + b, 0).toFixed(2) : null;
+            return obj;
+        });
 
         // Sort
         if (sort_field) {
-            merged = sortRows(merged, sort_field, sort_dir);
+            data = sortRows(data, sort_field, sort_dir);
         } else {
-            merged.sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date));
+            data.sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date));
         }
 
         // Paginate
-        const total     = merged.length;
+        const total     = data.length;
         const pageNum   = Math.max(1, parseInt(page));
         const limitNum  = Math.max(1, Math.min(200, parseInt(limit)));
         const pages     = Math.ceil(total / limitNum) || 1;
-        const paginated = merged.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+        const paginated = data.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
         // Filter dropdown values
-        const allRows = await Promise.all([
-            SportsPersonAward.findAll({ attributes: ['gender', 'batch'] }),
-            CulturalPersonAward.findAll({ attributes: ['gender', 'batch'] }),
-            TrailblazerAward.findAll({ attributes: ['gender', 'batch'] }),
-        ]);
-        const flatten = allRows.flat();
-        const genders = [...new Set(flatten.map(r => r.gender).filter(Boolean))].sort();
-        const batches = [...new Set(flatten.map(r => r.batch).filter(Boolean))].sort();
+        const allRows = await ElectionFormResponse.findAll({
+            attributes: ['gender', 'batch', 'position_selected']
+        });
+        const genders   = [...new Set(allRows.map(r => r.gender).filter(Boolean))].sort();
+        const batches   = [...new Set(allRows.map(r => r.batch).filter(Boolean))].sort();
+        const positions = [...new Set(allRows.map(r => r.position_selected).filter(Boolean))].sort();
 
         return res.json({
             success: true,
@@ -138,7 +109,7 @@ async function getApplicants(req, res) {
             pages,
             limit: limitNum,
             data:  paginated,
-            filters: { genders, batches },
+            filters: { genders, batches, positions },
         });
     } catch (err) {
         console.error('[Applicants] Error:', err.message, err.stack);
@@ -148,69 +119,41 @@ async function getApplicants(req, res) {
 
 
 // ─── Full profile for the modal ───────────────────────────────────────────────
-// GET /api/applicants/profile/:awardType/:id
-// awardType: sports | cultural | trailblazer
-
-const AWARD_MODEL_MAP = {
-    sports:      SportsPersonAward,
-    cultural:    CulturalPersonAward,
-    trailblazer: TrailblazerAward,
-};
+// GET /api/applicants/profile/:id
 
 async function getApplicantProfile(req, res) {
     try {
-        const { awardType, id } = req.params;
-        const Model = AWARD_MODEL_MAP[awardType];
-        if (!Model) return res.status(400).json({ success: false, message: 'Invalid award type' });
+        const { id } = req.params;
 
-        const record = await Model.findByPk(id);
+        const record = await ElectionFormResponse.findByPk(id);
         if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
 
         const email = record.email;
 
-        // Fetch sheet links and attachments in parallel
-        const [sportsSheet, culturalSheet, academicSheet, sportFiles, culturalFiles, academicFiles] = await Promise.all([
-            SportsUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
-            CulturalUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
+        // Fetch workbook sheet link and attachments in parallel
+        const [workbookSheet, attachments] = await Promise.all([
             AcademicUserSheet.findOne({ where: { email }, attributes: ['user_sheet_id'] }),
-            awardType === 'sports' || awardType === 'trailblazer'
-                ? SportAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
-                : [],
-            awardType === 'cultural' || awardType === 'trailblazer'
-                ? CulturalAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
-                : [],
-            awardType === 'trailblazer'
-                ? academicAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] })
-                : [],
+            ElectionAttachment.findAll({ where: { submission_id: id }, attributes: ['id', 'file_name'] }),
         ]);
 
-        // Merged PDF — check if the combined file exists in the award-type subfolder
-        const mergeKeyMap  = { sports: 'sport', cultural: 'cultural', trailblazer: 'trailblazer' };
-        const mergeSubMap  = { sports: 'sport', cultural: 'cultural', trailblazer: 'academic' };
-        const mk           = mergeKeyMap[awardType];
-        const sub          = mergeSubMap[awardType];
-        const sid          = (record.student_id || '').toString().trim();
-        const mergedFile   = mk && sid ? `${sid}_${mk}_merged.pdf` : null;
-        const mergedPdfUrl = mergedFile && sub && fs.existsSync(path.join(ATTACHMENT_DIR, sub, mergedFile))
-            ? `${MERGED_PDF_BASE}/${sub}/${mergedFile}`
+        // Merged PDF
+        const sid        = (record.student_id || '').toString().trim();
+        const mergedFile = sid ? `${sid}_election_merged.pdf` : null;
+        const mergedPdfUrl = mergedFile && fs.existsSync(path.join(ATTACHMENT_DIR, 'election', mergedFile))
+            ? `${MERGED_PDF_BASE}/election/${mergedFile}`
             : null;
 
         return res.json({
             success: true,
             data: {
                 ...record.toJSON(),
-                award_type: awardType,
                 sheets: {
-                    sports:   sportsSheet?.user_sheet_id   ? `https://docs.google.com/spreadsheets/d/${sportsSheet.user_sheet_id}`   : null,
-                    cultural: culturalSheet?.user_sheet_id ? `https://docs.google.com/spreadsheets/d/${culturalSheet.user_sheet_id}` : null,
-                    academic: academicSheet?.user_sheet_id ? `https://docs.google.com/spreadsheets/d/${academicSheet.user_sheet_id}` : null,
+                    workbook: workbookSheet?.user_sheet_id
+                        ? `https://docs.google.com/spreadsheets/d/${workbookSheet.user_sheet_id}`
+                        : null,
                 },
                 mergedPdfUrl,
-                attachments: {
-                    sport:    sportFiles.map(f    => ({ id: f.id, fileName: f.file_name })),
-                    cultural: culturalFiles.map(f => ({ id: f.id, fileName: f.file_name })),
-                    academic: academicFiles.map(f => ({ id: f.id, fileName: f.file_name })),
-                },
+                attachments: attachments.map(f => ({ id: f.id, fileName: f.file_name })),
             },
         });
     } catch (err) {
@@ -221,7 +164,7 @@ async function getApplicantProfile(req, res) {
 
 // ─── Serve attachment or photo files (auth-protected) ─────────────────────────
 // GET /api/applicants/file/:fileType/:fileName
-// fileType: photo | sport | cultural | academic
+// fileType: photo | election
 
 function serveFile(req, res) {
     const { fileType, fileName } = req.params;
@@ -232,8 +175,8 @@ function serveFile(req, res) {
     let filePath;
     if (fileType === 'photo') {
         filePath = path.join(PHOTO_DIR, safe);
-    } else if (['sport', 'cultural', 'academic'].includes(fileType)) {
-        filePath = path.join(ATTACHMENT_DIR, fileType, safe);
+    } else if (fileType === 'election') {
+        filePath = path.join(ATTACHMENT_DIR, 'election', safe);
     } else {
         return res.status(400).json({ message: 'Invalid file type' });
     }
@@ -246,28 +189,24 @@ function serveFile(req, res) {
 }
 
 // ─── Update editable fields on an applicant record ─────────────────────────
-// PATCH /api/applicants/profile/:awardType/:id
-// Body: { academic_score, sports_score, cultural_score, sports_verified_score, cultural_verified_score }
+// PATCH /api/applicants/profile/:id
 
-const EDITABLE_FIELDS = {
-    sports:      ['sports_score', 'sports_verified_score'],
-    cultural:    ['cultural_score', 'cultural_verified_score'],
-    trailblazer: ['academic_score', 'sports_score', 'cultural_score', 'sports_verified_score', 'cultural_verified_score', 'academic_verified_score', 'total_verified_score'],
-};
+const EDITABLE_FIELDS = [
+    'academic_score', 'sports_score', 'cultural_score',
+    'sports_verified_score', 'cultural_verified_score', 'academic_verified_score',
+    'total_verified_score', 'status',
+];
 
 async function updateApplicant(req, res) {
     try {
-        const { awardType, id } = req.params;
-        const Model = AWARD_MODEL_MAP[awardType];
-        if (!Model) return res.status(400).json({ success: false, message: 'Invalid award type' });
+        const { id } = req.params;
 
-        const record = await Model.findByPk(id);
+        const record = await ElectionFormResponse.findByPk(id);
         if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
 
-        // Only allow whitelisted fields for this award type
-        const allowed = EDITABLE_FIELDS[awardType] || [];
+        // Only allow whitelisted fields
         const updates = {};
-        for (const field of allowed) {
+        for (const field of EDITABLE_FIELDS) {
             if (req.body[field] !== undefined) {
                 updates[field] = req.body[field] === '' ? null : req.body[field];
             }
@@ -278,12 +217,6 @@ async function updateApplicant(req, res) {
         }
 
         await record.update(updates);
-
-        // ── Background score propagation ────────────────────────────────────
-        // Fires after response is sent — non-blocking, non-fatal.
-        // If this student has sibling award records, the same verified score
-        // is automatically mirrored so admins never have to enter it twice.
-        setImmediate(() => syncVerifiedScores(record.email, awardType, updates));
 
         return res.json({ success: true, data: record.toJSON() });
     } catch (err) {

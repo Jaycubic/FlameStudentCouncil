@@ -11,12 +11,10 @@ import {
   Button, useDisclosure, Badge,
 } from '@chakra-ui/react';
 import {
-  TrophyIcon,
-  MusicalNoteIcon,
-  StarIcon,
   UserGroupIcon,
   ArrowsPointingOutIcon,
 } from '@heroicons/react/24/outline';
+import { FaVoteYea } from 'react-icons/fa';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
@@ -111,6 +109,29 @@ function ChartCard({ title, children, onExpand }) {
   );
 }
 
+// Color palette for dynamic positions
+const POSITION_COLORS = [
+  'rgba(59, 130, 246, 0.75)',   // blue
+  'rgba(236, 72, 153, 0.75)',   // pink
+  'rgba(245, 158, 11, 0.75)',   // amber
+  'rgba(34, 197, 94, 0.75)',    // green
+  'rgba(168, 85, 247, 0.75)',   // purple
+  'rgba(244, 63, 94, 0.75)',    // rose
+  'rgba(14, 165, 233, 0.75)',   // sky
+  'rgba(251, 146, 60, 0.75)',   // orange
+];
+
+const POSITION_GRADIENTS = [
+  'linear(to-br, blue.400, blue.600)',
+  'linear(to-br, pink.400, pink.600)',
+  'linear(to-br, orange.400, orange.600)',
+  'linear(to-br, green.400, green.600)',
+  'linear(to-br, purple.400, purple.600)',
+  'linear(to-br, red.400, red.600)',
+  'linear(to-br, cyan.400, cyan.600)',
+  'linear(to-br, yellow.400, yellow.600)',
+];
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -118,12 +139,13 @@ function Dashboard() {
   const socketRef = useRef(null);
 
   const [stats, setStats] = useState({
-    sportsCount: 0,
-    culturalCount: 0,
-    trailblazerCount: 0,
     totalApplicants: 0,
-    genderByAward: { sports: {}, cultural: {}, trailblazer: {} },
-    batchByAward: [],
+    totalSubmissions: 0,
+    positionCounts: {},
+    genderByPosition: {},
+    genderTotals: { male: 0, female: 0, other: 0 },
+    batchByPosition: [],
+    positions: [],
   });
 
   const genderModal = useDisclosure();
@@ -131,7 +153,6 @@ function Dashboard() {
 
   const textColor = useColorModeValue('gray.800', 'white');
   const cardBg = useColorModeValue('white', 'gray.800');
-  const subText = useColorModeValue('gray.500', 'gray.400');
 
   // Redirect students
   useEffect(() => {
@@ -149,15 +170,8 @@ function Dashboard() {
   useEffect(() => {
     const socket = io('https://flamestudentcouncil.in');
     socketRef.current = socket;
-
-    socket.on('connect', () => {
-      socket.emit('requestDashboard');
-    });
-
-    socket.on('dashboardUpdate', (data) => {
-      if (data) setStats(data);
-    });
-
+    socket.on('connect', () => { socket.emit('requestDashboard'); });
+    socket.on('dashboardUpdate', (data) => { if (data) setStats(data); });
     return () => socket.disconnect();
   }, []);
 
@@ -175,67 +189,45 @@ function Dashboard() {
     },
   };
 
-  // ── Gender distribution by award ─────────────────────────────────────────
+  // ── Gender distribution by position ─────────────────────────────────────
+  const positionLabels = stats.positions || Object.keys(stats.positionCounts || {});
   const genderChartData = {
-    labels: ['Sports Award', 'Cultural Award', 'Trailblazer Award'],
+    labels: positionLabels,
     datasets: [
       {
         label: 'Male',
-        data: [
-          stats.genderByAward.sports?.male ?? 0,
-          stats.genderByAward.cultural?.male ?? 0,
-          stats.genderByAward.trailblazer?.male ?? 0,
-        ],
+        data: positionLabels.map(pos => stats.genderByPosition?.[pos]?.male ?? 0),
         backgroundColor: 'rgba(59, 130, 246, 0.75)',
         borderRadius: 6,
       },
       {
         label: 'Female',
-        data: [
-          stats.genderByAward.sports?.female ?? 0,
-          stats.genderByAward.cultural?.female ?? 0,
-          stats.genderByAward.trailblazer?.female ?? 0,
-        ],
+        data: positionLabels.map(pos => stats.genderByPosition?.[pos]?.female ?? 0),
         backgroundColor: 'rgba(236, 72, 153, 0.75)',
         borderRadius: 6,
       },
       {
         label: 'Other',
-        data: [
-          stats.genderByAward.sports?.other ?? 0,
-          stats.genderByAward.cultural?.other ?? 0,
-          stats.genderByAward.trailblazer?.other ?? 0,
-        ],
+        data: positionLabels.map(pos => stats.genderByPosition?.[pos]?.other ?? 0),
         backgroundColor: 'rgba(168, 85, 247, 0.75)',
         borderRadius: 6,
       },
     ],
   };
 
-  // ── Batch distribution by award ───────────────────────────────────────────
+  // ── Batch distribution by position ───────────────────────────────────────
   const batchChartData = {
-    labels: stats.batchByAward.map(b => b.batch),
-    datasets: [
-      {
-        label: 'Sports',
-        data: stats.batchByAward.map(b => b.sports),
-        backgroundColor: 'rgba(59, 130, 246, 0.75)',
-        borderRadius: 4,
-      },
-      {
-        label: 'Cultural',
-        data: stats.batchByAward.map(b => b.cultural),
-        backgroundColor: 'rgba(236, 72, 153, 0.75)',
-        borderRadius: 4,
-      },
-      {
-        label: 'Trailblazer',
-        data: stats.batchByAward.map(b => b.trailblazer),
-        backgroundColor: 'rgba(245, 158, 11, 0.75)',
-        borderRadius: 4,
-      },
-    ],
+    labels: (stats.batchByPosition || []).map(b => b.batch),
+    datasets: positionLabels.map((pos, i) => ({
+      label: pos,
+      data: (stats.batchByPosition || []).map(b => b[pos] || 0),
+      backgroundColor: POSITION_COLORS[i % POSITION_COLORS.length],
+      borderRadius: 4,
+    })),
   };
+
+  // Build stat cards dynamically from positionCounts
+  const positionEntries = Object.entries(stats.positionCounts || {}).sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <>
@@ -246,25 +238,16 @@ function Dashboard() {
         />
 
         {/* ── Stat Cards ── */}
-        <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={5} mb={8}>
-          <StatCard
-            title="Sports Person of The Year Award Applicants"
-            stat={stats.sportsCount}
-            icon={TrophyIcon}
-            gradient="linear(to-br, blue.400, blue.600)"
-          />
-          <StatCard
-            title="Best in Co-curricular Activities Applicants"
-            stat={stats.culturalCount}
-            icon={MusicalNoteIcon}
-            gradient="linear(to-br, pink.400, pink.600)"
-          />
-          <StatCard
-            title="Trailblazer Award Applicants"
-            stat={stats.trailblazerCount}
-            icon={StarIcon}
-            gradient="linear(to-br, orange.400, orange.600)"
-          />
+        <SimpleGrid columns={{ base: 1, sm: 2, lg: Math.min(positionEntries.length + 1, 4) }} spacing={5} mb={8}>
+          {positionEntries.map(([position, count], i) => (
+            <StatCard
+              key={position}
+              title={`${position} Applicants`}
+              stat={count}
+              icon={FaVoteYea}
+              gradient={POSITION_GRADIENTS[i % POSITION_GRADIENTS.length]}
+            />
+          ))}
           <StatCard
             title="Total Applicants"
             stat={stats.totalApplicants}
@@ -277,7 +260,7 @@ function Dashboard() {
         {/* ── Charts ── */}
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
           <ChartCard
-            title="Gender Distribution by Award"
+            title="Gender Distribution by Position"
             onExpand={genderModal.onOpen}
           >
             <Box height="300px">
@@ -286,7 +269,7 @@ function Dashboard() {
           </ChartCard>
 
           <ChartCard
-            title="Batch Distribution by Award"
+            title="Batch Distribution by Position"
             onExpand={batchModal.onOpen}
           >
             <Box height="300px">
@@ -299,7 +282,7 @@ function Dashboard() {
         <Modal isOpen={genderModal.isOpen} onClose={genderModal.onClose} size="xl">
           <ModalOverlay backdropFilter="blur(4px)" />
           <ModalContent bg={cardBg} borderRadius="2xl">
-            <ModalHeader color={textColor}>Gender Distribution by Award</ModalHeader>
+            <ModalHeader color={textColor}>Gender Distribution by Position</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Box height="450px">
@@ -316,7 +299,7 @@ function Dashboard() {
         <Modal isOpen={batchModal.isOpen} onClose={batchModal.onClose} size="xl">
           <ModalOverlay backdropFilter="blur(4px)" />
           <ModalContent bg={cardBg} borderRadius="2xl">
-            <ModalHeader color={textColor}>Batch Distribution by Award</ModalHeader>
+            <ModalHeader color={textColor}>Batch Distribution by Position</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Box height="450px">

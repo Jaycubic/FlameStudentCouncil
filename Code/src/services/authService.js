@@ -336,6 +336,7 @@ class AuthService {
     localStorage.removeItem('expiresAt');
     localStorage.removeItem('awardForm_role');
     localStorage.removeItem('awardForm_agreed');
+    localStorage.removeItem('councilForm_agreed');
   }
 
   getCurrentUser() {

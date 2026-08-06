@@ -16,12 +16,13 @@ import NotFound from './pages/NotFound'
 // Lazy load components
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Users = lazy(() => import('./pages/Users'))
-const AwardForm = lazy(() => import('./pages/AwardForm'))
+const StudentCouncilForm = lazy(() => import('./pages/StudentCouncilForm'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Settings = lazy(() => import('./pages/Settings'))
 const TimeManagement = lazy(() => import('./pages/TimeManagement'))
 const ApplicantsView = lazy(() => import('./pages/ApplicantsView'))
 const NominationView = lazy(() => import('./pages/NominationView'))
+const PositionsView = lazy(() => import('./pages/PositionsView'))
 
 // Theme configuration
 const theme = extendTheme({
@@ -86,12 +87,13 @@ function App() {
                 }
               >
                 <Route path="/users" element={<Users />} />
-                <Route path="/award-form" element={<AwardForm />} />
+                <Route path="/award-form" element={<StudentCouncilForm />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/time-management" element={<TimeManagement />} />
                 <Route path="/applicants" element={<ApplicantsView />} />
                 <Route path="/nominations" element={<NominationView />} />
+                <Route path="/positions" element={<PositionsView />} />
                 <Route path="/" element={<Dashboard />} />
               </Route>
 

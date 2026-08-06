@@ -4,9 +4,16 @@
 #   python3 insert_photo_formula.py <sheet_id> <drive_file_id>
 #                                   <master_access_token> <master_refresh_token>
 #                                   <name> <student_id> <batch> <email> <mobile_number>
+#                                   <position_selected>
 #
-# Writes =IMAGE() into 'Personal Information'!B13
-# Writes student info into 'Personal Information'!C4:D4 through C8:D8
+# Writes to 'Personal Information' sheet (per migration spec §2.1):
+#   B2 = Name
+#   B3 = Student ID
+#   B4 = Batch
+#   B5 = Email
+#   B6 = Mobile Number
+#   B7 = Position Selected  (NEW)
+#   B9 = Photo (=IMAGE() formula)
 #
 # Returns: { success: true }  OR  { success: false, error }
 
@@ -46,7 +53,7 @@ def main():
             'success': False,
             'error': 'Usage: insert_photo_formula.py <sheet_id> <drive_file_id> '
                      '<master_access_token> <master_refresh_token> '
-                     '[name] [student_id] [batch] [email] [mobile_number]'
+                     '[name] [student_id] [batch] [email] [mobile_number] [position_selected]'
         }))
         return
 
@@ -55,12 +62,13 @@ def main():
     master_access     = sys.argv[3]
     master_refresh    = sys.argv[4]
 
-    # Optional student info args
+    # Student info args
     name              = sys.argv[5] if len(sys.argv) > 5 else ''
     student_id        = sys.argv[6] if len(sys.argv) > 6 else ''
     batch             = sys.argv[7] if len(sys.argv) > 7 else ''
     email             = sys.argv[8] if len(sys.argv) > 8 else ''
     mobile_number     = sys.argv[9] if len(sys.argv) > 9 else ''
+    position_selected = sys.argv[10] if len(sys.argv) > 10 else ''
 
     # ── Build credentials ──────────────────────────────────────────────────────
     try:
@@ -69,35 +77,38 @@ def main():
         print(json.dumps({'success': False, 'error': str(e)}))
         return
 
-    # ── Build the IMAGE formula ────────────────────────────────────────────────
+    # ── Build the batch update data ────────────────────────────────────────────
     data = []
 
+    # Student info — new cell mapping (B2 through B7)
+    if name:
+        data.append({'range': "'Personal Information'!B2", 'values': [[name]]})
+    if student_id:
+        data.append({'range': "'Personal Information'!B3", 'values': [[student_id]]})
+    if batch:
+        data.append({'range': "'Personal Information'!B4", 'values': [[batch]]})
+    if email:
+        data.append({'range': "'Personal Information'!B5", 'values': [[email]]})
+    if mobile_number:
+        data.append({'range': "'Personal Information'!B6", 'values': [[mobile_number]]})
+    if position_selected:
+        data.append({'range': "'Personal Information'!B7", 'values': [[position_selected]]})
+
+    # Photo formula in B9 (moved from old B13)
     if drive_file_id and drive_file_id != 'NONE':
         image_url = f'https://lh3.googleusercontent.com/d/{drive_file_id}'
         formula   = f'=IMAGE("{image_url}")'
         data.append({
-            'range': "'Personal Information'!B13",
+            'range': "'Personal Information'!B9",
             'values': [[formula]]
         })
 
+    if not data:
+        print(json.dumps({'success': True, 'message': 'No data to insert'}))
+        return
+
     try:
         sheets_service = build('sheets', 'v4', credentials=creds)
-
-        # Student info in merged cells C4:D4 through C8:D8
-        if name:
-            data.append({'range': "'Personal Information'!C4", 'values': [[name]]})
-        if student_id:
-            data.append({'range': "'Personal Information'!C5", 'values': [[student_id]]})
-        if batch:
-            data.append({'range': "'Personal Information'!C6", 'values': [[batch]]})
-        if email:
-            data.append({'range': "'Personal Information'!C7", 'values': [[email]]})
-        if mobile_number:
-            data.append({'range': "'Personal Information'!C8", 'values': [[mobile_number]]})
-
-        if not data:
-            print(json.dumps({'success': True, 'message': 'No data to insert'}))
-            return
 
         sheets_service.spreadsheets().values().batchUpdate(
             spreadsheetId=sheet_id,

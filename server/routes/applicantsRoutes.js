@@ -5,18 +5,15 @@ const { getApplicants, getApplicantProfile, updateApplicant, serveFile } = requi
 const { validateTokenFileServe, requireAdmin } = require('../middleware/auth');
 
 // All applicants routes use validateTokenFileServe (cookie-based JWT, no fingerprint check).
-// The x-device-id custom header triggers CORS preflight on fetch requests, which can prevent
-// the browser from attaching the accessToken cookie on same-origin API calls.
-// Security is maintained: valid JWT required + admin role enforced on every route.
 
 // GET  /api/applicants
 router.get('/', validateTokenFileServe, requireAdmin, getApplicants);
 
-// GET  /api/applicants/profile/:awardType/:id
-router.get('/profile/:awardType/:id', validateTokenFileServe, requireAdmin, getApplicantProfile);
+// GET  /api/applicants/profile/:id  (simplified — single model, no awardType param)
+router.get('/profile/:id', validateTokenFileServe, requireAdmin, getApplicantProfile);
 
-// PATCH /api/applicants/profile/:awardType/:id  — inline edit scores
-router.patch('/profile/:awardType/:id', validateTokenFileServe, requireAdmin, updateApplicant);
+// PATCH /api/applicants/profile/:id  — inline edit scores
+router.patch('/profile/:id', validateTokenFileServe, requireAdmin, updateApplicant);
 
 // GET  /api/applicants/file/:fileType/:fileName  — no fingerprint (browser direct fetch)
 router.get('/file/:fileType/:fileName', validateTokenFileServe, requireAdmin, serveFile);

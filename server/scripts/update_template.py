@@ -3,14 +3,10 @@
 # Usage:
 #   python update_template.py <type> <access_token> <refresh_token>
 #
-# type: 'cultural', 'sports', or 'academic'
+# type: 'workbook' (single type — replaces the old sports/cultural/academic)
 #
-# The Drive file IDs are read from environment variables:
-#   SPORTS_TEMPLATE_ID
-#   CULTURAL_TEMPLATE_ID
-#   ACADEMIC_TEMPLATE_ID
-#
-# Set these once in your .env file. Never hardcoded.
+# The Drive file ID is read from environment variable:
+#   WORKBOOK_TEMPLATE_ID
 #
 # Returns: { success, message } or { success: false, error }
 
@@ -38,15 +34,13 @@ def main():
     refresh_token = sys.argv[3]
 
     ENV_KEY_MAP = {
-        'sports':   'SPORTS_TEMPLATE_ID',
-        'cultural': 'CULTURAL_TEMPLATE_ID',
-        'academic': 'ACADEMIC_TEMPLATE_ID',
+        'workbook': 'WORKBOOK_TEMPLATE_ID',
     }
 
     if sheet_type not in ENV_KEY_MAP:
         print(json.dumps({
             "success": False,
-            "error": f"Invalid type '{sheet_type}'. Expected: sports, cultural, academic"
+            "error": f"Invalid type '{sheet_type}'. Expected: workbook"
         }))
         return
 

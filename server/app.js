@@ -104,6 +104,8 @@ app.use('/api/applicants', require('./routes/applicantsRoutes.js'));
 app.use('/api/awards-workbook', require('./routes/awardsWorkbookRoutes.js'));
 app.use('/api/nominations', require('./routes/nominationRoutes.js'));
 app.use('/api/email',       require('./routes/emailRoutes.js'));
+app.use('/api/positions',   require('./routes/positionRoutes.js'));
+app.use('/api/election-draft', require('./routes/electionDraftRoutes.js'));
 
 
 // Start BullMQ sheet worker (runs in-process)

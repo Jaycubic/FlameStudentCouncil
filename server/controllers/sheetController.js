@@ -1,6 +1,6 @@
 // controllers/sheetController.js
 //
-// Architecture: pool-first hot path
+// Architecture: pool-first hot path (adapted for single workbook type)
 //
 //   FAST PATH (pool has sheets):
 //     1. DB lookup — already has sheet?          ~1ms
@@ -20,12 +20,11 @@
 'use strict';
 
 const {
-    CulturalUserSheet,
-    SportsUserSheet,
     AcademicUserSheet,
     User,
     StudentData,
     PhotoDriveUpload,
+    ElectionDraft,
 } = require('../models');
 const SheetPool       = require('../models/SheetPool');
 const { spawn }       = require('child_process');
@@ -38,12 +37,10 @@ const { LOW_WATER_MARK } = require('../workers/poolRefillWorker');
 const log             = require('../utils/logger').child({ module: 'SheetController' });
 
 const MASTER_EMAIL = 'student.awards@flame.edu.in';
-const FOLDER_ID    = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI';
+const FOLDER_ID    = '1GBzDVaUcwehFAMrziH9zt8Cnjx-sN7ly';
 
 const NAME_MAP = {
-    sports:   'Sports Matrix',
-    cultural: 'Socio-Cultural Matrix',
-    academic: 'Academic Matrix',
+    workbook: 'Student Council Workbook - 2026/2027',
 };
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────
@@ -116,8 +113,10 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
     });
 }
 
-// ─── Insert =IMAGE() formula into cell B2 after sheet assignment ─────────────
-// Non-fatal: if Drive file not cached yet or script fails, sheet still works.
+// ─── Insert student info + photo into the "Personal Information" sheet ────────
+// Cell mapping (per migration spec §2.1):
+//   B2 = Name, B3 = Student ID, B4 = Batch, B5 = Email,
+//   B6 = Mobile Number, B7 = Position Selected, B9 = Photo
 
 async function insertPhotoFormula(sheetId, userEmail, masterUser) {
     try {
@@ -150,6 +149,10 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
             driveFileId = 'NONE';
         }
 
+        // Fetch the student's saved position from ElectionDraft (if any)
+        const draft = await ElectionDraft.findOne({ where: { email: userEmail }, attributes: ['position_selected'] });
+        const positionSelected = draft?.position_selected || '';
+
         const scriptPath = path.join(__dirname, '../scripts/insert_photo_formula.py');
         const result = await runPythonScript(scriptPath, [
             sheetId,
@@ -161,6 +164,7 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
             student.batch         || '',
             student.email_id      || userEmail,
             student.contact_no ? student.contact_no.toString() : '',
+            positionSelected,
         ]);
 
         if (result.success) {
@@ -258,7 +262,7 @@ async function handleRestore(res, existingSheet, userEmail, type) {
             success: true,
             status:  'queued',
             jobId:   job.id,
-            message: 'Restoring your sheet access. Please wait...',
+            message: 'Restoring your workbook access. Please wait...',
         });
     }
 }
@@ -268,7 +272,9 @@ async function handleRestore(res, existingSheet, userEmail, type) {
 const sheetController = {
 
     /**
-     * GET /api/sheets/:type
+     * GET /api/sheets/workbook
+     *
+     * Single workbook type (replaces the old 3 types: cultural/sports/academic).
      *
      * Priority order:
      *   1. Already has sheet in DB → return immediately
@@ -281,16 +287,12 @@ const sheetController = {
             const userEmail = req.user.email;
             const type      = req.params.type;
 
-            if (!['cultural', 'sports', 'academic'].includes(type)) {
-                return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
+            // Only 'workbook' type is supported now
+            if (type !== 'workbook') {
+                return res.status(400).json({ success: false, message: 'Invalid sheet type. Use "workbook".' });
             }
 
-            const MODEL_MAP = {
-                cultural: CulturalUserSheet,
-                sports:   SportsUserSheet,
-                academic: AcademicUserSheet,
-            };
-            const Model = MODEL_MAP[type];
+            const Model = AcademicUserSheet; // Reusing AcademicUserSheet as the single sheet tracker
 
             // ── 1. Already has a sheet ───────────────────────────────────────
             const existingSheet = await Model.findOne({ where: { email: userEmail } });
@@ -341,13 +343,13 @@ const sheetController = {
                     // Script failed — release pool row so it can be retried
                     await pooled.update({ assigned_to: null, assigned_at: null });
                     log.error({ userEmail, err: err.message }, '[Pool] rename_and_share failed — pool row released');
-                    return res.status(500).json({ success: false, message: 'Sheet setup failed: ' + err.message });
+                    return res.status(500).json({ success: false, message: 'Workbook setup failed: ' + err.message });
                 }
 
                 if (!renameResult.success) {
                     await pooled.update({ assigned_to: null, assigned_at: null });
                     log.error({ userEmail, error: renameResult.error }, '[Pool] rename_and_share returned failure — pool row released');
-                    return res.status(500).json({ success: false, message: 'Sheet setup failed: ' + renameResult.error });
+                    return res.status(500).json({ success: false, message: 'Workbook setup failed: ' + renameResult.error });
                 }
 
                 // ── 3b. Persist to user sheet table ──────────────────────────
@@ -377,7 +379,7 @@ const sheetController = {
                         .catch(err => log.error({ err: err.message }, '[Pool] Failed to enqueue refill'));
                 }
 
-                log.info({ userEmail, sheetId, remaining }, '[Pool] ✅ Sheet assigned via pool');
+                log.info({ userEmail, sheetId, remaining }, '[Pool] ✅ Workbook assigned via pool');
 
                 return res.status(created ? 201 : 200).json({
                     success:  true,
@@ -388,8 +390,6 @@ const sheetController = {
             }
 
             // ── 4. Pool exhausted — fallback to live generation ───────────────
-            // This should be rare (pool refiller keeps it stocked).
-            // Trigger an emergency refill so future requests hit the pool.
             log.warn({ userEmail, type }, '[Pool] Pool empty — falling back to live generation');
 
             poolQueue
@@ -418,8 +418,8 @@ const sheetController = {
                     const result = await runPythonScript(scriptPath, scriptArgs);
 
                     if (!result.success) {
-                        log.error({ userEmail, error: result.error }, '[Fallback] Python sheet generation error');
-                        return res.status(500).json({ success: false, message: 'Sheet generation failed: ' + result.error });
+                        log.error({ userEmail, error: result.error }, '[Fallback] Python workbook generation error');
+                        return res.status(500).json({ success: false, message: 'Workbook generation failed: ' + result.error });
                     }
 
                     const [sheet, created] = await Model.findOrCreate({
@@ -458,7 +458,7 @@ const sheetController = {
                     success: true,
                     status:  'queued',
                     jobId:   job.id,
-                    message: 'Your sheet is being generated. Please wait...',
+                    message: 'Your workbook is being generated. Please wait...',
                 });
             }
 
@@ -487,7 +487,7 @@ const sheetController = {
                 return res.status(200).json({
                     success: false,
                     status:  'failed',
-                    error:   result.error || 'Sheet generation failed. Please try again.',
+                    error:   result.error || 'Workbook generation failed. Please try again.',
                 });
             }
             return res.status(200).json({ success: true, status: result.status });
@@ -500,17 +500,15 @@ const sheetController = {
 
     /**
      * GET /api/sheets/pool-status
-     * Admin endpoint: shows current pool levels per type.
+     * Admin endpoint: shows current pool levels.
      */
     async getPoolStatus(req, res) {
         try {
-            const counts = await Promise.all(
-                ['cultural', 'sports', 'academic'].map(async type => ({
-                    type,
-                    available: await SheetPool.count({ where: { type, assigned_to: null } }),
-                    assigned:  await SheetPool.count({ where: { type, assigned_to: { [require('sequelize').Op.not]: null } } }),
-                }))
-            );
+            const counts = [{
+                type: 'workbook',
+                available: await SheetPool.count({ where: { type: 'workbook', assigned_to: null } }),
+                assigned:  await SheetPool.count({ where: { type: 'workbook', assigned_to: { [require('sequelize').Op.not]: null } } }),
+            }];
 
             return res.status(200).json({ success: true, pool: counts });
         } catch (error) {
@@ -528,17 +526,13 @@ const sheetController = {
             const userEmail = req.body.email || req.user.email;
             const type      = req.params.type;
 
-            if (!['cultural', 'sports', 'academic'].includes(type)) {
+            if (type !== 'workbook') {
                 return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
             }
 
-            const Model = type === 'cultural' ? CulturalUserSheet
-                        : type === 'sports'   ? SportsUserSheet
-                                               : AcademicUserSheet;
-
-            const sheet = await Model.findOne({ where: { email: userEmail } });
+            const sheet = await AcademicUserSheet.findOne({ where: { email: userEmail } });
             if (!sheet) {
-                return res.status(404).json({ success: false, message: 'No sheet found for this user.' });
+                return res.status(404).json({ success: false, message: 'No workbook found for this user.' });
             }
             if (!sheet.student_permission_id) {
                 return res.status(200).json({ success: true, message: 'No student permission to revoke.' });
@@ -569,7 +563,7 @@ const sheetController = {
         try {
             const type = req.params.type;
 
-            if (!['cultural', 'sports', 'academic'].includes(type)) {
+            if (type !== 'workbook') {
                 return res.status(400).json({ success: false, message: 'Invalid sheet type.' });
             }
 

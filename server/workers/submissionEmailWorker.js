@@ -2,7 +2,7 @@
 //
 // BullMQ worker — concurrency 5.
 // Sends a short, nicely-formatted submission confirmation email to the student
-// after they submit an award application.  Non-blocking; failure retried 3×.
+// after they submit a Student Council election application.
 
 const { Worker }   = require('bullmq');
 const nodemailer   = require('nodemailer');
@@ -25,15 +25,8 @@ const transporter = nodemailer.createTransport({
     rateDelta:      1000,
 });
 
-// ─── Award display names ──────────────────────────────────────────────────────
-const AWARD_LABELS = {
-    sports_person:   { label: 'SportsPerson of The Year Award',    icon: '🏅', color: '#2563eb' },
-    cultural_person: { label: 'Best in Co-curricular Activities', icon: '🎭', color: '#ec4899' },
-    trailblazer:     { label: 'Trailblazer Award',          icon: '🔥', color: '#f59e0b' },
-};
-
 // ─── Email HTML builder ───────────────────────────────────────────────────────
-function buildConfirmationEmail({ studentName, awardLabel, awardIcon, awardColor, submissionId }) {
+function buildConfirmationEmail({ studentName, positionSelected, submissionId }) {
     const date = new Date().toLocaleDateString('en-IN', {
         day: 'numeric', month: 'long', year: 'numeric',
     });
@@ -55,8 +48,8 @@ function buildConfirmationEmail({ studentName, awardLabel, awardIcon, awardColor
     .icon-wrap { text-align:center; margin:28px 0 16px; }
     .icon-wrap span { font-size:52px; }
     .body { padding:0 40px 32px; color:#1e293b; font-size:14.5px; line-height:1.8; }
-    .pill { display:inline-block; background:${awardColor}18; color:${awardColor};
-            border:1.5px solid ${awardColor}40; border-radius:99px;
+    .pill { display:inline-block; background:#2563eb18; color:#2563eb;
+            border:1.5px solid #2563eb40; border-radius:99px;
             padding:4px 16px; font-size:12px; font-weight:700; margin-bottom:20px; }
     .check-box { background:#f0fdf4; border:1.5px solid #86efac; border-radius:14px;
                  padding:16px 20px; margin:20px 0; }
@@ -70,19 +63,19 @@ function buildConfirmationEmail({ studentName, awardLabel, awardIcon, awardColor
 <body>
   <div class="wrap">
     <div class="hdr">
-      <h1>🏆 Student Council</h1>
+      <h1>🏛️ Student Council</h1>
       <p>OFFICIAL SUBMISSION CONFIRMATION</p>
     </div>
 
-    <div class="icon-wrap"><span>${awardIcon}</span></div>
+    <div class="icon-wrap"><span>🗳️</span></div>
 
     <div class="body">
       <p>Dear <strong>${studentName}</strong>,</p>
 
-      <span class="pill">${awardIcon} ${awardLabel}</span>
+      <span class="pill">🗳️ ${positionSelected}</span>
 
       <p>
-        Your application has been <strong>received and recorded</strong> successfully.
+        Your Student Council election application has been <strong>received and recorded</strong> successfully.
         Our team will review your submission and update you on the next steps.
       </p>
 
@@ -109,37 +102,31 @@ function buildConfirmationEmail({ studentName, awardLabel, awardIcon, awardColor
 
 // ─── Worker ───────────────────────────────────────────────────────────────────
 const worker = new Worker('submission-email', async (job) => {
-    const { studentEmail, studentName, awardRole, submissionId } = job.data;
+    const { studentEmail, studentName, positionSelected, submissionId } = job.data;
 
-    const cfg = AWARD_LABELS[awardRole] || {
-        label: 'Award', icon: '🏆', color: '#2563eb',
-    };
-
-    log.info({ studentEmail, awardRole, submissionId, attempt: job.attemptsMade + 1 },
+    log.info({ studentEmail, positionSelected, submissionId, attempt: job.attemptsMade + 1 },
         '[SubmissionEmail] Sending confirmation');
 
     const html = buildConfirmationEmail({
-        studentName:  studentName || 'Student',
-        awardLabel:   cfg.label,
-        awardIcon:    cfg.icon,
-        awardColor:   cfg.color,
+        studentName:      studentName || 'Student',
+        positionSelected: positionSelected || 'Student Council Position',
         submissionId,
     });
 
     await transporter.sendMail({
         from:    `"Student Council" <${process.env.EMAIL_USER}>`,
         to:      studentEmail,
-        subject: `${cfg.icon} Submission Confirmed — ${cfg.label}`,
+        subject: `🗳️ Submission Confirmed — ${positionSelected || 'Student Council'}`,
         html,
     });
 
-    log.info({ studentEmail, awardRole }, '[SubmissionEmail] ✅ Confirmation sent');
+    log.info({ studentEmail, positionSelected }, '[SubmissionEmail] ✅ Confirmation sent');
     return { sent: true };
 
 }, {
     connection,
     concurrency: 5,
-    limiter: { max: 10, duration: 60_000 },   // 10/min — well within Gmail quota
+    limiter: { max: 10, duration: 60_000 },
 });
 
 // ─── Events ───────────────────────────────────────────────────────────────────

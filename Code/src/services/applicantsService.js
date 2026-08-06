@@ -13,10 +13,10 @@ class ApplicantsService {
         return deviceId;
     }
 
-    async getApplicants({ awardType = 'all', search = '', gender = '', batch = '', sortField = '', sortDir = 'asc', page = 1, limit = 50 } = {}) {
+    async getApplicants({ position = '', search = '', gender = '', batch = '', sortField = '', sortDir = 'asc', page = 1, limit = 50 } = {}) {
         const deviceId = await this.getDeviceId();
         const params = new URLSearchParams({
-            award_type: awardType,
+            position,
             search,
             gender,
             batch,
@@ -35,9 +35,10 @@ class ApplicantsService {
         }
         return res.json();
     }
-    async getProfile(awardType, id) {
+
+    async getProfile(id) {
         const deviceId = await this.getDeviceId();
-        const res = await fetch(`/api/applicants/profile/${awardType}/${id}`, {
+        const res = await fetch(`/api/applicants/profile/${id}`, {
             credentials: 'include',
             headers: { 'x-device-id': deviceId },
         });
@@ -45,9 +46,9 @@ class ApplicantsService {
         return res.json();
     }
 
-    async updateApplicant(awardType, id, fields) {
+    async updateApplicant(id, fields) {
         const deviceId = await this.getDeviceId();
-        const res = await fetch(`/api/applicants/profile/${awardType}/${id}`, {
+        const res = await fetch(`/api/applicants/profile/${id}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: {
@@ -63,7 +64,6 @@ class ApplicantsService {
         return res.json();
     }
 
-    // Returns a URL suitable for <img src> — goes through authenticated proxy
     getFileUrl(fileType, fileName) {
         if (!fileName) return null;
         return `/api/applicants/file/${fileType}/${encodeURIComponent(fileName)}`;
@@ -81,7 +81,7 @@ class ApplicantsService {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.message || `Server error ${res.status}`);
         }
-        return res.json();   // { success, isNew, url, workbook_id }
+        return res.json();
     }
 
     async syncFromCloud() {
@@ -95,7 +95,7 @@ class ApplicantsService {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.message || `Server error ${res.status}`);
         }
-        return res.json();   // { success, updated, skipped, total }
+        return res.json();
     }
 
     async syncToCloud() {
@@ -109,7 +109,7 @@ class ApplicantsService {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.message || `Server error ${res.status}`);
         }
-        return res.json();   // { success, tabs_updated }
+        return res.json();
     }
 }
 

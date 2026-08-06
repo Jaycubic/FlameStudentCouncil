@@ -19,9 +19,9 @@ const SportAttachment = require('./SportAttachment');
 const CulturalAttachment = require('./CulturalAttachment');
 const TimeSettings = require('./TimeSettings');
 const footer = require('./footer');
-const TrailblazerAward = require('./TrailblazerAward');
-const SportsPersonAward = require('./SportsPersonAward');
-const CulturalPersonAward = require('./CulturalPersonAward');
+const ElectionFormResponse = require('./ElectionFormResponse');
+const ElectionDraft        = require('./ElectionDraft');
+const ElectionAttachment   = require('./ElectionAttachment');
 const EmployeeStudentMaster = require('./EmployeeStudentMaster');
 const WellbeingDeclaration = require('./WellbeingDeclaration');
 const CulturalUserSheet = require('./CulturalUserSheet');
@@ -33,6 +33,7 @@ const NominatedStudent    = require('./NominatedStudent');
 const StudentCgpaCache    = require('./StudentCgpaCache');
 const SheetPool           = require('./SheetPool');
 const EmailLog            = require('./EmailLog');
+const Position            = require('./Position');
 
 const models = {
   Organization,
@@ -54,9 +55,9 @@ const models = {
   CulturalAttachment,
   TimeSettings,
   footer,
-  TrailblazerAward,
-  SportsPersonAward,
-  CulturalPersonAward,
+  ElectionFormResponse,
+  ElectionDraft,
+  ElectionAttachment,
   EmployeeStudentMaster,
   WellbeingDeclaration,
   CulturalUserSheet,
@@ -68,6 +69,7 @@ const models = {
   StudentCgpaCache,
   SheetPool,
   EmailLog,
+  Position,
 };
 
 Object.values(models).forEach(model => {
@@ -94,22 +96,8 @@ Queue.belongsTo(Counter, { foreignKey: 'counter_id' });
 Role.hasMany(RoleSetting, { foreignKey: 'role_id' });
 RoleSetting.belongsTo(Role, { foreignKey: 'role_id' });
 
-// Trailblazer Award Associations
-TrailblazerAward.hasMany(academicAttachment, { foreignKey: 'submission_id' });
-academicAttachment.belongsTo(TrailblazerAward, { foreignKey: 'submission_id' });
-
-TrailblazerAward.hasMany(SportAttachment, { foreignKey: 'submission_id' });
-SportAttachment.belongsTo(TrailblazerAward, { foreignKey: 'submission_id' });
-
-TrailblazerAward.hasMany(CulturalAttachment, { foreignKey: 'submission_id' });
-CulturalAttachment.belongsTo(TrailblazerAward, { foreignKey: 'submission_id' });
-
-// Sports Person Award Associations
-SportsPersonAward.hasMany(SportAttachment, { foreignKey: 'submission_id' });
-SportAttachment.belongsTo(SportsPersonAward, { foreignKey: 'submission_id' });
-
-// Cultural Person Award Associations
-CulturalPersonAward.hasMany(CulturalAttachment, { foreignKey: 'submission_id' });
-CulturalAttachment.belongsTo(CulturalPersonAward, { foreignKey: 'submission_id' });
+// ElectionFormResponse ↔ ElectionAttachment
+ElectionFormResponse.hasMany(ElectionAttachment, { foreignKey: 'submission_id' });
+ElectionAttachment.belongsTo(ElectionFormResponse, { foreignKey: 'submission_id' });
 
 module.exports = models;

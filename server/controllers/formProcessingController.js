@@ -1,5 +1,5 @@
 // server/controllers/formProcessingController.js
-const { StudentData, TrailblazerAward, SportsPersonAward, CulturalPersonAward, TimeSettings, StudentCgpaCache } = require('../models');
+const { StudentData, ElectionFormResponse, TimeSettings, StudentCgpaCache, Position, ElectionDraft } = require('../models');
 const path = require('path');
 const fs = require('fs');
 const { refreshCgpaInBackground } = require('../services/cgpaLookupService');
@@ -38,17 +38,9 @@ const formProcessingController = {
                 }
             }
 
-            // 3. Check for existing submissions in ALL tables
-            const [trailblazer, sports, cultural] = await Promise.all([
-                TrailblazerAward.findOne({ where: { email } }),
-                SportsPersonAward.findOne({ where: { email } }),
-                CulturalPersonAward.findOne({ where: { email } })
-            ]);
-
-            const filledRoles = [];
-            if (trailblazer) filledRoles.push('trailblazer');
-            if (sports)      filledRoles.push('sports_person');
-            if (cultural)    filledRoles.push('cultural_person');
+            // 3. Check if student has already submitted
+            const existingSubmission = await ElectionFormResponse.findOne({ where: { email } });
+            const hasSubmitted = !!existingSubmission;
 
             const studentId = student.student_cvue_no ? student.student_cvue_no.toString() : '';
 
@@ -63,11 +55,22 @@ const formProcessingController = {
             }
 
             // Read latest cached CGPA for this student (null = not found = no gate).
-            // Do NOT await inside the refresh above — this is a separate fast cache read.
             const cgpaCache = studentId
                 ? await StudentCgpaCache.findOne({ where: { student_id: studentId }, attributes: ['cgpa'], raw: true })
                 : null;
             const studentCgpa = cgpaCache?.cgpa != null ? parseFloat(cgpaCache.cgpa) : null;
+
+            // 4. Fetch available positions
+            const positions = await Position.findAll({
+                attributes: ['id', 'description'],
+                order: [['description', 'ASC']]
+            });
+
+            // 5. Fetch existing draft (for autosave restore)
+            const draft = await ElectionDraft.findOne({
+                where: { email },
+                attributes: ['position_selected', 'community_service', 'statement_of_purpose']
+            });
 
             return res.json({
                 prefill: {
@@ -78,10 +81,18 @@ const formProcessingController = {
                     batch: student.batch,
                     email: student.email_id || email,
                     photo: foundPhoto,
-                    cgpa: studentCgpa       // null means "no data" — frontend gives benefit of doubt
+                    cgpa: studentCgpa       // null means "no data" — frontend displays as-is
                 },
                 photoExists,
-                filledRoles
+                hasSubmitted,
+                // If the student already submitted, return the position they selected
+                submittedPosition: existingSubmission?.position_selected || null,
+                positions: positions.map(p => ({ id: p.id, description: p.description })),
+                draft: draft ? {
+                    position_selected: draft.position_selected,
+                    community_service: draft.community_service,
+                    statement_of_purpose: draft.statement_of_purpose,
+                } : null,
             });
 
         } catch (error) {

@@ -23,7 +23,7 @@ const { poolQueue } = require('../queues/poolQueue');
 const log         = require('../utils/logger').child({ module: 'PoolRefillWorker' });
 
 // ─── Tuning constants ────────────────────────────────────────────────────────
-const TYPES           = ['cultural', 'sports', 'academic'];
+const TYPES           = ['workbook'];
 const TARGET_SIZE     = 50;   // Sheets to maintain per type
 const LOW_WATER_MARK  = 20;   // Trigger refill when available drops below this
 const COPY_INTERVAL_MS = 600; // Pause between files.copy() calls — controls Drive quota usage

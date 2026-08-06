@@ -1,14 +1,17 @@
 # scripts/read_sheet_score.py
 #
-# Reads the computed value of the merged cell C11:D11 from
-# the 'Personal Information' tab of a student's workbook.
+# Reads all 3 scores from the student's single workbook.
+# The "Total Point" sheet has:
+#   B3 = Academic Score (may be a formula — use UNFORMATTED_VALUE to resolve)
+#   C3 = Sports Score
+#   D3 = Cultural Score
 #
 # Usage:
 #   python3 read_sheet_score.py <spreadsheet_id>
 #                               <master_access_token> <master_refresh_token>
 #
 # Returns:
-#   { success: true, value: 8.5 }   — the computed numeric value
+#   { success: true, academic_score: 8.5, sports_score: 12.0, cultural_score: 5.0 }
 #   { success: false, error: "..." }
 
 import sys
@@ -57,24 +60,36 @@ def main():
         creds   = build_creds(access_token, refresh_token)
         service = build('sheets', 'v4', credentials=creds)
 
-        # Read from 'Personal Information'!C11:D11 (merged cell with total score)
+        # Read B3:D3 from "Total Point" sheet
+        # B3 = Academic, C3 = Sports, D3 = Cultural
+        # UNFORMATTED_VALUE resolves formulas to their computed values
         result = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
-            range="'Personal Information'!C11:D11",
+            range="'Total Point'!B3:D3",
             valueRenderOption='UNFORMATTED_VALUE'
         ).execute()
 
         values = result.get('values', [])
 
-        if not values or not values[0]:
-            # Cell is empty or formula evaluates to 0/blank
-            print(json.dumps({'success': True, 'value': None}))
-            return
+        academic_score = None
+        sports_score   = None
+        cultural_score = None
 
-        raw = values[0][0]
+        if values and len(values) > 0:
+            row = values[0]
+            if len(row) > 0 and row[0] is not None and row[0] != '':
+                academic_score = row[0]
+            if len(row) > 1 and row[1] is not None and row[1] != '':
+                sports_score = row[1]
+            if len(row) > 2 and row[2] is not None and row[2] != '':
+                cultural_score = row[2]
 
-        # Return as-is (may be int or float — let caller decide how to store)
-        print(json.dumps({'success': True, 'value': raw}))
+        print(json.dumps({
+            'success': True,
+            'academic_score': academic_score,
+            'sports_score':   sports_score,
+            'cultural_score': cultural_score,
+        }))
 
     except HttpError as e:
         print(json.dumps({'success': False, 'error': f'Sheets API error: {e}'}))
