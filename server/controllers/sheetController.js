@@ -153,6 +153,11 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
         const draft = await ElectionDraft.findOne({ where: { email: userEmail }, attributes: ['position_selected'] });
         const positionSelected = draft?.position_selected || '';
 
+        // Fetch CGPA from cache
+        const { StudentCgpaCache } = require('../models');
+        const cgpaRecord = await StudentCgpaCache.findOne({ where: { student_id: studentId }, attributes: ['cgpa'] });
+        const cgpa = cgpaRecord?.cgpa ? cgpaRecord.cgpa.toString() : '';
+
         const scriptPath = path.join(__dirname, '../scripts/insert_photo_formula.py');
         const result = await runPythonScript(scriptPath, [
             sheetId,
@@ -165,6 +170,7 @@ async function insertPhotoFormula(sheetId, userEmail, masterUser) {
             student.email_id      || userEmail,
             student.contact_no ? student.contact_no.toString() : '',
             positionSelected,
+            cgpa,
         ]);
 
         if (result.success) {
@@ -198,6 +204,26 @@ async function updateSheetPositionCell(sheetId, positionSelected, masterUser) {
     }
 }
 
+// ─── Surgical update of cell B3 ('Statement of Purpose' sheet) ────────────────
+async function updateSheetSOPCell(sheetId, statementOfPurpose, masterUser) {
+    try {
+        if (!sheetId || !statementOfPurpose) return;
+        const scriptPath = path.join(__dirname, '../scripts/update_sop_cell.py');
+        const result = await runPythonScript(scriptPath, [
+            sheetId,
+            masterUser.access_token,
+            masterUser.refresh_token,
+            statementOfPurpose,
+        ]);
+        if (result.success) {
+            log.info({ sheetId }, '[SheetSOP] Surgical SOP cell B3 update succeeded');
+        } else {
+            log.warn({ sheetId, error: result.error }, '[SheetSOP] Surgical SOP cell B3 update returned failure');
+        }
+    } catch (err) {
+        log.error({ sheetId, err: err.message }, '[SheetSOP] Non-fatal error');
+    }
+}
 // ─── Atomic pool pop ──────────────────────────────────────────────────────────
 // SELECT FOR UPDATE SKIP LOCKED ensures two concurrent requests never claim
 // the same sheet, even if they hit the DB at the exact same millisecond.
@@ -630,6 +656,7 @@ const sheetController = {
     revokeStudentAccess,
     insertPhotoFormula,
     updateSheetPositionCell,
+    updateSheetSOPCell,
 };
 
 module.exports = sheetController;

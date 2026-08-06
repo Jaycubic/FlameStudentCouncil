@@ -314,6 +314,10 @@ function StudentCouncilForm() {
 
     // ── Sheet generation (single workbook) ────────────────────────────────────
     const handleGenerateSheet = async () => {
+        if (!positionSelected) {
+            toast({ title: 'Position Required', description: 'Please select a council position before generating your workbook.', status: 'warning' });
+            return;
+        }
         setGeneratingSheet(true);
         try {
             const deviceId = localStorage.getItem('deviceId') || '';
@@ -342,6 +346,13 @@ function StudentCouncilForm() {
         } finally {
             setGeneratingSheet(false);
         }
+    };
+
+    const handleOpenSheet = async (url) => {
+        if (positionSelected || statementOfPurpose || communityService) {
+            await saveDraftHTTP(positionSelected, communityService, statementOfPurpose);
+        }
+        safeOpen(url);
     };
 
     const pollJobStatus = (jobId) => {
@@ -759,7 +770,21 @@ function StudentCouncilForm() {
 
                                 {/* ── Workbook Section ── */}
                                 <Section title="Student Council Workbook">
-                                    <VStack spacing={0} align="stretch">
+                                    {!positionSelected && (
+                                        <Alert status="warning" borderRadius="xl" mb={4} py={2} px={3}>
+                                            <AlertIcon />
+                                            <Text fontSize="xs" fontWeight="bold">
+                                                Please select a Council Position above to unlock your Student Council Workbook.
+                                            </Text>
+                                        </Alert>
+                                    )}
+                                    <VStack
+                                        spacing={0}
+                                        align="stretch"
+                                        opacity={positionSelected ? 1 : 0.45}
+                                        pointerEvents={positionSelected ? 'auto' : 'none'}
+                                        transition="0.3s"
+                                    >
                                         <HStack spacing={4} align="start">
                                             <VStack spacing={0} align="center" minW="32px">
                                                 <Box w="32px" h="32px" borderRadius="full" bg="blue.500" color="white" display="flex" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="sm">1</Box>
@@ -777,11 +802,11 @@ function StudentCouncilForm() {
                                                         </VStack>
                                                     </HStack>
                                                 ) : sheetReady ? (
-                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="green" variant="solid" size="sm" onClick={() => safeOpen(sheetReady)}>
+                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="green" variant="solid" size="sm" isDisabled={!positionSelected} onClick={() => handleOpenSheet(sheetReady)}>
                                                         Open Student Council Workbook
                                                     </Button>
                                                 ) : (
-                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="blue" variant="solid" size="sm" onClick={handleGenerateSheet}>
+                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="blue" variant="solid" size="sm" isDisabled={!positionSelected} onClick={handleGenerateSheet}>
                                                         Generate Student Council Workbook
                                                     </Button>
                                                 )}

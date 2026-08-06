@@ -69,6 +69,7 @@ def main():
     email             = sys.argv[8] if len(sys.argv) > 8 else ''
     mobile_number     = sys.argv[9] if len(sys.argv) > 9 else ''
     position_selected = sys.argv[10] if len(sys.argv) > 10 else ''
+    cgpa              = sys.argv[11] if len(sys.argv) > 11 else ''
 
     # ── Build credentials ──────────────────────────────────────────────────────
     try:
@@ -81,20 +82,28 @@ def main():
     data = []
 
     # Student info — new cell mapping (B2 through B7)
+    # Prefix numeric fields with ' (apostrophe) to force left-aligned text in Google Sheets
     if name:
         data.append({'range': "'Personal Information'!B2", 'values': [[name]]})
     if student_id:
-        data.append({'range': "'Personal Information'!B3", 'values': [[student_id]]})
+        data.append({'range': "'Personal Information'!B3", 'values': [[f"'{student_id}"]]})
     if batch:
         data.append({'range': "'Personal Information'!B4", 'values': [[batch]]})
     if email:
         data.append({'range': "'Personal Information'!B5", 'values': [[email]]})
     if mobile_number:
-        data.append({'range': "'Personal Information'!B6", 'values': [[mobile_number]]})
+        data.append({'range': "'Personal Information'!B6", 'values': [[f"'{mobile_number}"]]})
     if position_selected:
         data.append({'range': "'Personal Information'!B7", 'values': [[position_selected]]})
+    if cgpa:
+        # Format to 2 decimal places, prefix with ' to force left-alignment
+        try:
+            cgpa_formatted = f"'{float(cgpa):.2f}"
+        except (ValueError, TypeError):
+            cgpa_formatted = f"'{cgpa}"
+        data.append({'range': "'Personal Information'!B8", 'values': [[cgpa_formatted]]})
 
-    # Photo formula in B9 (moved from old B13)
+    # Photo formula in B9
     if drive_file_id and drive_file_id != 'NONE':
         image_url = f'https://lh3.googleusercontent.com/d/{drive_file_id}'
         formula   = f'=IMAGE("{image_url}")'

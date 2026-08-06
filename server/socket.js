@@ -77,15 +77,20 @@ function setupSocket(server) {
           });
         }
 
-        // Async surgical update of cell B7 in Google Sheet if student already has an assigned sheet
-        if (position_selected) {
+        // Async surgical Google Sheet updates (non-blocking)
+        if (position_selected || statement_of_purpose) {
           const { AcademicUserSheet, User } = require('./models');
-          const { updateSheetPositionCell } = require('./controllers/sheetController');
+          const { updateSheetPositionCell, updateSheetSOPCell } = require('./controllers/sheetController');
           AcademicUserSheet.findOne({ where: { email } }).then(sheet => {
             if (sheet?.user_sheet_id) {
               User.findOne({ where: { email: 'student.awards@flame.edu.in' } }).then(masterUser => {
                 if (masterUser?.access_token) {
-                  updateSheetPositionCell(sheet.user_sheet_id, position_selected, masterUser).catch(() => {});
+                  if (position_selected) {
+                    updateSheetPositionCell(sheet.user_sheet_id, position_selected, masterUser).catch(() => {});
+                  }
+                  if (statement_of_purpose) {
+                    updateSheetSOPCell(sheet.user_sheet_id, statement_of_purpose, masterUser).catch(() => {});
+                  }
                 }
               });
             }

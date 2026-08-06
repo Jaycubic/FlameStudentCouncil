@@ -1,10 +1,10 @@
-# scripts/update_position_cell.py
+# scripts/update_sop_cell.py
 #
 # Lightweight surgical update script:
-# ONLY updates cell B7 in 'Personal Information' sheet with the new position_selected.
+# ONLY updates cell B3 in 'Statement of Purpose' sheet.
 #
 # Usage:
-#   python3 update_position_cell.py <sheet_id> <master_access_token> <master_refresh_token> <position_selected>
+#   python3 update_sop_cell.py <sheet_id> <master_access_token> <master_refresh_token> <statement_of_purpose>
 #
 # Takes ~100ms via Google Sheets API values.update.
 
@@ -39,25 +39,25 @@ def main():
     if len(sys.argv) < 5:
         print(json.dumps({
             'success': False,
-            'error': 'Usage: update_position_cell.py <sheet_id> <master_access_token> <master_refresh_token> <position_selected>'
+            'error': 'Usage: update_sop_cell.py <sheet_id> <master_access_token> <master_refresh_token> <statement_of_purpose>'
         }))
         return
 
-    sheet_id          = sys.argv[1]
-    master_access     = sys.argv[2]
-    master_refresh    = sys.argv[3]
-    position_selected = sys.argv[4]
+    sheet_id              = sys.argv[1]
+    master_access         = sys.argv[2]
+    master_refresh        = sys.argv[3]
+    statement_of_purpose  = sys.argv[4]
 
     try:
         creds = build_master_creds(master_access, master_refresh)
         service = build('sheets', 'v4', credentials=creds)
 
-        # Single surgical write to cell B7
+        # Single surgical write to 'Statement of Purpose'!B3
         service.spreadsheets().values().update(
             spreadsheetId=sheet_id,
-            range="'Personal Information'!B7",
+            range="'Statement of Purpose'!B3",
             valueInputOption='USER_ENTERED',
-            body={'values': [[position_selected]]}
+            body={'values': [[statement_of_purpose]]}
         ).execute()
 
         print(json.dumps({'success': True}))
