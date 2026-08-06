@@ -44,6 +44,10 @@ const ElectionFormResponse = sequelize.define('ElectionFormResponse', {
         type: DataTypes.TEXT,
         allowNull: false,
     },
+    more_info: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
     read_handbook: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

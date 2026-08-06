@@ -81,6 +81,7 @@ function StudentCouncilForm() {
     const [positionSelected, setPositionSelected] = useState('');
     const [communityService, setCommunityService] = useState('');
     const [statementOfPurpose, setStatementOfPurpose] = useState('');
+    const [moreInfo, setMoreInfo] = useState('');
 
     // File states
     const [photoFile, setPhotoFile] = useState(null);
@@ -101,8 +102,8 @@ function StudentCouncilForm() {
     const [draftSaving, setDraftSaving] = useState(false);
 
     // ── HTTP REST Autosave logic (Notion/GitHub style) ────────────────────────
-    const saveDraftHTTP = useCallback(async (posVal, csVal, sopVal) => {
-        if (!posVal && !csVal && !sopVal) return;
+    const saveDraftHTTP = useCallback(async (posVal, csVal, sopVal, miVal) => {
+        if (!posVal && !csVal && !sopVal && !miVal) return;
         setDraftSaving(true);
         try {
             await fetch('/api/election-draft', {
@@ -116,6 +117,7 @@ function StudentCouncilForm() {
                     position_selected: posVal,
                     community_service: csVal,
                     statement_of_purpose: sopVal,
+                    more_info: miVal,
                 }),
             });
         } catch (err) {
@@ -126,10 +128,10 @@ function StudentCouncilForm() {
     }, []);
 
     // Debounced autosave on input change
-    const triggerAutosave = useCallback((posVal, csVal, sopVal) => {
+    const triggerAutosave = useCallback((posVal, csVal, sopVal, miVal) => {
         if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
         autosaveTimerRef.current = setTimeout(() => {
-            saveDraftHTTP(posVal, csVal, sopVal);
+            saveDraftHTTP(posVal, csVal, sopVal, miVal);
         }, 800); // 800ms debounce after typing stops
     }, [saveDraftHTTP]);
 
@@ -184,6 +186,7 @@ function StudentCouncilForm() {
                 if (d.position_selected) setPositionSelected(d.position_selected);
                 if (d.community_service) setCommunityService(d.community_service);
                 if (d.statement_of_purpose) setStatementOfPurpose(d.statement_of_purpose);
+                if (d.more_info) setMoreInfo(d.more_info);
             }
 
             // Restore agreed from localStorage
@@ -349,8 +352,8 @@ function StudentCouncilForm() {
     };
 
     const handleOpenSheet = async (url) => {
-        if (positionSelected || statementOfPurpose || communityService) {
-            await saveDraftHTTP(positionSelected, communityService, statementOfPurpose);
+        if (positionSelected || statementOfPurpose || communityService || moreInfo) {
+            await saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo);
         }
         safeOpen(url);
     };
@@ -401,6 +404,7 @@ function StudentCouncilForm() {
                     position_selected: positionSelected,
                     community_service: communityService,
                     statement_of_purpose: statementOfPurpose,
+                    more_info: moreInfo,
                 }),
             });
             const data = await response.json();
@@ -450,6 +454,7 @@ function StudentCouncilForm() {
         data.append('position_selected', positionSelected);
         data.append('community_service', communityService);
         data.append('statement_of_purpose', statementOfPurpose);
+        data.append('more_info', moreInfo);
         data.append('read_handbook', formData.readHandbook);
         Object.keys(formData).forEach(key => {
             if (key !== 'photoUrl' && key !== 'readHandbook') data.append(key, formData[key]);
@@ -696,9 +701,9 @@ function StudentCouncilForm() {
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 setPositionSelected(val);
-                                                triggerAutosave(val, communityService, statementOfPurpose);
+                                                triggerAutosave(val, communityService, statementOfPurpose, moreInfo);
                                             }}
-                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose)}
+                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo)}
                                             size="lg"
                                             borderRadius="xl"
                                             bg={useColorModeValue('white', 'gray.700')}
@@ -721,9 +726,9 @@ function StudentCouncilForm() {
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 setCommunityService(val);
-                                                triggerAutosave(positionSelected, val, statementOfPurpose);
+                                                triggerAutosave(positionSelected, val, statementOfPurpose, moreInfo);
                                             }}
-                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose)}
+                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo)}
                                             placeholder="Describe your community service activities, volunteer work, and social contributions..."
                                             minH="200px"
                                             resize="vertical"
@@ -750,9 +755,9 @@ function StudentCouncilForm() {
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 setStatementOfPurpose(val);
-                                                triggerAutosave(positionSelected, communityService, val);
+                                                triggerAutosave(positionSelected, communityService, val, moreInfo);
                                             }}
-                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose)}
+                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo)}
                                             placeholder="Explain why you are the best candidate for this position, your vision, goals, and how you plan to serve the student body..."
                                             minH="200px"
                                             resize="vertical"
@@ -762,6 +767,35 @@ function StudentCouncilForm() {
                                         <HStack justify="space-between" mt={2}>
                                             <FormHelperText color={sopWordCount > WORD_LIMIT ? 'red.500' : mutedTextColor} fontWeight={sopWordCount > WORD_LIMIT ? 'bold' : 'normal'}>
                                                 {sopWordCount} / {WORD_LIMIT} words {sopWordCount > WORD_LIMIT && '(over limit)'}
+                                            </FormHelperText>
+                                            {draftSaving && <Text fontSize="2xs" color="green.500">Auto-saving...</Text>}
+                                        </HStack>
+                                    </FormControl>
+                                </Section>
+
+                                {/* ── More Information (Optional) ── */}
+                                <Section title="Additional Information (Optional)">
+                                    <FormControl>
+                                        <FormLabel fontWeight="bold" fontSize="sm">
+                                            Please feel free to share any information about yourself that you would like the committee to consider.
+                                        </FormLabel>
+                                        <Textarea
+                                            value={moreInfo}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setMoreInfo(val);
+                                                triggerAutosave(positionSelected, communityService, statementOfPurpose, val);
+                                            }}
+                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo)}
+                                            placeholder="Share any additional details, relevant experience, unique background, or notes for the committee..."
+                                            minH="160px"
+                                            resize="vertical"
+                                            borderRadius="xl"
+                                            bg={useColorModeValue('white', 'gray.700')}
+                                        />
+                                        <HStack justify="space-between" mt={2}>
+                                            <FormHelperText color={countWords(moreInfo) > WORD_LIMIT ? 'red.500' : mutedTextColor} fontWeight={countWords(moreInfo) > WORD_LIMIT ? 'bold' : 'normal'}>
+                                                {countWords(moreInfo)} / {WORD_LIMIT} words {countWords(moreInfo) > WORD_LIMIT && '(over limit)'}
                                             </FormHelperText>
                                             {draftSaving && <Text fontSize="2xs" color="green.500">Auto-saving...</Text>}
                                         </HStack>

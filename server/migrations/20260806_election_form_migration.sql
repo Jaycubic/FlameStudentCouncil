@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS app.election_form_responses (
     position_selected       VARCHAR(255) NOT NULL,
     community_service       TEXT NOT NULL,
     statement_of_purpose    TEXT NOT NULL,
+    more_info               TEXT,
     read_handbook           BOOLEAN NOT NULL DEFAULT FALSE,
     sports_score            VARCHAR(255),
     academic_score          DECIMAL(6,2),
@@ -44,16 +45,21 @@ CREATE TABLE IF NOT EXISTS app.election_form_responses (
     updated_at              TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Create ElectionDraft (autosave for Position, SOP, Community Service)
+-- 3. Create ElectionDraft (autosave for Position, SOP, Community Service, More Info)
 CREATE TABLE IF NOT EXISTS app.election_drafts (
     id                      SERIAL PRIMARY KEY,
     email                   VARCHAR(255) NOT NULL UNIQUE,
     position_selected       VARCHAR(255),
     community_service       TEXT,
     statement_of_purpose    TEXT,
+    more_info               TEXT,
     created_at              TIMESTAMPTZ DEFAULT NOW(),
     updated_at              TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Alter tables if already existing
+ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS more_info TEXT;
+ALTER TABLE app.election_drafts ADD COLUMN IF NOT EXISTS more_info TEXT;
 
 -- 4. Create ElectionAttachment (single generic attachment table)
 CREATE TABLE IF NOT EXISTS app.election_attachments (

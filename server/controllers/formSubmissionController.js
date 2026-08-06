@@ -16,8 +16,8 @@ const path   = require('path');
 const fs     = require('fs');
 const { spawn } = require('child_process');
 
-// Import the fire-and-forget revoke helper from sheetController
-const { revokeStudentAccess } = require('./sheetController');
+// Import the fire-and-forget revoke helper & sheet tab inserters from sheetController
+const { revokeStudentAccess, insertSopSheetTab, insertMoreInfoSheetTab } = require('./sheetController');
 const { emitDashboardUpdate } = require('./dashboardController');
 const { submissionEmailQueue } = require('../queues/submissionEmailQueue');
 const log = require('../utils/logger').child({ module: 'FormSubmissionController' });
@@ -206,6 +206,7 @@ const formController = {
       const {
         name, studentId, mobileNumber, gender, batch, email,
         position_selected, community_service, statement_of_purpose,
+        more_info, moreInfo,
         read_handbook,
         academicLevel, academic_score, sportsScore, culturalScore,
         notOnProbation, trueStatement,
@@ -230,6 +231,7 @@ const formController = {
         position_selected,
         community_service:    community_service || '',
         statement_of_purpose: statement_of_purpose || '',
+        more_info:            more_info || moreInfo || null,
         read_handbook:        read_handbook === 'true' || read_handbook === true,
         not_on_probation:     notOnProbation === 'true' || notOnProbation === true,
         tru_statement:        trueStatement  === 'true' || trueStatement  === true,
@@ -359,6 +361,23 @@ const formController = {
           log.info({ email, submissionId: submission.id }, '[SubmissionEmail] Confirmation email queued');
         } catch (emailErr) {
           log.warn({ err: emailErr.message }, '[SubmissionEmail] Failed to enqueue — non-fatal');
+        }
+
+        // ── Dynamically insert Statement of Purpose sheet tab into student workbook ─
+        try {
+          const sheet = await AcademicUserSheet.findOne({ where: { email } });
+          if (sheet?.user_sheet_id && masterUser?.access_token) {
+            if (statement_of_purpose) {
+              await insertSopSheetTab(sheet.user_sheet_id, statement_of_purpose, masterUser);
+            }
+            // Insert 'More Information' sheet tab ONLY if more_info is filled out
+            const moreInfoText = submissionData.more_info;
+            if (moreInfoText && moreInfoText.trim()) {
+              await insertMoreInfoSheetTab(sheet.user_sheet_id, moreInfoText, masterUser);
+            }
+          }
+        } catch (sopErr) {
+          log.warn({ err: sopErr.message, email }, '[DynamicSheetTabs] Failed to insert sheet tabs — non-fatal');
         }
 
         triggerWorkbookRevocation(email);

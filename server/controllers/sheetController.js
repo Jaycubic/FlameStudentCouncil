@@ -224,6 +224,49 @@ async function updateSheetSOPCell(sheetId, statementOfPurpose, masterUser) {
         log.error({ sheetId, err: err.message }, '[SheetSOP] Non-fatal error');
     }
 }
+
+// ─── Insert 'Statement of Purpose' tab on final submission ──────────────────
+async function insertSopSheetTab(sheetId, statementOfPurpose, masterUser) {
+    try {
+        if (!sheetId || !statementOfPurpose) return;
+        const scriptPath = path.join(__dirname, '../scripts/insert_sop_sheet.py');
+        const result = await runPythonScript(scriptPath, [
+            sheetId,
+            masterUser.access_token,
+            masterUser.refresh_token,
+            statementOfPurpose,
+        ]);
+        if (result.success) {
+            log.info({ sheetId }, '[SheetSOPTab] Added Statement of Purpose sheet tab successfully');
+        } else {
+            log.warn({ sheetId, error: result.error }, '[SheetSOPTab] Adding Statement of Purpose tab returned failure');
+        }
+    } catch (err) {
+        log.error({ sheetId, err: err.message }, '[SheetSOPTab] Non-fatal error inserting SOP sheet tab');
+    }
+}
+
+// ─── Insert 'More Information' tab on final submission (only if provided) ─────
+async function insertMoreInfoSheetTab(sheetId, moreInfo, masterUser) {
+    try {
+        if (!sheetId || !moreInfo || !moreInfo.trim()) return;
+        const scriptPath = path.join(__dirname, '../scripts/insert_more_info_sheet.py');
+        const result = await runPythonScript(scriptPath, [
+            sheetId,
+            masterUser.access_token,
+            masterUser.refresh_token,
+            moreInfo,
+        ]);
+        if (result.success) {
+            log.info({ sheetId }, '[SheetMoreInfoTab] Added More Information sheet tab successfully');
+        } else {
+            log.warn({ sheetId, error: result.error }, '[SheetMoreInfoTab] Adding More Information tab returned failure');
+        }
+    } catch (err) {
+        log.error({ sheetId, err: err.message }, '[SheetMoreInfoTab] Non-fatal error inserting More Info sheet tab');
+    }
+}
+
 // ─── Atomic pool pop ──────────────────────────────────────────────────────────
 // SELECT FOR UPDATE SKIP LOCKED ensures two concurrent requests never claim
 // the same sheet, even if they hit the DB at the exact same millisecond.
@@ -657,6 +700,8 @@ const sheetController = {
     insertPhotoFormula,
     updateSheetPositionCell,
     updateSheetSOPCell,
+    insertSopSheetTab,
+    insertMoreInfoSheetTab,
 };
 
 module.exports = sheetController;

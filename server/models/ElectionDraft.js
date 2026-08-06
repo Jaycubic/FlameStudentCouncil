@@ -30,6 +30,10 @@ const ElectionDraft = sequelize.define('ElectionDraft', {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    more_info: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
 }, {
     tableName: 'election_drafts',
     schema: 'app',

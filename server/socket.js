@@ -54,7 +54,8 @@ function setupSocket(server) {
     // Upserts to ElectionDraft table and acknowledges back.
     socket.on("saveDraft", async (data, callback) => {
       try {
-        const { email, position_selected, community_service, statement_of_purpose } = data || {};
+        const { email, position_selected, community_service, statement_of_purpose, more_info, moreInfo } = data || {};
+        const moreInfoVal = more_info ?? moreInfo;
 
         if (!email) {
           if (typeof callback === 'function') callback({ success: false, error: 'Email required' });
@@ -67,6 +68,7 @@ function setupSocket(server) {
             position_selected:    position_selected    ?? draft.position_selected,
             community_service:    community_service    ?? draft.community_service,
             statement_of_purpose: statement_of_purpose ?? draft.statement_of_purpose,
+            more_info:            moreInfoVal          ?? draft.more_info,
           });
         } else {
           await ElectionDraft.create({
@@ -74,23 +76,19 @@ function setupSocket(server) {
             position_selected:    position_selected    ?? null,
             community_service:    community_service    ?? null,
             statement_of_purpose: statement_of_purpose ?? null,
+            more_info:            moreInfoVal          ?? null,
           });
         }
 
-        // Async surgical Google Sheet updates (non-blocking)
-        if (position_selected || statement_of_purpose) {
+        // Async surgical Google Sheet update of position cell (non-blocking)
+        if (position_selected) {
           const { AcademicUserSheet, User } = require('./models');
-          const { updateSheetPositionCell, updateSheetSOPCell } = require('./controllers/sheetController');
+          const { updateSheetPositionCell } = require('./controllers/sheetController');
           AcademicUserSheet.findOne({ where: { email } }).then(sheet => {
             if (sheet?.user_sheet_id) {
               User.findOne({ where: { email: 'student.awards@flame.edu.in' } }).then(masterUser => {
                 if (masterUser?.access_token) {
-                  if (position_selected) {
-                    updateSheetPositionCell(sheet.user_sheet_id, position_selected, masterUser).catch(() => {});
-                  }
-                  if (statement_of_purpose) {
-                    updateSheetSOPCell(sheet.user_sheet_id, statement_of_purpose, masterUser).catch(() => {});
-                  }
+                  updateSheetPositionCell(sheet.user_sheet_id, position_selected, masterUser).catch(() => {});
                 }
               });
             }
