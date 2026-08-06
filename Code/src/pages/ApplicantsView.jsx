@@ -468,27 +468,39 @@ function ApplicantsView() {
 
       <Card variant="outline" bg={bgColor} overflow="hidden">
         <Box px={5} py={3}>
-          {/* Position filter + Workbook buttons */}
-          <Flex align="center" justify="space-between" mb={3} flexWrap="wrap" gap={2}>
-            <HStack spacing={2} flexWrap="wrap">
-              <Button size="xs" borderRadius="full"
-                colorScheme="purple"
-                variant={positionFilter === '' ? 'solid' : 'outline'}
-                onClick={() => setPositionFilter('')}
-                fontWeight={positionFilter === '' ? '700' : '500'}
-              >
-                All
-              </Button>
-              {(filterOpts.positions || []).map(pos => (
-                <Button key={pos} size="xs" borderRadius="full"
-                  colorScheme="blue"
-                  variant={positionFilter === pos ? 'solid' : 'outline'}
-                  onClick={() => setPositionFilter(pos)}
-                  fontWeight={positionFilter === pos ? '700' : '500'}
-                >
-                  {pos}
-                </Button>
-              ))}
+          {/* Filter row + Workbook action buttons */}
+          <Flex align="center" justify="space-between" mb={2} flexWrap="wrap" gap={3}>
+            <HStack spacing={2} flexWrap="wrap" align="center">
+              <InputGroup size="sm" maxW="220px">
+                <InputLeftElement pointerEvents="none">
+                  <MagnifyingGlassIcon style={{ width: 14, height: 14, color: 'gray' }} />
+                </InputLeftElement>
+                <Input placeholder="Name, ID or email…" value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)} borderRadius="lg" fontSize="12px" />
+                {searchInput !== search && <InputRightElement><Spinner size="xs" /></InputRightElement>}
+              </InputGroup>
+
+              <Select size="sm" maxW="200px" borderRadius="lg" fontSize="12px"
+                value={positionFilter} onChange={e => setPositionFilter(e.target.value)} placeholder="All Positions">
+                {(filterOpts.positions || []).map(pos => <option key={pos} value={pos}>{pos}</option>)}
+              </Select>
+
+              <Select size="sm" maxW="120px" borderRadius="lg" fontSize="12px"
+                value={gender} onChange={e => setGender(e.target.value)} placeholder="All Genders">
+                {filterOpts.genders.map(g => <option key={g} value={g}>{g}</option>)}
+              </Select>
+
+              <Select size="sm" maxW="130px" borderRadius="lg" fontSize="12px"
+                value={batch} onChange={e => setBatch(e.target.value)} placeholder="All Batches">
+                {filterOpts.batches.map(b => <option key={b} value={b}>{b}</option>)}
+              </Select>
+
+              {hasFilters && (
+                <Tooltip label="Clear filters" hasArrow>
+                  <IconButton icon={<XMarkIcon style={{ width: 14, height: 14 }} />}
+                    size="sm" variant="ghost" colorScheme="red" onClick={clearFilters} aria-label="Clear" />
+                </Tooltip>
+              )}
             </HStack>
 
             {/* ─── Workbook action buttons ──────────────────────────────────── */}
@@ -553,35 +565,9 @@ function ApplicantsView() {
             </HStack>
           </Flex>
 
-          {/* Filter row */}
-          <Flex align="center" gap={2} mb={3} flexWrap="wrap">
-            <InputGroup size="sm" maxW="230px">
-              <InputLeftElement pointerEvents="none">
-                <MagnifyingGlassIcon style={{ width: 14, height: 14, color: 'gray' }} />
-              </InputLeftElement>
-              <Input placeholder="Name, ID or email…" value={searchInput}
-                onChange={e => setSearchInput(e.target.value)} borderRadius="lg" fontSize="12px" />
-              {searchInput !== search && <InputRightElement><Spinner size="xs" /></InputRightElement>}
-            </InputGroup>
-
-            <Select size="sm" maxW="120px" borderRadius="lg" fontSize="12px"
-              value={gender} onChange={e => setGender(e.target.value)} placeholder="All Genders">
-              {filterOpts.genders.map(g => <option key={g} value={g}>{g}</option>)}
-            </Select>
-
-            <Select size="sm" maxW="130px" borderRadius="lg" fontSize="12px"
-              value={batch} onChange={e => setBatch(e.target.value)} placeholder="All Batches">
-              {filterOpts.batches.map(b => <option key={b} value={b}>{b}</option>)}
-            </Select>
-
-            {hasFilters && (
-              <Tooltip label="Clear filters" hasArrow>
-                <IconButton icon={<XMarkIcon style={{ width: 14, height: 14 }} />}
-                  size="sm" variant="ghost" colorScheme="red" onClick={clearFilters} aria-label="Clear" />
-              </Tooltip>
-            )}
-
-            <Text ml="auto" fontSize="11px" color={subColor} whiteSpace="nowrap">
+          {/* Pagination bar */}
+          <Flex align="center" justify="flex-end" gap={3}>
+            <Text fontSize="11px" color={subColor} whiteSpace="nowrap">
               {isLoading
                 ? <Skeleton height="14px" width="120px" display="inline-block" />
                 : `${Math.min((page - 1) * PAGE_LIMIT + 1, total)}–${Math.min(page * PAGE_LIMIT, total)} of ${total}`}
