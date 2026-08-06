@@ -19,8 +19,6 @@ import { formProcessingService } from '../services/formProcessingService';
 import { authService } from '../services/authService';
 import { timeSettingsService } from '../services/timeSettingsService';
 import flameLogo from '../assets/img/FLAME.png';
-import io from 'socket.io-client';
-
 const defaultProfilePhoto = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 const MotionBox = motion(Box);
 const MotionVStack = motion(VStack);
@@ -91,7 +89,6 @@ function StudentCouncilForm() {
     const [sheetReady, setSheetReady] = useState(null);
     const attachmentFileRef = useRef(null);
     const pollingRef = useRef(null);
-    const socketRef = useRef(null);
     const autosaveTimerRef = useRef(null);
 
     const MAX_SIZE = 5 * 1024 * 1024;
@@ -103,44 +100,38 @@ function StudentCouncilForm() {
     const [studentCgpa, setStudentCgpa] = useState(null);
     const [draftSaving, setDraftSaving] = useState(false);
 
-    // ── Socket autosave setup ─────────────────────────────────────────────────
-    useEffect(() => {
-        const socket = io('https://flamestudentcouncil.in', {
-            withCredentials: true,
-            transports: ['websocket', 'polling'],
-        });
-        socketRef.current = socket;
-        return () => {
-            socket.disconnect();
-        };
+    // ── HTTP REST Autosave logic (Notion/GitHub style) ────────────────────────
+    const saveDraftHTTP = useCallback(async (posVal, csVal, sopVal) => {
+        if (!posVal && !csVal && !sopVal) return;
+        setDraftSaving(true);
+        try {
+            await fetch('/api/election-draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-device-id': localStorage.getItem('deviceId') || '',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    position_selected: posVal,
+                    community_service: csVal,
+                    statement_of_purpose: sopVal,
+                }),
+            });
+        } catch (err) {
+            console.warn('[HTTP Autosave] Draft save failed:', err.message);
+        } finally {
+            setDraftSaving(false);
+        }
     }, []);
 
-    // Debounced autosave
-    const triggerAutosave = useCallback(() => {
+    // Debounced autosave on input change
+    const triggerAutosave = useCallback((posVal, csVal, sopVal) => {
         if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
         autosaveTimerRef.current = setTimeout(() => {
-            if (!socketRef.current || !formData.email) return;
-            setDraftSaving(true);
-            socketRef.current.emit('saveDraft', {
-                email: formData.email,
-                position_selected: positionSelected,
-                community_service: communityService,
-                statement_of_purpose: statementOfPurpose,
-            }, (response) => {
-                setDraftSaving(false);
-                if (response && !response.success) {
-                    console.warn('[Autosave] Failed:', response.error);
-                }
-            });
-        }, 1500); // 1.5s debounce
-    }, [formData.email, positionSelected, communityService, statementOfPurpose]);
-
-    // Trigger autosave when autosave fields change
-    useEffect(() => {
-        if (formData.email && (positionSelected || communityService || statementOfPurpose)) {
-            triggerAutosave();
-        }
-    }, [positionSelected, communityService, statementOfPurpose, triggerAutosave]);
+            saveDraftHTTP(posVal, csVal, sopVal);
+        }, 800); // 800ms debounce after typing stops
+    }, [saveDraftHTTP]);
 
     // ── Fetch prefill and status ──────────────────────────────────────────────
     const fetchStatusAndPrefill = async () => {
@@ -412,15 +403,6 @@ function StudentCouncilForm() {
                 });
             } else {
                 throw new Error(data.message || 'Failed to save draft');
-            }
-
-            if (socketRef.current && formData.email) {
-                socketRef.current.emit('saveDraft', {
-                    email: formData.email,
-                    position_selected: positionSelected,
-                    community_service: communityService,
-                    statement_of_purpose: statementOfPurpose,
-                });
             }
         } catch (err) {
             toast({
@@ -700,7 +682,12 @@ function StudentCouncilForm() {
                                         <Select
                                             placeholder="-- Select a Position --"
                                             value={positionSelected}
-                                            onChange={(e) => setPositionSelected(e.target.value)}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setPositionSelected(val);
+                                                triggerAutosave(val, communityService, statementOfPurpose);
+                                            }}
+                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose)}
                                             size="lg"
                                             borderRadius="xl"
                                             bg={useColorModeValue('white', 'gray.700')}
@@ -720,7 +707,12 @@ function StudentCouncilForm() {
                                         </FormLabel>
                                         <Textarea
                                             value={communityService}
-                                            onChange={(e) => setCommunityService(e.target.value)}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setCommunityService(val);
+                                                triggerAutosave(positionSelected, val, statementOfPurpose);
+                                            }}
+                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose)}
                                             placeholder="Describe your community service activities, volunteer work, and social contributions..."
                                             minH="200px"
                                             resize="vertical"
@@ -744,7 +736,12 @@ function StudentCouncilForm() {
                                         </FormLabel>
                                         <Textarea
                                             value={statementOfPurpose}
-                                            onChange={(e) => setStatementOfPurpose(e.target.value)}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setStatementOfPurpose(val);
+                                                triggerAutosave(positionSelected, communityService, val);
+                                            }}
+                                            onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose)}
                                             placeholder="Explain why you are the best candidate for this position, your vision, goals, and how you plan to serve the student body..."
                                             minH="200px"
                                             resize="vertical"
