@@ -234,7 +234,7 @@ async function openOrCreate(req, res) {
                 };
                 const usedTitles = new Set(['All Responses']);
                 for (const [posName, posRows] of Object.entries(data.byPosition)) {
-                    let safeTitle = posName.slice(0, 31).replace(/[\[\]\*:\?\/\\\]/g, '');
+                    let safeTitle = posName.slice(0, 31).replace(/[^a-zA-Z0-9 _-]/g, '');
                     if (!safeTitle || usedTitles.has(safeTitle)) {
                         safeTitle = `${safeTitle.slice(0, 27)}_${usedTitles.size}`;
                     }
