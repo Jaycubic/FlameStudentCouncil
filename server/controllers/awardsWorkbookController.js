@@ -104,11 +104,20 @@ async function collectAllData() {
     log.info({ total: allStudentIds.length, withPhoto, withoutPhoto },
         '[Workbook] Local photo disk check complete');
 
+const ATTACHMENT_DIR = '/opt/View/FlameStudentCouncil/server/Attachments';
+
+function getAttachmentUrl(studentId) {
+    if (!studentId) return '';
+    const mergedPdfPath = path.join(ATTACHMENT_DIR, 'election', `${studentId}_election_merged.pdf`);
+    if (fs.existsSync(mergedPdfPath)) {
+        return `${ATTACHMENT_BASE_URL}/election/${studentId}_election_merged.pdf`;
+    }
+    return '';
+}
+
     const toRow = (r) => {
         const sid = (r.student_id || '').toString().trim();
-        const attachmentUrl = sid
-            ? `${ATTACHMENT_BASE_URL}/election/${sid}_election_merged.pdf`
-            : '';
+        const attachmentUrl = getAttachmentUrl(sid);
         return {
             photo_url:                getLocalPhotoUrl(sid),
             student_id:               sid,

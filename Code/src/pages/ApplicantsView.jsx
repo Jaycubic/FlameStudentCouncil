@@ -469,9 +469,9 @@ function ApplicantsView() {
       <Card variant="outline" bg={bgColor} overflow="hidden">
         <Box px={5} py={3}>
           {/* Filter row + Workbook action buttons */}
-          <Flex align="center" justify="space-between" mb={2} flexWrap="wrap" gap={3}>
-            <HStack spacing={2} flexWrap="wrap" align="center">
-              <InputGroup size="sm" maxW="220px">
+          <Flex align="center" justify="space-between" mb={2} flexWrap="wrap" gap={2}>
+            <HStack spacing={2} flexWrap="nowrap" align="center">
+              <InputGroup size="sm" w="170px">
                 <InputLeftElement pointerEvents="none">
                   <MagnifyingGlassIcon style={{ width: 14, height: 14, color: 'gray' }} />
                 </InputLeftElement>
@@ -480,17 +480,17 @@ function ApplicantsView() {
                 {searchInput !== search && <InputRightElement><Spinner size="xs" /></InputRightElement>}
               </InputGroup>
 
-              <Select size="sm" maxW="200px" borderRadius="lg" fontSize="12px"
+              <Select size="sm" w="150px" borderRadius="lg" fontSize="12px"
                 value={positionFilter} onChange={e => setPositionFilter(e.target.value)} placeholder="All Positions">
                 {(filterOpts.positions || []).map(pos => <option key={pos} value={pos}>{pos}</option>)}
               </Select>
 
-              <Select size="sm" maxW="120px" borderRadius="lg" fontSize="12px"
+              <Select size="sm" w="110px" borderRadius="lg" fontSize="12px"
                 value={gender} onChange={e => setGender(e.target.value)} placeholder="All Genders">
                 {filterOpts.genders.map(g => <option key={g} value={g}>{g}</option>)}
               </Select>
 
-              <Select size="sm" maxW="130px" borderRadius="lg" fontSize="12px"
+              <Select size="sm" w="110px" borderRadius="lg" fontSize="12px"
                 value={batch} onChange={e => setBatch(e.target.value)} placeholder="All Batches">
                 {filterOpts.batches.map(b => <option key={b} value={b}>{b}</option>)}
               </Select>

@@ -256,26 +256,7 @@ const formController = {
         log.warn({ email }, '[ScoreRead] Master tokens unavailable — scores stored as null');
       }
 
-      // ── 2b. CGPA injection into academic raw score ────────────────────────
-      if (submissionData.academic_score != null) {
-        const cgpaRow = await StudentCgpaCache.findOne({
-          where: { email },
-          attributes: ['cgpa'],
-          raw: true
-        });
-        const cgpaVal = cgpaRow?.cgpa != null ? parseFloat(cgpaRow.cgpa) : null;
-        if (cgpaVal !== null && !isNaN(cgpaVal)) {
-          const rawBeforeCgpa = parseFloat(submissionData.academic_score);
-          const combinedRaw   = parseFloat((rawBeforeCgpa + cgpaVal).toFixed(2));
-          submissionData.academic_score = combinedRaw;
-          log.info(
-            { email, rawBeforeCgpa, cgpaVal, combinedRaw },
-            '[CgpaInjection] CGPA added to academic raw score'
-          );
-        } else {
-          log.warn({ email }, '[CgpaInjection] CGPA not in cache — academic_score unchanged');
-        }
-      }
+
 
       // ── 2c. Score Validation & Sanitization ───────────────────────────────
       const validateScore = (scoreRaw) => {
