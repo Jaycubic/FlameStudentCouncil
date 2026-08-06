@@ -96,7 +96,7 @@ def main():
     master_email          = sys.argv[5]
     master_access_token   = sys.argv[6]
     master_refresh_token  = sys.argv[7]
-    folder_id             = sys.argv[8]
+    folder_id             = os.environ.get('GOOGLE_DRIVE_FOLDER_ID', '').strip() or sys.argv[8]
     student_id            = sys.argv[9] if len(sys.argv) > 9 else "Unknown"
 
     # Resolve template ID

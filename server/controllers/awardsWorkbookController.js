@@ -17,7 +17,7 @@ const log = require('../utils/logger').child({ module: 'AwardsWorkbook' });
 const { syncVerifiedScores } = require('../services/scoresSyncService');
 
 const MASTER_EMAIL        = 'student.awards@flame.edu.in';
-const FOLDER_ID           = '1GBzDVaUcwehFAMrziH9zt8Cnjx-sN7ly';
+const FOLDER_ID           = process.env.GOOGLE_DRIVE_FOLDER_ID || '1GBzDVaUcwehFAMrziH9zt8Cnjx-sN7ly';
 const ATTACHMENT_BASE_URL = 'https://flamestudentcouncil.in/api/attachments';
 const PHOTO_BASE_URL      = 'https://flamestudentcouncil.in/api/photos';
 const LOCAL_PHOTOS_DIR    = '/opt/View/StudentTrackingSystem/server/Photos';

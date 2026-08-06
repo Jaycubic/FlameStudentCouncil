@@ -31,8 +31,8 @@ NAME_MAP = {
 
 DEFAULT_TEMPLATE_ID = '1qB2m7mRO21NkhWZWxw68K4nkjBTuERJSy5M8ctFnyeE'
 
-# Master-owned private folder — same one used in generate_sheet.py
-FOLDER_ID = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI'
+# Master-owned private folder — read from env var GOOGLE_DRIVE_FOLDER_ID
+FOLDER_ID = os.environ.get('GOOGLE_DRIVE_FOLDER_ID', '').strip() or '1GBzDVaUcwehFAMrziH9zt8Cnjx-sN7ly'
 
 
 def main():
