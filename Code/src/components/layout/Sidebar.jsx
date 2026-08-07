@@ -185,7 +185,7 @@ function Sidebar() {
     { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['admin', 'RC', 'user', 'Council', 'AdminLite'] },
     { name: 'Positions', href: '/positions', icon: QueueListIcon, roles: ['admin'] },
     { name: 'Applicants', href: '/applicants', icon: TableCellsIcon, roles: ['admin'] },
-    { name: 'Nominations', href: '/nominations', icon: TrophyIcon, roles: ['admin'] },
+    //{ name: 'Nominations', href: '/nominations', icon: TrophyIcon, roles: ['admin'] },
     { name: 'Time & Title', href: '/time-management', icon: CalendarIcon, roles: ['admin'] },
     { name: 'Election Form', href: '/election-form', icon: IdentificationIcon, roles: ['Student'] },
     //{ name: 'Settings', href: '/settings', icon: Cog6ToothIcon, roles: ['admin'] },
