@@ -423,7 +423,7 @@ function Login() {
                 w="100px"
                 h="100px"
               />
-              <Heading size="sm" mb={2}>
+              <Heading size="md" mb={2}>
                 Student's Council Application System
               </Heading>
               <Text color={textColor}>Please enter your credentials</Text>
