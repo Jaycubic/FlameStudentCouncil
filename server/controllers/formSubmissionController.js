@@ -276,15 +276,19 @@ const formController = {
       // ── 2d. Auto-scale raw scores → verified scores ───────────────────────
       if (submissionData.sports_score   != null) submissionData.sports_verified_score   = scaleScore(submissionData.sports_score);
       if (submissionData.cultural_score != null) submissionData.cultural_verified_score = scaleScore(submissionData.cultural_score);
-      if (submissionData.academic_score != null) submissionData.academic_verified_score = scaleScore(submissionData.academic_score);
+      if (submissionData.academic_score != null) submissionData.academic_verified_score = submissionData.academic_score; // CGPA is unscaled
 
-      // Sum the three verified scores into total_verified_score
+      // Sum the three verified scores + director scores into total_verified_score (capped at 30)
       const sv = parseFloat(submissionData.sports_verified_score)   || 0;
       const cv = parseFloat(submissionData.cultural_verified_score) || 0;
       const av = parseFloat(submissionData.academic_verified_score) || 0;
-      if (sv || cv || av) {
-        submissionData.total_verified_score = parseFloat((sv + cv + av).toFixed(2)).toString();
-        log.info({ email, sv, cv, av, total: submissionData.total_verified_score }, '[ScoreScale] total_verified_score computed');
+      const sd = parseFloat(submissionData.sports_director_score)   || 0;
+      const cd = parseFloat(submissionData.cultural_director_score) || 0;
+      if (sv || cv || av || sd || cd) {
+        const rawSum = sv + cv + av + sd + cd;
+        const cappedTotal = Math.min(30, parseFloat(rawSum.toFixed(2)));
+        submissionData.total_verified_score = cappedTotal.toString();
+        log.info({ email, sv, cv, av, sd, cd, total: submissionData.total_verified_score }, '[ScoreScale] total_verified_score computed');
       }
 
       log.info({

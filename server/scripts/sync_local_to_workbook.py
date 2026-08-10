@@ -110,9 +110,9 @@ def rows_to_values(cols, rows):
             elif col == 'cultural_verified_score':
                 val = f'=IFERROR(IF(VALUE(Q{ri})<=150, ROUND(VALUE(Q{ri})/15, 2), ROUND(MIN(10 + 0.05*(VALUE(Q{ri})-150), 12), 2)), 0)'
             elif col == 'academic_verified_score':
-                val = f'=IFERROR(IF(VALUE(O{ri})<=150, ROUND(VALUE(O{ri})/15, 2), ROUND(MIN(10 + 0.05*(VALUE(O{ri})-150), 12), 2)), 0)'
+                val = f'=IFERROR(VALUE(O{ri}), 0)'
             elif col == 'total_verified_score':
-                val = f'=SUM(T{ri}:V{ri}) + IFERROR(VALUE(R{ri}), 0) + IFERROR(VALUE(S{ri}), 0)'
+                val = f'=MIN(30, ROUND(SUM(T{ri}:V{ri}) + IFERROR(VALUE(R{ri}), 0) + IFERROR(VALUE(S{ri}), 0), 2))'
             else:
                 val = record.get(col, '')
                 if isinstance(val, bool):

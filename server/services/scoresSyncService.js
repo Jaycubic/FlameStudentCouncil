@@ -31,7 +31,7 @@ async function syncVerifiedScores(email, updatedFields) {
         const av = parseFloat(record.academic_verified_score) || parseFloat(record.academic_score) || 0;
         const sd = parseFloat(record.sports_director_score)   || 0;
         const cd = parseFloat(record.cultural_director_score) || 0;
-        const total = parseFloat((sv + cv + av + sd + cd).toFixed(2));
+        const total = Math.min(30, parseFloat((sv + cv + av + sd + cd).toFixed(2)));
 
         await record.update({ total_verified_score: total });
         console.log(`[ScoresSync] Recomputed total_verified_score for ${email}: ${total}`);

@@ -76,7 +76,7 @@ async function getApplicants(req, res) {
             const av = parseFloat(obj.academic_verified_score) || parseFloat(obj.academic_score) || 0;
             const sd = parseFloat(obj.sports_director_score)   || 0;
             const cd = parseFloat(obj.cultural_director_score) || 0;
-            obj.total_verified_score = (sv + cv + av + sd + cd).toFixed(2);
+            obj.total_verified_score = Math.min(30, parseFloat((sv + cv + av + sd + cd).toFixed(2))).toFixed(2);
             return obj;
         });
 
