@@ -235,14 +235,6 @@ def main():
 
     tabs = [('All Responses', ELECTION_COLS, all_rows)]
 
-    used_titles = {'All Responses'}
-    for pos_name, pos_rows in by_position.items():
-        safe_title = pos_name[:31].replace('[', '').replace(']', '').replace('*', '').replace(':', '').replace('?', '').replace('/', '\\')
-        if not safe_title or safe_title in used_titles:
-            safe_title = f"{safe_title[:27]}_{len(used_titles)}"
-        used_titles.add(safe_title)
-        tabs.append((safe_title, ELECTION_COLS, pos_rows))
-
     try:
         sheets_service = build('sheets', 'v4', credentials=creds)
 

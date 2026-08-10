@@ -320,16 +320,6 @@ def main():
     # Tab definitions: (tab_name, data_cols, rows)
     tabs = [('All Responses', ELECTION_COLS, all_rows)]
 
-    # Add per-position tabs
-    used_titles = {'All Responses'}
-    for pos_name, pos_rows in by_position.items():
-        # Excel sheet title limit is 31 characters
-        safe_title = pos_name[:31].replace('[', '').replace(']', '').replace('*', '').replace(':', '').replace('?', '').replace('/', '\\')
-        if not safe_title or safe_title in used_titles:
-            safe_title = f"{safe_title[:27]}_{len(used_titles)}"
-        used_titles.add(safe_title)
-        tabs.append((safe_title, ELECTION_COLS, pos_rows))
-
     tab_rows_map = {}
     for tab_name, cols, rows in tabs:
         ws = wb.create_sheet(tab_name)

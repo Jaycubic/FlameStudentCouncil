@@ -244,15 +244,6 @@ async function openOrCreate(req, res) {
                 const photoPayload = {
                     'All Responses': data.all.map(r => ({ photo_url: r.photo_url || '', email: r.email || '' })),
                 };
-                const usedTitles = new Set(['All Responses']);
-                for (const [posName, posRows] of Object.entries(data.byPosition)) {
-                    let safeTitle = posName.slice(0, 31).replace(/[^a-zA-Z0-9 _-]/g, '');
-                    if (!safeTitle || usedTitles.has(safeTitle)) {
-                        safeTitle = `${safeTitle.slice(0, 27)}_${usedTitles.size}`;
-                    }
-                    usedTitles.add(safeTitle);
-                    photoPayload[safeTitle] = posRows.map(r => ({ photo_url: r.photo_url || '', email: r.email || '' }));
-                }
 
                 for (const [tab, rows] of Object.entries(photoPayload)) {
                     const withPhoto = rows.filter(r => r.photo_url).length;
