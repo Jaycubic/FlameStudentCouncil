@@ -4,15 +4,15 @@ const { Sequelize } = require("sequelize");
 
 const logger = require("../utils/logger");
 
-const schemaName = process.env.DBP_SCHEMA || "app";
+const schemaName = process.env.DBPB_SCHEMA || "app";
 
 const sequelize = new Sequelize(
-  process.env.DBP_NAME || process.env.DB_NAME || "infirmary",
-  process.env.DBP_USER || process.env.DB_USER || "jofrey",
-  process.env.DBP_PASSWORD || process.env.DB_PASSWORD || "2025",
+  process.env.DBPB_NAME || process.env.DB_NAME || "infirmary",
+  process.env.DBPB_USER || process.env.DB_USER || "jofrey",
+  process.env.DBPB_PASSWORD || process.env.DB_PASSWORD || "2025",
   {
-    host: process.env.DBP_HOST || process.env.DB_HOST || "localhost",
-    port: parseInt(process.env.DBP_PORT || process.env.DB_PORT || "5432", 10),
+    host: process.env.DBPB_HOST || process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DBPB_PORT || process.env.DB_PORT || "5432", 10),
     dialect: "postgres",
     schema: schemaName,
     searchPath: schemaName,
@@ -38,7 +38,7 @@ const sequelize = new Sequelize(
 
 sequelize
   .authenticate()
-  .then(() => logger.info(`✅ Connected to PostgreSQL database (${process.env.DBP_NAME || "infirmary"}, schema: ${schemaName}) via Sequelize`))
+  .then(() => logger.info(`✅ Connected to PostgreSQL database (${process.env.DBPB_NAME || "infirmary"}, schema: ${schemaName}) via Sequelize`))
   .catch(err => {
     logger.error("❌ Error connecting to PostgreSQL:", err);
     process.exit(1);
