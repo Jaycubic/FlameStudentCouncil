@@ -35,12 +35,12 @@ SCOPES = [
 
 PHOTO_COL_WIDTH  = 22   # kept for reference — width is already set at workbook creation time
 
-# Data columns (same order as generate_awards_workbook.py — Photo is prepended separately)
 ELECTION_COLS = [
     'student_id', 'name', 'email', 'gender', 'batch', 'mobile_number',
     'position_selected', 'community_service', 'statement_of_purpose', 'more_info',
     'read_handbook', 'not_on_probation', 'tru_statement',
     'academic_score', 'sports_score', 'cultural_score',
+    'sports_director_score', 'cultural_director_score',
     'sports_verified_score', 'cultural_verified_score', 'academic_verified_score',
     'total_verified_score', 'submission_date',
     'Workbook Link', 'Attachment'
@@ -100,24 +100,34 @@ def rows_to_values(cols, rows):
     """
     header = ['Photo'] + list(cols)
     result = [header]
-    for record in rows:
-        photo    = get_photo_formula(record.get('photo_url', ''))
+    for idx, record in enumerate(rows):
+        ri = idx + 2   # row 2 is first data row
+        photo = get_photo_formula(record.get('photo_url', ''))
         row = [photo]
         for col in cols:
-            val = record.get(col, '')
-            if isinstance(val, bool):
-                val = 'True' if val else 'False'
-            elif str(val).lower() == 'true':
-                val = 'True'
-            elif str(val).lower() == 'false':
-                val = 'False'
-            elif val is None:
-                val = ''
-            elif col in HYPERLINK_COLS and val:
-                label = HYPERLINK_COLS[col]
-                val = f'=HYPERLINK("{val}", "{label}")'
+            if col == 'sports_verified_score':
+                val = f'=IF(P{ri}<>"", P{ri}, 0)'
+            elif col == 'cultural_verified_score':
+                val = f'=IF(Q{ri}<>"", Q{ri}, 0)'
+            elif col == 'academic_verified_score':
+                val = f'=IF(O{ri}<>"", O{ri}, 0)'
+            elif col == 'total_verified_score':
+                val = f'=SUM(T{ri}:V{ri}) + IF(ISNUMBER(R{ri}), R{ri}, 0) + IF(ISNUMBER(S{ri}), S{ri}, 0)'
             else:
-                val = str(val)
+                val = record.get(col, '')
+                if isinstance(val, bool):
+                    val = 'True' if val else 'False'
+                elif str(val).lower() == 'true':
+                    val = 'True'
+                elif str(val).lower() == 'false':
+                    val = 'False'
+                elif val is None:
+                    val = ''
+                elif col in HYPERLINK_COLS and val:
+                    label = HYPERLINK_COLS[col]
+                    val = f'=HYPERLINK("{val}", "{label}")'
+                else:
+                    val = str(val)
             row.append(val)
         result.append(row)
     return result

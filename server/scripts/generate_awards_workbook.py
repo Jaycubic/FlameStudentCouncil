@@ -44,6 +44,7 @@ SCOPES = [
 ]
 
 PROTECTED_COLS  = ['student_id', 'name', 'email']   # warning-only protection
+VERIFIED_COLS   = ['sports_verified_score', 'cultural_verified_score', 'academic_verified_score', 'total_verified_score']
 PHOTO_COL_WIDTH  = 22       # column A width (pixels/chars) for the photo column
 PHOTO_ROW_HEIGHT = 90      # row height when photo is present
 
@@ -59,17 +60,20 @@ ELECTION_COLS = [
     'position_selected', 'community_service', 'statement_of_purpose', 'more_info',
     'read_handbook', 'not_on_probation', 'tru_statement',
     'academic_score', 'sports_score', 'cultural_score',
+    'sports_director_score', 'cultural_director_score',
     'sports_verified_score', 'cultural_verified_score', 'academic_verified_score',
     'total_verified_score', 'submission_date',
     'Workbook Link', 'Attachment'
 ]
 
 # Styles
-HEADER_FILL  = PatternFill("solid", fgColor="1E3A8A")   # dark blue  — data cols
-HEADER_FONT  = Font(bold=True, color="FFFFFF", size=10)
-LOCK_FILL    = PatternFill("solid", fgColor="FFF3CD")   # yellow tint — protected data cols
-PHOTO_FILL   = PatternFill("solid", fgColor="0D9488")   # teal       — photo header
-KEY_COL_FILL = PatternFill("solid", fgColor="7C3AED")   # purple     — student_id/name/email header
+HEADER_FILL     = PatternFill("solid", fgColor="1E3A8A")   # dark blue  — data cols
+HEADER_FONT     = Font(bold=True, color="FFFFFF", size=10)
+LOCK_FILL       = PatternFill("solid", fgColor="FFF3CD")   # yellow tint — protected data cols
+PHOTO_FILL      = PatternFill("solid", fgColor="0D9488")   # teal       — photo header
+KEY_COL_FILL    = PatternFill("solid", fgColor="7C3AED")   # purple     — student_id/name/email header
+GREY_HEADER_FILL= PatternFill("solid", fgColor="4B5563")   # dark grey  — verified cols header
+GREY_DATA_FILL  = PatternFill("solid", fgColor="E5E7EB")   # light grey — verified cols data cells
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,29 +110,39 @@ def get_photo_formula(photo_url):
     return f'=IMAGE("{photo_url}")'
 
 
-def row_to_cells(record, cols):
+def row_to_cells(record, cols, ri):
     """Extract values for the given column list from a record dict."""
     cells = []
     for col in cols:
-        val = record.get(col, '')
-        if isinstance(val, bool):
-            val = 'True' if val else 'False'
-        elif str(val).lower() == 'true':
-            val = 'True'
-        elif str(val).lower() == 'false':
-            val = 'False'
-        elif val is None:
-            val = ''
+        # Dynamic Excel formulas for verified scores
+        if col == 'sports_verified_score':
+            val = f'=IF(P{ri}<>"", P{ri}, 0)'
+        elif col == 'cultural_verified_score':
+            val = f'=IF(Q{ri}<>"", Q{ri}, 0)'
+        elif col == 'academic_verified_score':
+            val = f'=IF(O{ri}<>"", O{ri}, 0)'
+        elif col == 'total_verified_score':
+            val = f'=SUM(T{ri}:V{ri}) + IF(ISNUMBER(R{ri}), R{ri}, 0) + IF(ISNUMBER(S{ri}), S{ri}, 0)'
+        else:
+            val = record.get(col, '')
+            if isinstance(val, bool):
+                val = 'True' if val else 'False'
+            elif str(val).lower() == 'true':
+                val = 'True'
+            elif str(val).lower() == 'false':
+                val = 'False'
+            elif val is None:
+                val = ''
 
-        if col == 'submission_date' and val:
-            try:
-                val = datetime.fromisoformat(str(val)).strftime('%Y-%m-%d')
-            except Exception:
-                pass
-        # Wrap URL columns in =HYPERLINK() so cell shows a short label
-        if col in HYPERLINK_COLS and val:
-            label = HYPERLINK_COLS[col]
-            val = f'=HYPERLINK("{val}", "{label}")'
+            if col == 'submission_date' and val:
+                try:
+                    val = datetime.fromisoformat(str(val)).strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+            # Wrap URL columns in =HYPERLINK() so cell shows a short label
+            if col in HYPERLINK_COLS and val:
+                label = HYPERLINK_COLS[col]
+                val = f'=HYPERLINK("{val}", "{label}")'
         cells.append(val)
     return cells
 
@@ -161,7 +175,13 @@ def write_sheet(ws, cols, rows):
     for ci, col in enumerate(cols, 2):
         cell = ws.cell(row=1, column=ci, value=col)
         cell.font      = HEADER_FONT
-        cell.fill      = KEY_COL_FILL if col in PROTECTED_COLS else HEADER_FILL
+        if col in PROTECTED_COLS:
+            cell.fill = KEY_COL_FILL
+        elif col in VERIFIED_COLS:
+            cell.fill = GREY_HEADER_FILL
+        else:
+            cell.fill = HEADER_FILL
+
         cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         cell.border    = border
         ws.column_dimensions[get_column_letter(ci)].width = max(len(col) + 4, 16)
@@ -180,36 +200,57 @@ def write_sheet(ws, cols, rows):
         if photo_url:
             ws.row_dimensions[ri].height = PHOTO_ROW_HEIGHT
 
-        cells = row_to_cells(record, cols)
+        cells = row_to_cells(record, cols, ri)
         for ci, val in enumerate(cells, 2):
             cell = ws.cell(row=ri, column=ci, value=val)
             cell.border    = border
             cell.alignment = Alignment(vertical='center')
-            if cols[ci - 2] in PROTECTED_COLS:
+            col_name = cols[ci - 2]
+            if col_name in PROTECTED_COLS:
                 cell.fill = LOCK_FILL
+            elif col_name in VERIFIED_COLS:
+                cell.fill = GREY_DATA_FILL
 
 
 # ─── Sheet protection ─────────────────────────────────────────────────────────
 
 def protect_sheet_columns(sheets_service, spreadsheet_id, sheet_gid):
-    """Warning-only protection on columns A–D (Photo, student_id, name, email)."""
+    """Warning-only protection on columns A–D and T–W."""
     body = {
-        "requests": [{
-            "addProtectedRange": {
-                "protectedRange": {
-                    "range": {
-                        "sheetId":           sheet_gid,
-                        "startColumnIndex":  0,   # col A (Photo)
-                        "endColumnIndex":    4,   # cols A-D exclusive (Photo,student_id,name,email)
-                    },
-                    "description": (
-                        "⚠️ Photo / student_id / name / email are KEY fields. "
-                        "Changes here will NOT be synced and may corrupt the local database."
-                    ),
-                    "warningOnly": True,
+        "requests": [
+            {
+                "addProtectedRange": {
+                    "protectedRange": {
+                        "range": {
+                            "sheetId":           sheet_gid,
+                            "startColumnIndex":  0,   # col A (Photo)
+                            "endColumnIndex":    4,   # cols A-D exclusive (Photo,student_id,name,email)
+                        },
+                        "description": (
+                            "⚠️ Photo / student_id / name / email are KEY fields. "
+                            "Changes here will NOT be synced and may corrupt the local database."
+                        ),
+                        "warningOnly": True,
+                    }
+                }
+            },
+            {
+                "addProtectedRange": {
+                    "protectedRange": {
+                        "range": {
+                            "sheetId":           sheet_gid,
+                            "startColumnIndex":  19,  # col T (sports_verified_score)
+                            "endColumnIndex":    23,  # cols T-W exclusive (total_verified_score)
+                        },
+                        "description": (
+                            "⚠️ Verified score columns are calculated dynamically via formulas. "
+                            "Direct edits here may break automatic formula updates."
+                        ),
+                        "warningOnly": True,
+                    }
                 }
             }
-        }]
+        ]
     }
     try:
         sheets_service.spreadsheets().batchUpdate(

@@ -26,7 +26,7 @@ ENV_KEY_MAP = {
 }
 
 NAME_MAP = {
-    'workbook': 'Student Council Workbook',
+    'workbook': 'Student Council Matrix',
 }
 
 DEFAULT_TEMPLATE_ID = '1qB2m7mRO21NkhWZWxw68K4nkjBTuERJSy5M8ctFnyeE'

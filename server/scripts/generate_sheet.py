@@ -41,7 +41,7 @@ DEFAULT_TEMPLATE_ID = '1qB2m7mRO21NkhWZWxw68K4nkjBTuERJSy5M8ctFnyeE'
 FOLDER_ID = '1EKS37zB71mAXyGRz5Mu1VxUEZJI2KXyI'
 
 NAME_MAP = {
-    'workbook': 'Student Council Workbook',
+    'workbook': 'Student Council Matrix',
 }
 
 

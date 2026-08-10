@@ -40,7 +40,7 @@ const MASTER_EMAIL = 'student.awards@flame.edu.in';
 const FOLDER_ID    = process.env.GOOGLE_DRIVE_FOLDER_ID || '1GBzDVaUcwehFAMrziH9zt8Cnjx-sN7ly';
 
 const NAME_MAP = {
-    workbook: 'Student Council Workbook - 2026/2027',
+    workbook: 'Student Council Matrix - 2026/2027',
 };
 
 // ─── Concurrency Semaphore ────────────────────────────────────────────────────

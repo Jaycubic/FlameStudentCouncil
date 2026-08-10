@@ -42,6 +42,7 @@ const IMMUTABLE = new Set(['student_id', 'email', 'name']);
 // ─── Whitelisted fields that CAN be synced cloud → local ─────────────────────
 const CLOUD_SYNCABLE = [
     'academic_score', 'sports_score', 'cultural_score',
+    'sports_director_score', 'cultural_director_score',
     'sports_verified_score', 'cultural_verified_score',
     'academic_verified_score', 'total_verified_score',
 ];
@@ -136,6 +137,8 @@ function getAttachmentUrl(studentId) {
             academic_score:           r.academic_score || '',
             sports_score:             r.sports_score || '',
             cultural_score:           r.cultural_score || '',
+            sports_director_score:    r.sports_director_score || '',
+            cultural_director_score:  r.cultural_director_score || '',
             sports_verified_score:    r.sports_verified_score || '',
             cultural_verified_score:  r.cultural_verified_score || '',
             academic_verified_score:  r.academic_verified_score || '',
@@ -390,4 +393,37 @@ async function syncToCloud(req, res) {
     }
 }
 
-module.exports = { openOrCreate, syncFromCloud, syncToCloud };
+// ─── Automatic Background Sync (Local → Cloud) ────────────────────────────────
+async function triggerAutoCloudSync() {
+    try {
+        const workbook = await AwardsWorkbook.findOne();
+        if (!workbook) return; // If workbook not created yet, skip auto sync
+
+        const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
+        if (!masterUser?.access_token) return;
+
+        const data    = await collectAllData();
+        const dataB64 = Buffer.from(JSON.stringify(data)).toString('base64');
+        const scriptPath = path.join(__dirname, '../scripts/sync_local_to_workbook.py');
+
+        runPython(scriptPath, [
+            workbook.workbook_id,
+            masterUser.access_token,
+            masterUser.refresh_token,
+        ], 180_000, dataB64)
+            .then(result => {
+                if (result.success) {
+                    log.info({ tabs: result.tabs_updated }, '[AutoCloudSync] ✅ Auto-synced local changes to cloud workbook');
+                } else {
+                    log.warn({ error: result.error }, '[AutoCloudSync] Auto-sync failed (non-fatal)');
+                }
+            })
+            .catch(err => {
+                log.error({ err: err.message }, '[AutoCloudSync] Auto-sync error (non-fatal)');
+            });
+    } catch (err) {
+        log.error({ err: err.message }, '[AutoCloudSync] Auto-sync check error');
+    }
+}
+
+module.exports = { openOrCreate, syncFromCloud, syncToCloud, triggerAutoCloudSync };

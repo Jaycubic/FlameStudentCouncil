@@ -27,9 +27,9 @@ SCOPES = [
 # Column A header is always 'Photo' (formula column — skip on read-back)
 PHOTO_COL = 'Photo'
 
-# Columns that CAN be synced back to local (all others are ignored)
 SYNCABLE_FIELDS = {
     'academic_score', 'sports_score', 'cultural_score',
+    'sports_director_score', 'cultural_director_score',
     'sports_verified_score', 'cultural_verified_score',
     'academic_verified_score', 'total_verified_score',
 }
@@ -96,44 +96,39 @@ def main():
     try:
         sheets_service = build('sheets', 'v4', credentials=creds)
 
-        # Read AllAwards tab — most complete view
-        all_rows = read_tab(sheets_service, workbook_id, 'AllAwards')
+        # Get metadata to find all sheet tabs
+        meta = sheets_service.spreadsheets().get(spreadsheetId=workbook_id).execute()
+        sheet_titles = [s['properties']['title'] for s in meta.get('sheets', [])]
 
-        # Merge rows from other tabs for any fields AllAwards may not have
-        sports_rows    = {r['student_id']: r for r in read_tab(sheets_service, workbook_id, 'SportsAward')    if r.get('student_id')}
-        cultural_rows  = {r['student_id']: r for r in read_tab(sheets_service, workbook_id, 'CulturalAward')  if r.get('student_id')}
-        trail_rows     = {r['student_id']: r for r in read_tab(sheets_service, workbook_id, 'TrailblazerAward') if r.get('student_id')}
+        output_map = {}   # student_id → merged safe dict
 
-        output_map = {}   # student_id → merged safe dict (deduplicates multi-award students)
+        # Process 'All Responses' first, then position tabs
+        ordered_tabs = []
+        if 'All Responses' in sheet_titles:
+            ordered_tabs.append('All Responses')
+        for title in sheet_titles:
+            if title not in ordered_tabs:
+                ordered_tabs.append(title)
 
-        for row in all_rows:
-            sid = row.get('student_id', '').strip()
-            if not sid:
-                continue
+        for tab_name in ordered_tabs:
+            tab_rows = read_tab(sheets_service, workbook_id, tab_name)
+            for row in tab_rows:
+                sid = row.get('student_id', '').strip()
+                if not sid:
+                    continue
 
-            # Merge from specialised tabs (more accurate per-field data)
-            merged = {**row}
-            for tab_map in [sports_rows, cultural_rows, trail_rows]:
-                if sid in tab_map:
-                    for k, v in tab_map[sid].items():
-                        if k in SYNCABLE_FIELDS and v:
-                            merged[k] = v
-
-            # Return only student_id (key) + syncable fields
-            safe = {'student_id': sid}
-            for field in SYNCABLE_FIELDS:
-                val = merged.get(field, '') or ''
-                safe[field] = val.strip() if isinstance(val, str) else val or None
-
-            # Merge into output_map: prefer non-empty values if student appears
-            # multiple times in AllAwards (one row per award type)
-            if sid not in output_map:
-                output_map[sid] = safe
-            else:
-                existing = output_map[sid]
+                safe = {'student_id': sid}
                 for field in SYNCABLE_FIELDS:
-                    if not existing.get(field) and safe.get(field):
-                        existing[field] = safe[field]
+                    val = row.get(field, '') or ''
+                    safe[field] = val.strip() if isinstance(val, str) else val or None
+
+                if sid not in output_map:
+                    output_map[sid] = safe
+                else:
+                    existing = output_map[sid]
+                    for field in SYNCABLE_FIELDS:
+                        if (existing.get(field) is None or existing.get(field) == '') and safe.get(field) is not None and safe.get(field) != '':
+                            existing[field] = safe[field]
 
         output = list(output_map.values())
         print(json.dumps({"success": True, "rows": output}))

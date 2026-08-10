@@ -70,13 +70,13 @@ async function getApplicants(req, res) {
 
         let data = rows.map(r => {
             const obj = r.toJSON();
-            // Recompute total_verified_score in real-time
-            const vals = [
-                obj.sports_verified_score,
-                obj.cultural_verified_score,
-                obj.academic_verified_score,
-            ].map(v => parseFloat(v)).filter(n => !isNaN(n));
-            obj.total_verified_score = vals.length > 0 ? vals.reduce((a, b) => a + b, 0).toFixed(2) : null;
+            // Recompute total_verified_score in real-time including director bonus scores
+            const sv = parseFloat(obj.sports_verified_score)   || parseFloat(obj.sports_score)   || 0;
+            const cv = parseFloat(obj.cultural_verified_score) || parseFloat(obj.cultural_score) || 0;
+            const av = parseFloat(obj.academic_verified_score) || parseFloat(obj.academic_score) || 0;
+            const sd = parseFloat(obj.sports_director_score)   || 0;
+            const cd = parseFloat(obj.cultural_director_score) || 0;
+            obj.total_verified_score = (sv + cv + av + sd + cd).toFixed(2);
             return obj;
         });
 
@@ -191,8 +191,11 @@ function serveFile(req, res) {
 // ─── Update editable fields on an applicant record ─────────────────────────
 // PATCH /api/applicants/profile/:id
 
+const { triggerAutoCloudSync } = require('./awardsWorkbookController');
+
 const EDITABLE_FIELDS = [
     'academic_score', 'sports_score', 'cultural_score',
+    'sports_director_score', 'cultural_director_score',
     'sports_verified_score', 'cultural_verified_score', 'academic_verified_score',
     'total_verified_score', 'status',
 ];
@@ -217,6 +220,8 @@ async function updateApplicant(req, res) {
         }
 
         await record.update(updates);
+
+        setImmediate(() => triggerAutoCloudSync());
 
         return res.json({ success: true, data: record.toJSON() });
     } catch (err) {

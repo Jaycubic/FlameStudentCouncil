@@ -188,15 +188,15 @@ def main():
             updated_cells = result.get('totalUpdatedCells', 0)
             print(f"[PhotoInsert] Sheets API updated {updated_cells} cells", file=sys.stderr)
 
-        # ── 2. Merge AllAwards column A for same-student rows ─────────────────
-        all_rows = photo_data.get('AllAwards', [])
+        # ── 2. Merge All Responses column A for same-student rows ─────────────────
+        all_rows = photo_data.get('All Responses', [])
         if all_rows:
             meta     = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
             gid_map  = {
                 s['properties']['title']: s['properties']['sheetId']
                 for s in meta.get('sheets', [])
             }
-            all_gid  = gid_map.get('AllAwards')
+            all_gid  = gid_map.get('All Responses')
 
             if all_gid is not None:
                 merge_reqs = build_merge_requests(all_gid, all_rows, start_row_index=1)
@@ -207,7 +207,7 @@ def main():
                             body={'requests': merge_reqs}
                         )
                     )
-                    print(f"[PhotoInsert] Merged {len(merge_reqs)} groups in AllAwards column A", file=sys.stderr)
+                    print(f"[PhotoInsert] Merged {len(merge_reqs)} groups in All Responses column A", file=sys.stderr)
 
         print(json.dumps({'success': True, 'stats': stats}))
 

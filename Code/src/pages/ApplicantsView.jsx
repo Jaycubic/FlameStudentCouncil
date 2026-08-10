@@ -548,20 +548,6 @@ function ApplicantsView() {
                   Sync ↓
                 </Button>
               </Tooltip>
-
-              <Tooltip label="Push local changes → Update Google Sheet" hasArrow placement="bottom">
-                <Button size="sm"
-                  leftIcon={<CloudArrowUpIcon style={{ width: 14, height: 14 }} />}
-                  colorScheme="purple" variant="outline" borderRadius="lg"
-                  fontSize="12px" fontWeight="600"
-                  isLoading={syncUpLoading} loadingText="Pushing…"
-                  onClick={handleSyncToCloud} boxShadow="sm"
-                  _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
-                  transition="all 0.15s"
-                >
-                  Sync ↑
-                </Button>
-              </Tooltip>
             </HStack>
           </Flex>
 

@@ -18,18 +18,20 @@ async function syncVerifiedScores(email, updatedFields) {
     if (!email || !updatedFields || Object.keys(updatedFields).length === 0) return;
 
     try {
-        // Only act if a verified score field was updated
-        const verifiedFields = ['sports_verified_score', 'cultural_verified_score', 'academic_verified_score'];
+        // Only act if a verified score or director score field was updated
+        const verifiedFields = ['sports_verified_score', 'cultural_verified_score', 'academic_verified_score', 'sports_director_score', 'cultural_director_score'];
         const hasVerifiedUpdate = verifiedFields.some(f => updatedFields[f] !== undefined);
         if (!hasVerifiedUpdate) return;
 
         const record = await ElectionFormResponse.findOne({ where: { email } });
         if (!record) return;
 
-        const sv = parseFloat(record.sports_verified_score)   || 0;
-        const cv = parseFloat(record.cultural_verified_score) || 0;
-        const av = parseFloat(record.academic_verified_score) || 0;
-        const total = parseFloat((sv + cv + av).toFixed(2));
+        const sv = parseFloat(record.sports_verified_score)   || parseFloat(record.sports_score)   || 0;
+        const cv = parseFloat(record.cultural_verified_score) || parseFloat(record.cultural_score) || 0;
+        const av = parseFloat(record.academic_verified_score) || parseFloat(record.academic_score) || 0;
+        const sd = parseFloat(record.sports_director_score)   || 0;
+        const cd = parseFloat(record.cultural_director_score) || 0;
+        const total = parseFloat((sv + cv + av + sd + cd).toFixed(2));
 
         await record.update({ total_verified_score: total });
         console.log(`[ScoresSync] Recomputed total_verified_score for ${email}: ${total}`);

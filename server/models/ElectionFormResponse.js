@@ -87,6 +87,14 @@ const ElectionFormResponse = sequelize.define('ElectionFormResponse', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    sports_director_score: {
+        type: DataTypes.DECIMAL(6, 2),
+        allowNull: true,
+    },
+    cultural_director_score: {
+        type: DataTypes.DECIMAL(6, 2),
+        allowNull: true,
+    },
     sports_verified_score: {
         type: DataTypes.STRING,
         allowNull: true,

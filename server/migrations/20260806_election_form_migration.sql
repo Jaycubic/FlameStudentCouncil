@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS app.election_drafts (
 
 -- Alter tables if already existing
 ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS more_info TEXT;
+ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS sports_director_score DECIMAL(6,2);
+ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS cultural_director_score DECIMAL(6,2);
 ALTER TABLE app.election_drafts ADD COLUMN IF NOT EXISTS more_info TEXT;
 
 -- 4. Create ElectionAttachment (single generic attachment table)

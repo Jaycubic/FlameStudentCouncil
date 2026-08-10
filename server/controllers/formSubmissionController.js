@@ -18,6 +18,7 @@ const { spawn } = require('child_process');
 
 // Import the fire-and-forget revoke helper & sheet tab inserters from sheetController
 const { revokeStudentAccess, insertSopSheetTab, insertMoreInfoSheetTab } = require('./sheetController');
+const { triggerAutoCloudSync } = require('./awardsWorkbookController');
 const { emitDashboardUpdate } = require('./dashboardController');
 const { submissionEmailQueue } = require('../queues/submissionEmailQueue');
 const log = require('../utils/logger').child({ module: 'FormSubmissionController' });
@@ -406,6 +407,11 @@ const formController = {
         } catch (mergeErr) {
           log.error({ err: mergeErr.message }, '[PdfMerge] Error during PDF merge');
         }
+      });
+
+      // Trigger automatic cloud sync if Master Admin Workbook has been created (completely asynchronous)
+      setImmediate(() => {
+        triggerAutoCloudSync().catch(err => log.error({ err: err.message }, '[AutoCloudSync] Background sync error (non-fatal)'));
       });
 
     } catch (error) {
