@@ -1,30 +1,47 @@
+// config/database.js
 require("dotenv").config();
 const { Sequelize } = require("sequelize");
 
-const infirmarySequelize = new Sequelize(
-  process.env.DB_NAME_INFIRMARY || "Infirmary",
-  process.env.DB_USER     || "root",
-  process.env.DB_PASSWORD || "",
+const logger = require("../utils/logger");
+
+const schemaName = process.env.DBP_SCHEMA || "app";
+
+const sequelize = new Sequelize(
+  process.env.DBP_NAME || process.env.DB_NAME || "infirmary",
+  process.env.DBP_USER || process.env.DB_USER || "jofrey",
+  process.env.DBP_PASSWORD || process.env.DB_PASSWORD || "2025",
   {
-    host:    process.env.DB_HOST || "localhost",
-    port:    process.env.DB_PORT || 3306,
-    dialect: "mysql",
-    logging: false,
+    host: process.env.DBP_HOST || process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DBP_PORT || process.env.DB_PORT || "5432", 10),
+    dialect: "postgres",
+    schema: schemaName,
+    searchPath: schemaName,
+    dialectOptions: {
+      prependSearchPath: true,
+    },
+    define: {
+      schema: schemaName,
+      schemaDelimiter: ".",
+    },
+    logging: (msg, options) => {
+      const context = options?.loggingContext ? `[Context: ${options.loggingContext}] ` : "";
+      logger.info(`${context}${msg}`);
+    }, // Improved logging with context
     pool: {
-      max:     10,
-      min:     0,
-      acquire: 30000,
-      idle:    10000,
+      max: 20,
+      min: 5,
+      acquire: 20000,
+      idle: 5000,
     },
   }
 );
 
-infirmarySequelize
+sequelize
   .authenticate()
-  .then(() => console.log("✅ Connected to MySQL Infirmary database via Sequelize"))
+  .then(() => logger.info(`✅ Connected to PostgreSQL database (${process.env.DBP_NAME || "infirmary"}, schema: ${schemaName}) via Sequelize`))
   .catch(err => {
-    console.error("❌ Error connecting to Infirmary MySQL:", err);
+    logger.error("❌ Error connecting to PostgreSQL:", err);
     process.exit(1);
   });
 
-module.exports = infirmarySequelize;
+module.exports = sequelize;
