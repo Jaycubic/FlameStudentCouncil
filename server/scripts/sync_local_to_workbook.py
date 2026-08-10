@@ -106,13 +106,13 @@ def rows_to_values(cols, rows):
         row = [photo]
         for col in cols:
             if col == 'sports_verified_score':
-                val = f'=IF(P{ri}<>"", P{ri}, 0)'
+                val = f'=IFERROR(IF(VALUE(P{ri})<=150, ROUND(VALUE(P{ri})/15, 2), ROUND(MIN(10 + 0.05*(VALUE(P{ri})-150), 12), 2)), 0)'
             elif col == 'cultural_verified_score':
-                val = f'=IF(Q{ri}<>"", Q{ri}, 0)'
+                val = f'=IFERROR(IF(VALUE(Q{ri})<=150, ROUND(VALUE(Q{ri})/15, 2), ROUND(MIN(10 + 0.05*(VALUE(Q{ri})-150), 12), 2)), 0)'
             elif col == 'academic_verified_score':
-                val = f'=IF(O{ri}<>"", O{ri}, 0)'
+                val = f'=IFERROR(IF(VALUE(O{ri})<=150, ROUND(VALUE(O{ri})/15, 2), ROUND(MIN(10 + 0.05*(VALUE(O{ri})-150), 12), 2)), 0)'
             elif col == 'total_verified_score':
-                val = f'=SUM(T{ri}:V{ri}) + IF(ISNUMBER(R{ri}), R{ri}, 0) + IF(ISNUMBER(S{ri}), S{ri}, 0)'
+                val = f'=SUM(T{ri}:V{ri}) + IFERROR(VALUE(R{ri}), 0) + IFERROR(VALUE(S{ri}), 0)'
             else:
                 val = record.get(col, '')
                 if isinstance(val, bool):
