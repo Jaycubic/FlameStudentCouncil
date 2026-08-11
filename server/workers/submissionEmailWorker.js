@@ -7,6 +7,7 @@
 const { Worker }   = require('bullmq');
 const nodemailer   = require('nodemailer');
 const { connection } = require('../queues/submissionEmailQueue');
+const { ElectionFormResponse } = require('../models');
 const log = require('../utils/logger').child({ module: 'SubmissionEmailWorker' });
 
 // ─── SMTP transporter (pooled, same config as emailController) ────────────────
@@ -120,6 +121,16 @@ const worker = new Worker('submission-email', async (job) => {
         html,
     });
 
+    // Persist notification_status = 'sent'
+    try {
+        await ElectionFormResponse.update(
+            { notification_status: 'sent' },
+            { where: { id: submissionId } }
+        );
+    } catch (dbErr) {
+        log.warn({ submissionId, err: dbErr.message }, '[SubmissionEmail] Failed to update notification_status');
+    }
+
     log.info({ studentEmail, positionSelected }, '[SubmissionEmail] ✅ Confirmation sent');
     return { sent: true };
 
@@ -134,12 +145,29 @@ worker.on('completed', job => {
     log.info({ jobId: job.id }, '[SubmissionEmail] Job completed');
 });
 
-worker.on('failed', (job, err) => {
+worker.on('failed', async (job, err) => {
     log.error({
         jobId:   job?.id,
         attempt: job?.attemptsMade,
         err:     err.message,
     }, '[SubmissionEmail] Job failed');
+
+    // On final failure (all retries exhausted), persist notification_status = 'failed'
+    const maxAttempts = job?.opts?.attempts || 3;
+    if (job?.attemptsMade >= maxAttempts) {
+        try {
+            const submissionId = job?.data?.submissionId;
+            if (submissionId) {
+                await ElectionFormResponse.update(
+                    { notification_status: 'failed' },
+                    { where: { id: submissionId } }
+                );
+                log.warn({ submissionId }, '[SubmissionEmail] All retries exhausted — notification_status set to failed');
+            }
+        } catch (dbErr) {
+            log.error({ err: dbErr.message }, '[SubmissionEmail] Failed to update notification_status on final failure');
+        }
+    }
 });
 
 worker.on('error', err => {

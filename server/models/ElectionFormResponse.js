@@ -31,6 +31,7 @@ const ElectionFormResponse = sequelize.define('ElectionFormResponse', {
     email: {
         type: DataTypes.STRING,
         allowNull: false,
+        unique: true,
     },
     position_selected: {
         type: DataTypes.STRING,
@@ -82,6 +83,11 @@ const ElectionFormResponse = sequelize.define('ElectionFormResponse', {
         type: DataTypes.STRING(50),
         allowNull: false,
         defaultValue: 'Submitted',
+    },
+    notification_status: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        defaultValue: 'pending',
     },
     photo: {
         type: DataTypes.STRING,

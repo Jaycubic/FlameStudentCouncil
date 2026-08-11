@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS app.election_drafts (
 ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS more_info TEXT;
 ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS sports_director_score DECIMAL(6,2);
 ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS cultural_director_score DECIMAL(6,2);
+ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS notification_status VARCHAR(50) DEFAULT 'pending';
+ALTER TABLE app.election_form_responses ADD CONSTRAINT election_form_responses_email_key UNIQUE (email);
 ALTER TABLE app.election_drafts ADD COLUMN IF NOT EXISTS more_info TEXT;
 
 -- 4. Create ElectionAttachment (single generic attachment table)
