@@ -99,7 +99,11 @@ function StudentCouncilForm() {
     const [photoExists, setPhotoExists] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [studentCgpa, setStudentCgpa] = useState(null);
+    const [manualCgpa, setManualCgpa] = useState('');
     const [draftSaving, setDraftSaving] = useState(false);
+
+    const is2026Batch = Boolean(formData.batch && String(formData.batch).includes('2026'));
+    const isCgpaValid = !is2026Batch || (manualCgpa !== '' && !isNaN(parseFloat(manualCgpa)) && parseFloat(manualCgpa) >= 0 && parseFloat(manualCgpa) <= 10);
 
     // ── HTTP REST Autosave logic (Notion/GitHub style) ────────────────────────
     const saveDraftHTTP = useCallback(async (posVal, csVal, sopVal, miVal) => {
@@ -321,6 +325,10 @@ function StudentCouncilForm() {
             toast({ title: 'Position Required', description: 'Please select a council position before generating your workbook.', status: 'warning' });
             return;
         }
+        if (is2026Batch && !isCgpaValid) {
+            toast({ title: 'CGPA Required', description: 'Please enter a valid CGPA (0.00 – 10.00) for your 2026 batch before generating your workbook.', status: 'warning' });
+            return;
+        }
         setGeneratingSheet(true);
         try {
             const deviceId = localStorage.getItem('deviceId') || '';
@@ -441,6 +449,10 @@ function StudentCouncilForm() {
             toast({ title: 'Position Required', description: 'Please select a council position.', status: 'warning' });
             return;
         }
+        if (is2026Batch && !isCgpaValid) {
+            toast({ title: 'CGPA Required', description: 'Please enter a valid CGPA between 0.00 and 10.00 for your 2026 batch.', status: 'warning' });
+            return;
+        }
         if (!formData.readHandbook) {
             toast({ title: 'Required', description: 'Please confirm that you have read the Student Handbook.', status: 'warning' });
             return;
@@ -456,6 +468,10 @@ function StudentCouncilForm() {
         data.append('statement_of_purpose', statementOfPurpose);
         data.append('more_info', moreInfo);
         data.append('read_handbook', formData.readHandbook);
+        if (is2026Batch && manualCgpa) {
+            data.append('academic_score', manualCgpa);
+            data.append('cgpa', manualCgpa);
+        }
         Object.keys(formData).forEach(key => {
             if (key !== 'photoUrl' && key !== 'readHandbook') data.append(key, formData[key]);
         });
@@ -654,11 +670,19 @@ function StudentCouncilForm() {
                                         <Text>{formData.gender || 'Gender'} | {formData.studentId || 'ID'} | {formData.batch || 'Batch'}</Text>
                                     </HStack>
                                     <Text color={mutedTextColor} fontSize={{ base: 'xs', md: 'md' }}>{formData.email} • {formData.mobileNumber}</Text>
-                                    {studentCgpa !== null && (
+                                    {studentCgpa !== null ? (
                                         <Badge colorScheme="purple" fontSize={{ base: 'xs', md: 'sm' }} px={3} py={1} borderRadius="md">
                                             CGPA: {studentCgpa.toFixed(2)}
                                         </Badge>
-                                    )}
+                                    ) : is2026Batch && manualCgpa && !isNaN(parseFloat(manualCgpa)) ? (
+                                        <Badge colorScheme="purple" fontSize={{ base: 'xs', md: 'sm' }} px={3} py={1} borderRadius="md">
+                                            CGPA (Self-Reported): {parseFloat(manualCgpa).toFixed(2)}
+                                        </Badge>
+                                    ) : is2026Batch ? (
+                                        <Badge colorScheme="orange" fontSize={{ base: 'xs', md: 'sm' }} px={3} py={1} borderRadius="md">
+                                            2026 Batch — Manual CGPA Required
+                                        </Badge>
+                                    ) : null}
                                     {!photoExists && (
                                         <Alert status="error" borderRadius="lg" mt={2} py={2} px={3}>
                                             <AlertIcon />
@@ -804,19 +828,23 @@ function StudentCouncilForm() {
 
                                 {/* ── Workbook Section ── */}
                                 <Section title="Student Council Workbook">
-                                    {!positionSelected && (
+                                    {(!positionSelected || !isCgpaValid) && (
                                         <Alert status="warning" borderRadius="xl" mb={4} py={2} px={3}>
                                             <AlertIcon />
                                             <Text fontSize="xs" fontWeight="bold">
-                                                Please select a Council Position above to unlock your Student Council Workbook.
+                                                {!positionSelected && !isCgpaValid
+                                                    ? "Please select a Council Position and enter your CGPA above to unlock your Student Council Workbook."
+                                                    : !positionSelected
+                                                    ? "Please select a Council Position above to unlock your Student Council Workbook."
+                                                    : "Please enter a valid CGPA (0.00 – 10.00) above to unlock your Student Council Workbook."}
                                             </Text>
                                         </Alert>
                                     )}
                                     <VStack
                                         spacing={0}
                                         align="stretch"
-                                        opacity={positionSelected ? 1 : 0.45}
-                                        pointerEvents={positionSelected ? 'auto' : 'none'}
+                                        opacity={(positionSelected && isCgpaValid) ? 1 : 0.45}
+                                        pointerEvents={(positionSelected && isCgpaValid) ? 'auto' : 'none'}
                                         transition="0.3s"
                                     >
                                         <HStack spacing={4} align="start">
@@ -836,11 +864,11 @@ function StudentCouncilForm() {
                                                         </VStack>
                                                     </HStack>
                                                 ) : sheetReady ? (
-                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="green" variant="solid" size="sm" isDisabled={!positionSelected} onClick={() => handleOpenSheet(sheetReady)}>
+                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="green" variant="solid" size="sm" isDisabled={!positionSelected || !isCgpaValid} onClick={() => handleOpenSheet(sheetReady)}>
                                                         Open Student Council Workbook
                                                     </Button>
                                                 ) : (
-                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="blue" variant="solid" size="sm" isDisabled={!positionSelected} onClick={handleGenerateSheet}>
+                                                    <Button leftIcon={<Icon as={FaVoteYea} />} colorScheme="blue" variant="solid" size="sm" isDisabled={!positionSelected || !isCgpaValid} onClick={handleGenerateSheet}>
                                                         Generate Student Council Workbook
                                                     </Button>
                                                 )}
