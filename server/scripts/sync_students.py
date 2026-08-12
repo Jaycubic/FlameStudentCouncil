@@ -87,10 +87,18 @@ def sync_data():
         mysql_columns = list(column_mapping.keys())
 
         # Build the values list for execute_values
+        # Convert empty strings "" or whitespace-only strings to None (SQL NULL)
+        # to avoid PostgreSQL type casting errors for double precision, numeric, integer, date fields.
         values = []
         for row in rows:
-            val_tuple = tuple(row.get(col) for col in mysql_columns)
-            values.append(val_tuple)
+            cleaned_row = []
+            for col in mysql_columns:
+                val = row.get(col)
+                if isinstance(val, str) and val.strip() == "":
+                    cleaned_row.append(None)
+                else:
+                    cleaned_row.append(val)
+            values.append(tuple(cleaned_row))
 
         # Upsert query
         insert_query = f"""
