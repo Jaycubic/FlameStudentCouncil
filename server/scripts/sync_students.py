@@ -67,18 +67,22 @@ def sync_data():
         print("✅ Connected to PostgreSQL")
 
         # Automatically widen/adjust columns in PostgreSQL to prevent type casting & out-of-range errors
-        try:
-            pg_cursor.execute("""
-                ALTER TABLE app.student_data
-                    ALTER COLUMN student_cvue_no TYPE BIGINT USING (NULLIF(regexp_replace(student_cvue_no::text, '[^0-9eE+\.-]', '', 'g'), '')::double precision)::bigint,
-                    ALTER COLUMN accompany_with TYPE BIGINT USING (NULLIF(regexp_replace(accompany_with::text, '[^0-9eE+\.-]', '', 'g'), '')::double precision)::bigint,
-                    ALTER COLUMN contact_no TYPE VARCHAR(255) USING contact_no::text,
-                    ALTER COLUMN father_mobile_no TYPE VARCHAR(255) USING father_mobile_no::text,
-                    ALTER COLUMN mother_mobile_no TYPE VARCHAR(255) USING mother_mobile_no::text;
-            """)
-            pg_conn.commit()
-        except Exception as alter_e:
-            pg_conn.rollback()
+        alter_statements = [
+            "ALTER TABLE app.student_data ALTER COLUMN student_cvue_no TYPE BIGINT USING (NULLIF(regexp_replace(student_cvue_no::text, '[^0-9]', '', 'g'), '')::bigint);",
+            "ALTER TABLE app.student_data ALTER COLUMN accompany_with TYPE BIGINT USING (NULLIF(regexp_replace(accompany_with::text, '[^0-9]', '', 'g'), '')::bigint);",
+            "ALTER TABLE app.student_data ALTER COLUMN contact_no TYPE VARCHAR(255) USING contact_no::text;",
+            "ALTER TABLE app.student_data ALTER COLUMN father_mobile_no TYPE VARCHAR(255) USING father_mobile_no::text;",
+            "ALTER TABLE app.student_data ALTER COLUMN mother_mobile_no TYPE VARCHAR(255) USING mother_mobile_no::text;",
+            "ALTER TABLE app.student_data ALTER COLUMN device_id TYPE VARCHAR(255) USING device_id::text;",
+            "ALTER TABLE app.student_data ALTER COLUMN no_of_days TYPE VARCHAR(255) USING no_of_days::text;",
+        ]
+        for stmt in alter_statements:
+            try:
+                pg_cursor.execute(stmt)
+                pg_conn.commit()
+            except Exception as alter_e:
+                pg_conn.rollback()
+                print(f"⚠️ Column alter notice: {alter_e}")
 
         # Fetch data from MySQL
         mysql_cursor.execute("SELECT * FROM studentdata")
