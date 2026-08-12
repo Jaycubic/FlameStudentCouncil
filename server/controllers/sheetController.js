@@ -120,13 +120,12 @@ function revokeStudentAccess(fileId, studentPermissionId, masterUser) {
 
 async function insertPhotoFormula(sheetId, userEmail, masterUser) {
     try {
-        const student = await StudentData.findOne({ where: { [Op.or]: [{ EmailID: userEmail }, { email_id: userEmail }] } });
-        const studentCvueNo = student?.StudentCvueNo || student?.student_cvue_no;
-        if (!studentCvueNo) {
+        const student = await StudentData.findOne({ where: { email_id: userEmail } });
+        if (!student?.student_cvue_no) {
             log.warn({ userEmail }, '[PhotoFormula] No StudentData found — skipping insert');
             return;
         }
-        const studentId = studentCvueNo.toString();
+        const studentId = student.student_cvue_no.toString();
 
         const photoRecord = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
         let driveFileId = photoRecord?.drive_file_id;
@@ -421,12 +420,11 @@ const sheetController = {
             }
 
             // ── 2. Fetch student metadata & master account ───────────────────
-            const student = await StudentData.findOne({ where: { [Op.or]: [{ EmailID: userEmail }, { email_id: userEmail }] } });
-            const studentCvueNo = student?.StudentCvueNo || student?.student_cvue_no;
-            if (!studentCvueNo) {
+            const student = await StudentData.findOne({ where: { email_id: userEmail } });
+            if (!student?.student_cvue_no) {
                 return res.status(404).json({ success: false, message: 'Student registration data not found.' });
             }
-            const studentId = studentCvueNo.toString();
+            const studentId = student.student_cvue_no.toString();
 
             const masterUser = await User.findOne({ where: { email: MASTER_EMAIL } });
             if (!masterUser?.access_token) {

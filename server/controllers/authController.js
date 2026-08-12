@@ -110,13 +110,12 @@ const getFingerprintHash = (deviceId, userAgent, salt) => {
 
 async function queuePhotoUpload(studentEmail) {
   try {
-    const student = await StudentData.findOne({ where: { [Op.or]: [{ EmailID: studentEmail }, { email_id: studentEmail }] } });
-    const studentCvueNo = student?.StudentCvueNo || student?.student_cvue_no;
-    if (!studentCvueNo) {
+    const student = await StudentData.findOne({ where: { email_id: studentEmail } });
+    if (!student?.student_cvue_no) {
       console.warn(`[PhotoQueue] No StudentData for ${studentEmail}`);
       return;
     }
-    const studentId = studentCvueNo.toString().trim();
+    const studentId = student.student_cvue_no.toString().trim();
 
     // Idempotency: skip if already on master Drive
     const existing = await PhotoDriveUpload.findOne({ where: { student_id: studentId } });
@@ -150,19 +149,17 @@ async function queuePhotoUpload(studentEmail) {
 
 async function triggerCgpaOnLogin(studentEmail) {
   try {
-    const student = await StudentData.findOne({ where: { [Op.or]: [{ EmailID: studentEmail }, { email_id: studentEmail }] } });
-    const studentCvueNo = student?.StudentCvueNo || student?.student_cvue_no;
-    const batchVal = student?.Batch || student?.batch;
-    if (!studentCvueNo || !batchVal) {
+    const student = await StudentData.findOne({ where: { email_id: studentEmail } });
+    if (!student?.student_cvue_no || !student?.batch) {
       console.warn(`[CgpaOnLogin] No StudentData or batch for ${studentEmail}`);
       return;
     }
     refreshCgpaInBackground(
-      studentCvueNo.toString().trim(),
+      student.student_cvue_no.toString().trim(),
       studentEmail,
-      batchVal
+      student.batch
     );
-    console.log(`[CgpaOnLogin] ✅ Background CGPA refresh triggered for ${studentCvueNo}`);
+    console.log(`[CgpaOnLogin] ✅ Background CGPA refresh triggered for ${student.student_cvue_no}`);
   } catch (err) {
     console.error('[CgpaOnLogin] Failed to trigger CGPA refresh:', err.message);
   }
@@ -662,9 +659,7 @@ const authController = {
           return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
         }
         // Search in StudentData for onboarding
-        const student = await StudentData.findOne({
-          where: { [Op.or]: [{ EmailID: googleEmail }, { email_id: googleEmail }] }
-        });
+        const student = await StudentData.findOne({ where: { email_id: googleEmail } });
         if (student) {
           // Find the Student role
           const studentRole = await Role.findOne({ where: { name: 'Student' } });
@@ -673,18 +668,14 @@ const authController = {
             return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
           }
 
-          const studentCvueNo = student.StudentCvueNo || student.student_cvue_no;
-          const studentName   = student.StudentName   || student.student_name;
-          const studentBatch  = student.Batch         || student.batch;
-
           // Create new user record
           user = await User.create({
-            user_id: studentCvueNo,
-            username: studentName,
-            employee_name: studentName,
+            user_id: student.student_cvue_no,
+            username: student.student_name,
+            employee_name: student.student_name,
             user_type: 'Student',
             email: googleEmail,
-            department: studentBatch,
+            department: student.batch,
             role_id: studentRole.id,
             is_active: true,
             created_at: new Date(),
