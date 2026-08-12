@@ -121,6 +121,9 @@ require('./workers/submissionEmailWorker');
 // Start BullMQ submission processing worker (sheet tabs, PDF merge, cloud sync — concurrency=5)
 require('./workers/submissionProcessingWorker');
 
+// Start independent Student DB sync worker (hourly cron + boot sync)
+require('./workers/studentSyncWorker');
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
