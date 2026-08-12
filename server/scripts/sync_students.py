@@ -38,6 +38,20 @@ def sync_data():
         pg_cursor = pg_conn.cursor()
         print("✅ Connected to PostgreSQL")
 
+        # Automatically widen integer columns to BIGINT / DOUBLE PRECISION to prevent out-of-range errors
+        try:
+            pg_cursor.execute("""
+                ALTER TABLE app.student_data
+                    ALTER COLUMN student_cvue_no TYPE BIGINT USING NULLIF(student_cvue_no::text, '')::bigint,
+                    ALTER COLUMN accompany_with TYPE BIGINT USING NULLIF(accompany_with::text, '')::bigint,
+                    ALTER COLUMN contact_no TYPE BIGINT USING NULLIF(contact_no::text, '')::bigint,
+                    ALTER COLUMN father_mobile_no TYPE BIGINT USING NULLIF(father_mobile_no::text, '')::bigint,
+                    ALTER COLUMN mother_mobile_no TYPE BIGINT USING NULLIF(mother_mobile_no::text, '')::bigint;
+            """)
+            pg_conn.commit()
+        except Exception as alter_e:
+            pg_conn.rollback()
+
         # Fetch data from MySQL
         mysql_cursor.execute("SELECT * FROM studentdata")
         rows = mysql_cursor.fetchall()

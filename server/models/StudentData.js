@@ -104,7 +104,7 @@ const StudentData = sequelize.define(
       allowNull: true,
     },
     student_cvue_no: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: true,
     },
     inout: {
@@ -129,7 +129,7 @@ const StudentData = sequelize.define(
       allowNull: false,
     },
     accompany_with: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: true,
     },
   },
