@@ -9,32 +9,82 @@ from datetime import datetime
 # Load environment variables
 load_dotenv()
 
-def clean_value(val):
+# ── Columns that hold identifier-like values ────────────────────────────────
+# Phone numbers, device IDs, reference numbers, "days" strings, etc. are never
+# used for arithmetic, so we always store them as plain digit strings. This
+# sidesteps "integer out of range" entirely, no matter how large a number
+# shows up or how it got mangled by Excel/MySQL into scientific notation.
+STRING_ID_COLUMNS = {
+    'student_cvue_no',
+    'accompany_with',
+    'contact_no',
+    'father_mobile_no',
+    'mother_mobile_no',
+    'device_id',
+    'no_of_days',
+}
+
+# Postgres BIGINT bounds - used to guard the few columns we DO keep as real
+# integers (currently just `id`). If a value somehow exceeds this, we log it
+# and store NULL instead of crashing the whole batch.
+PG_BIGINT_MIN = -9223372036854775808
+PG_BIGINT_MAX = 9223372036854775807
+
+
+def clean_value(val, pg_column=None):
     if val is None:
         return None
+
+    is_string_id = pg_column in STRING_ID_COLUMNS
+
     if isinstance(val, str):
         s = val.strip()
         if not s or s.lower() in ('none', 'null', 'nan'):
             return None
-        # Parse scientific notation strings like "9.18E+11" into clean integer numbers
+        # Parse scientific-notation strings like "9.18E+11" (a mangled phone
+        # number/ID) back into a clean plain-digit representation.
         if 'e' in s.lower() or '.' in s:
             try:
                 f = float(s)
                 if math.isnan(f):
                     return None
                 if f.is_integer():
-                    return int(f)
-                return f
+                    if is_string_id:
+                        # e.g. 9.18E+11 -> "918000000000"
+                        return f"{int(f)}"
+                    n = int(f)
+                    if not (PG_BIGINT_MIN <= n <= PG_BIGINT_MAX):
+                        print(f"⚠️ [{pg_column}] value out of BIGINT range, storing NULL: {s!r}")
+                        return None
+                    return n
+                return s if is_string_id else f
             except (ValueError, OverflowError):
                 pass
         return s
+
     if isinstance(val, float):
         if math.isnan(val):
             return None
         if val.is_integer():
-            return int(val)
+            if is_string_id:
+                return f"{int(val)}"
+            n = int(val)
+            if not (PG_BIGINT_MIN <= n <= PG_BIGINT_MAX):
+                print(f"⚠️ [{pg_column}] value out of BIGINT range, storing NULL: {val!r}")
+                return None
+            return n
+        return str(val) if is_string_id else val
+
+    if isinstance(val, int):
+        if is_string_id:
+            return str(val)
+        if not (PG_BIGINT_MIN <= val <= PG_BIGINT_MAX):
+            print(f"⚠️ [{pg_column}] value out of BIGINT range, storing NULL: {val!r}")
+            return None
         return val
+
     return val
+
 
 def sync_data():
     # MySQL connection configuration
@@ -55,6 +105,9 @@ def sync_data():
         'port': int(os.getenv('DBP_PORT', 5432))
     }
 
+    mysql_conn = None
+    pg_conn = None
+
     try:
         # Connect to MySQL
         mysql_conn = mysql.connector.connect(**mysql_config)
@@ -66,10 +119,11 @@ def sync_data():
         pg_cursor = pg_conn.cursor()
         print("✅ Connected to PostgreSQL")
 
-        # Automatically widen/adjust columns in PostgreSQL to prevent type casting & out-of-range errors
+        # Widen identifier columns to VARCHAR so they can never overflow,
+        # no matter how large or malformed the source value is.
         alter_statements = [
-            "ALTER TABLE app.student_data ALTER COLUMN student_cvue_no TYPE BIGINT USING (NULLIF(regexp_replace(student_cvue_no::text, '[^0-9]', '', 'g'), '')::bigint);",
-            "ALTER TABLE app.student_data ALTER COLUMN accompany_with TYPE BIGINT USING (NULLIF(regexp_replace(accompany_with::text, '[^0-9]', '', 'g'), '')::bigint);",
+            "ALTER TABLE app.student_data ALTER COLUMN student_cvue_no TYPE VARCHAR(255) USING student_cvue_no::text;",
+            "ALTER TABLE app.student_data ALTER COLUMN accompany_with TYPE VARCHAR(255) USING accompany_with::text;",
             "ALTER TABLE app.student_data ALTER COLUMN contact_no TYPE VARCHAR(255) USING contact_no::text;",
             "ALTER TABLE app.student_data ALTER COLUMN father_mobile_no TYPE VARCHAR(255) USING father_mobile_no::text;",
             "ALTER TABLE app.student_data ALTER COLUMN mother_mobile_no TYPE VARCHAR(255) USING mother_mobile_no::text;",
@@ -93,8 +147,6 @@ def sync_data():
             print("⚠️ No data to sync")
             return
 
-        # Prepare PostgreSQL upsert query
-        # We need to map MySQL columns to PostgreSQL columns
         column_mapping = {
             'id': 'id',
             'RC Name': 'rc_name',
@@ -132,13 +184,17 @@ def sync_data():
         pg_columns = list(column_mapping.values())
         mysql_columns = list(column_mapping.keys())
 
-        # Build the values list for execute_values
+        # Build the values list for execute_values, passing the target pg
+        # column name into clean_value so it knows whether to keep a value
+        # as text or as a real number.
         values = []
         for row in rows:
-            cleaned_row = [clean_value(row.get(col)) for col in mysql_columns]
+            cleaned_row = [
+                clean_value(row.get(mcol), pcol)
+                for mcol, pcol in zip(mysql_columns, pg_columns)
+            ]
             values.append(tuple(cleaned_row))
 
-        # Upsert query
         insert_query = f"""
             INSERT INTO app.student_data ({', '.join(pg_columns)})
             VALUES %s
@@ -146,9 +202,34 @@ def sync_data():
             {', '.join([f"{col} = EXCLUDED.{col}" for col in pg_columns if col != 'id'])}
         """
 
-        execute_values(pg_cursor, insert_query, values)
-        pg_conn.commit()
-        print(f"🚀 Successfully synced {len(rows)} rows to PostgreSQL")
+        try:
+            execute_values(pg_cursor, insert_query, values)
+            pg_conn.commit()
+            print(f"🚀 Successfully synced {len(rows)} rows to PostgreSQL")
+        except Exception as bulk_e:
+            # Bulk insert failed - roll back and retry row-by-row so we can
+            # (a) still sync every good row, and (b) pinpoint exactly which
+            # row/id is the problem instead of guessing.
+            pg_conn.rollback()
+            print(f"⚠️ Bulk insert failed ({bulk_e}); retrying row-by-row to isolate bad rows...")
+            single_query = f"""
+                INSERT INTO app.student_data ({', '.join(pg_columns)})
+                VALUES ({', '.join(['%s'] * len(pg_columns))})
+                ON CONFLICT (id) DO UPDATE SET
+                {', '.join([f"{col} = EXCLUDED.{col}" for col in pg_columns if col != 'id'])}
+            """
+            ok, failed = 0, 0
+            for row_values, original_row in zip(values, rows):
+                try:
+                    pg_cursor.execute(single_query, row_values)
+                    pg_conn.commit()
+                    ok += 1
+                except Exception as row_e:
+                    pg_conn.rollback()
+                    failed += 1
+                    print(f"❌ Row id={original_row.get('id')} failed: {row_e}")
+                    print(f"    Raw row data: {original_row}")
+            print(f"🚀 Row-by-row sync finished: {ok} succeeded, {failed} failed")
 
     except Exception as e:
         print(f"❌ Error during sync: {e}")
