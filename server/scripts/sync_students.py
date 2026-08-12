@@ -122,6 +122,10 @@ def sync_data():
         # Widen identifier columns to VARCHAR so they can never overflow,
         # no matter how large or malformed the source value is.
         alter_statements = [
+            # MySQL's `id` values are apparently large externally-sourced
+            # numbers (e.g. 2189642497), not small sequential ones - they
+            # exceed Postgres INTEGER's ~2.1B ceiling. Widen to BIGINT.
+            "ALTER TABLE app.student_data ALTER COLUMN id TYPE BIGINT;",
             "ALTER TABLE app.student_data ALTER COLUMN student_cvue_no TYPE VARCHAR(255) USING student_cvue_no::text;",
             "ALTER TABLE app.student_data ALTER COLUMN accompany_with TYPE VARCHAR(255) USING accompany_with::text;",
             "ALTER TABLE app.student_data ALTER COLUMN contact_no TYPE VARCHAR(255) USING contact_no::text;",
