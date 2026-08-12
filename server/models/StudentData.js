@@ -1,166 +1,218 @@
 // models/StudentData.js
+// Directly connected to MySQL studenttracking database via config/database.js
+
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/connection");
-const ActivityTracker = require('./ActivityTracker');
+const sequelize = require("../config/database");
 
 const StudentData = sequelize.define(
   "StudentData",
   {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT.UNSIGNED,
       autoIncrement: true,
       primaryKey: true,
     },
-    rc_name: {
+    RCName: {
+      type: DataTypes.STRING,
+      field: "RC Name",
+      allowNull: true,
+    },
+    Batch: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    batch: {
+    StudentName: {
+      type: DataTypes.STRING,
+      field: "Student Name",
+      allowNull: true,
+    },
+    Photo: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    student_name: {
+    Validity: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    photo: {
+    BloodGroup: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    status: {
+    Status: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    student_status: {
-      type: DataTypes.STRING,
+    StudentStatus: {
+      type: DataTypes.STRING(50),
       allowNull: true,
     },
-    with_drawn_date: {
-      type: DataTypes.DATE,
+    WithDrawnDate: {
+      type: DataTypes.DATEONLY,
       allowNull: true,
     },
-    with_drawn_reason: {
-      type: DataTypes.STRING,
+    WithDrawnReason: {
+      type: DataTypes.STRING(50),
       allowNull: true,
     },
-    with_drawn_comment: {
+    WithDrawnComment: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    gender: {
+    Gender: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    no_of_days: {
+    NoOfDays: {
       type: DataTypes.FLOAT,
+      field: "No.of Days",
       allowNull: true,
     },
-    dob: {
+    DOB: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-    email_id: {
+    EmailID: {
+      type: DataTypes.STRING,
+      field: "Email ID",
+      allowNull: true,
+    },
+    ContactNo: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    HomeTown: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    contact_no: {
-      type: DataTypes.FLOAT,
-      allowNull: true,
-    },
-    home_town: {
+    House: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    house: {
+    HousingBlock: {
+      type: DataTypes.STRING,
+      field: "Housing Block",
+      allowNull: true,
+    },
+    HouseCategory: {
+      type: DataTypes.STRING,
+      field: "House Category",
+      allowNull: true,
+    },
+    FatherName: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    housing_block: {
+    FatherEmailID: {
+      type: DataTypes.STRING,
+      field: "Father Email ID",
+      allowNull: true,
+    },
+    FatherMobileNo: {
+      type: DataTypes.STRING(20),
+      field: "Father Mobile No.",
+      allowNull: true,
+    },
+    MotherName: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    father_name: {
+    MotherEmailID: {
       type: DataTypes.STRING,
+      field: "Mother Email ID",
       allowNull: true,
     },
-    father_email_id: {
+    MotherMobileNo: {
+      type: DataTypes.STRING(20),
+      field: "Mother Mobile No.",
+      allowNull: true,
+    },
+    StudentCvueNo: {
+      type: DataTypes.INTEGER,
+      field: "Student Cvue No.",
+      allowNull: true,
+    },
+    INOUT: {
       type: DataTypes.STRING,
+      field: "IN-OUT",
       allowNull: true,
     },
-    father_mobile_no: {
-      type: DataTypes.FLOAT,
-      allowNull: true,
-    },
-    mother_name: {
+    DeviceName: {
       type: DataTypes.STRING,
+      field: "Device Name",
       allowNull: true,
     },
-    mother_email_id: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    mother_mobile_no: {
-      type: DataTypes.FLOAT,
-      allowNull: true,
-    },
-    student_cvue_no: {
-      type: DataTypes.BIGINT,
-      allowNull: true,
-    },
-    inout: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    device_name: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    last_punch_date: {
+    LastPunchDate: {
       type: DataTypes.DATE,
+      field: "Last Punch Date",
       allowNull: true,
     },
-    device_id: {
+    DeviceId: {
       type: DataTypes.FLOAT,
       allowNull: true,
     },
-    reported: {
+    Reported: {
       type: DataTypes.TINYINT,
       defaultValue: 0,
       allowNull: false,
     },
-    accompany_with: {
-      type: DataTypes.BIGINT,
+    AccompanyWith: {
+      type: DataTypes.INTEGER,
       allowNull: true,
+    },
+    Photo_Uploaded_At: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    IdCardGeneratedStatus: {
+      type: DataTypes.TINYINT,
+      defaultValue: 0,
+      allowNull: false,
+    },
+    IdCardGenerated_At: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    Nationality: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    IsInternational: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: true,
+    },
+
+    // ── Virtual fields for backwards compatibility with snake_case code ──────
+    email_id: {
+      type: DataTypes.VIRTUAL,
+      get() { return this.getDataValue('EmailID'); },
+      set(val) { this.setDataValue('EmailID', val); }
+    },
+    student_cvue_no: {
+      type: DataTypes.VIRTUAL,
+      get() { return this.getDataValue('StudentCvueNo'); },
+      set(val) { this.setDataValue('StudentCvueNo', val); }
+    },
+    student_name: {
+      type: DataTypes.VIRTUAL,
+      get() { return this.getDataValue('StudentName'); },
+      set(val) { this.setDataValue('StudentName', val); }
+    },
+    batch: {
+      type: DataTypes.VIRTUAL,
+      get() { return this.getDataValue('Batch'); },
+      set(val) { this.setDataValue('Batch', val); }
+    },
+    contact_no: {
+      type: DataTypes.VIRTUAL,
+      get() { return this.getDataValue('ContactNo'); },
+      set(val) { this.setDataValue('ContactNo', val); }
     },
   },
   {
-    tableName: "student_data",
-    schema: "app",
+    tableName: "studentdata",
     timestamps: false,
   }
 );
-
-// Hooks for activity tracking
-StudentData.afterCreate(async (student, options) => {
-  const performedBy = options.performedBy; // Must be provided via options
-  if (performedBy) {
-    await ActivityTracker.create({
-      performedBy,
-      activity_type: 'student_added',
-      details: { student_id: student.id }
-    });
-  }
-});
-
-StudentData.afterDestroy(async (student, options) => {
-  const performedBy = options.performedBy;
-  if (performedBy) {
-    await ActivityTracker.create({
-      performedBy,
-      activity_type: 'student_deleted',
-      details: { student_id: student.id }
-    });
-  }
-});
 
 module.exports = StudentData;

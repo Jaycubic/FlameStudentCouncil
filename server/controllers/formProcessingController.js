@@ -13,19 +13,23 @@ const formProcessingController = {
             const email = req.user.email;
 
             // 1. Fetch from StudentData
+            const { Op } = require('sequelize');
             const student = await StudentData.findOne({
-                where: { email_id: email }
+                where: { [Op.or]: [{ EmailID: email }, { email_id: email }] }
             });
 
             if (!student) {
                 return res.status(404).json({ message: 'Student data not found in registration records.' });
             }
 
+            const studentCvueNo = student.StudentCvueNo || student.student_cvue_no;
+            const studentPhoto  = student.Photo || student.photo;
+
             // 2. Check for photo — try student.photo first, fallback to student_cvue_no
             let photoExists = false;
             const extensions = ['.jpg', '.jpeg', '.png'];
             let foundPhoto = null;
-            const photoBase = student.photo || (student.student_cvue_no ? student.student_cvue_no.toString() : null);
+            const photoBase = studentPhoto || (studentCvueNo ? studentCvueNo.toString() : null);
 
             if (photoBase) {
                 for (const ext of extensions) {
@@ -42,15 +46,21 @@ const formProcessingController = {
             const existingSubmission = await ElectionFormResponse.findOne({ where: { email } });
             const hasSubmitted = !!existingSubmission;
 
-            const studentId = student.student_cvue_no ? student.student_cvue_no.toString() : '';
+            const studentId = studentCvueNo ? studentCvueNo.toString() : '';
+
+            const studentBatch   = student.Batch || student.batch;
+            const studentName    = student.StudentName || student.student_name;
+            const studentContact = student.ContactNo || student.contact_no;
+            const studentGender  = student.Gender || student.gender;
+            const studentEmail   = student.EmailID || student.email_id || email;
 
             // Fire-and-forget CGPA refresh — schedules via setImmediate inside the
             // service so it runs AFTER this response is flushed, zero latency added.
-            if (studentId && student.batch) {
+            if (studentId && studentBatch) {
                 refreshCgpaInBackground(
                     studentId,
-                    student.email_id || email,
-                    student.batch
+                    studentEmail,
+                    studentBatch
                 );
             }
 
@@ -74,12 +84,12 @@ const formProcessingController = {
 
             return res.json({
                 prefill: {
-                    name: student.student_name,
+                    name: studentName,
                     student_id: studentId,
-                    mobile_number: student.contact_no ? student.contact_no.toString() : '',
-                    gender: student.gender,
-                    batch: student.batch,
-                    email: student.email_id || email,
+                    mobile_number: studentContact ? studentContact.toString() : '',
+                    gender: studentGender,
+                    batch: studentBatch,
+                    email: studentEmail,
                     photo: foundPhoto,
                     cgpa: studentCgpa       // null means "no data" — frontend displays as-is
                 },
