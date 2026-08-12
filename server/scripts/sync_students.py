@@ -3,10 +3,38 @@ import psycopg2
 from psycopg2.extras import execute_values
 import os
 from dotenv import load_dotenv
+import math
 from datetime import datetime
 
 # Load environment variables
 load_dotenv()
+
+def clean_value(val):
+    if val is None:
+        return None
+    if isinstance(val, str):
+        s = val.strip()
+        if not s or s.lower() in ('none', 'null', 'nan'):
+            return None
+        # Parse scientific notation strings like "9.18E+11" into clean integer numbers
+        if 'e' in s.lower() or '.' in s:
+            try:
+                f = float(s)
+                if math.isnan(f):
+                    return None
+                if f.is_integer():
+                    return int(f)
+                return f
+            except (ValueError, OverflowError):
+                pass
+        return s
+    if isinstance(val, float):
+        if math.isnan(val):
+            return None
+        if val.is_integer():
+            return int(val)
+        return val
+    return val
 
 def sync_data():
     # MySQL connection configuration
@@ -38,15 +66,15 @@ def sync_data():
         pg_cursor = pg_conn.cursor()
         print("✅ Connected to PostgreSQL")
 
-        # Automatically widen integer columns to BIGINT / DOUBLE PRECISION to prevent out-of-range errors
+        # Automatically widen/adjust columns in PostgreSQL to prevent type casting & out-of-range errors
         try:
             pg_cursor.execute("""
                 ALTER TABLE app.student_data
-                    ALTER COLUMN student_cvue_no TYPE BIGINT USING NULLIF(student_cvue_no::text, '')::bigint,
-                    ALTER COLUMN accompany_with TYPE BIGINT USING NULLIF(accompany_with::text, '')::bigint,
-                    ALTER COLUMN contact_no TYPE BIGINT USING NULLIF(contact_no::text, '')::bigint,
-                    ALTER COLUMN father_mobile_no TYPE BIGINT USING NULLIF(father_mobile_no::text, '')::bigint,
-                    ALTER COLUMN mother_mobile_no TYPE BIGINT USING NULLIF(mother_mobile_no::text, '')::bigint;
+                    ALTER COLUMN student_cvue_no TYPE BIGINT USING (NULLIF(regexp_replace(student_cvue_no::text, '[^0-9eE+\.-]', '', 'g'), '')::double precision)::bigint,
+                    ALTER COLUMN accompany_with TYPE BIGINT USING (NULLIF(regexp_replace(accompany_with::text, '[^0-9eE+\.-]', '', 'g'), '')::double precision)::bigint,
+                    ALTER COLUMN contact_no TYPE VARCHAR(255) USING contact_no::text,
+                    ALTER COLUMN father_mobile_no TYPE VARCHAR(255) USING father_mobile_no::text,
+                    ALTER COLUMN mother_mobile_no TYPE VARCHAR(255) USING mother_mobile_no::text;
             """)
             pg_conn.commit()
         except Exception as alter_e:
@@ -101,17 +129,9 @@ def sync_data():
         mysql_columns = list(column_mapping.keys())
 
         # Build the values list for execute_values
-        # Convert empty strings "" or whitespace-only strings to None (SQL NULL)
-        # to avoid PostgreSQL type casting errors for double precision, numeric, integer, date fields.
         values = []
         for row in rows:
-            cleaned_row = []
-            for col in mysql_columns:
-                val = row.get(col)
-                if isinstance(val, str) and val.strip() == "":
-                    cleaned_row.append(None)
-                else:
-                    cleaned_row.append(val)
+            cleaned_row = [clean_value(row.get(col)) for col in mysql_columns]
             values.append(tuple(cleaned_row))
 
         # Upsert query
