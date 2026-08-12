@@ -34,6 +34,10 @@ const ElectionDraft = sequelize.define('ElectionDraft', {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    manual_cgpa: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
 }, {
     tableName: 'election_drafts',
     schema: 'app',

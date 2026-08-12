@@ -102,14 +102,24 @@ function StudentCouncilForm() {
     const [manualCgpa, setManualCgpa] = useState('');
     const [draftSaving, setDraftSaving] = useState(false);
 
-    const is2026Batch = Boolean(formData.batch && String(formData.batch).includes('2026'));
-    const isCgpaValid = !is2026Batch || (manualCgpa !== '' && !isNaN(parseFloat(manualCgpa)) && parseFloat(manualCgpa) >= 0 && parseFloat(manualCgpa) <= 10);
+    const needsManualCgpa = studentCgpa === null;
+    const isCgpaValid = !needsManualCgpa || (manualCgpa !== '' && !isNaN(parseFloat(manualCgpa)) && parseFloat(manualCgpa) >= 0 && parseFloat(manualCgpa) <= 10);
 
     // ── HTTP REST Autosave logic (Notion/GitHub style) ────────────────────────
-    const saveDraftHTTP = useCallback(async (posVal, csVal, sopVal, miVal) => {
-        if (!posVal && !csVal && !sopVal && !miVal) return;
+    const saveDraftHTTP = useCallback(async (posVal, csVal, sopVal, miVal, cgpaVal) => {
+        if (!posVal && !csVal && !sopVal && !miVal && !cgpaVal) return;
         setDraftSaving(true);
         try {
+            const payload = {
+                position_selected: posVal,
+                community_service: csVal,
+                statement_of_purpose: sopVal,
+                more_info: miVal,
+            };
+            // Only include manual_cgpa when it has a value (avoids overwriting with empty)
+            if (cgpaVal != null && String(cgpaVal).trim() !== '') {
+                payload.manual_cgpa = cgpaVal;
+            }
             await fetch('/api/election-draft', {
                 method: 'POST',
                 headers: {
@@ -117,12 +127,7 @@ function StudentCouncilForm() {
                     'x-device-id': localStorage.getItem('deviceId') || '',
                 },
                 credentials: 'include',
-                body: JSON.stringify({
-                    position_selected: posVal,
-                    community_service: csVal,
-                    statement_of_purpose: sopVal,
-                    more_info: miVal,
-                }),
+                body: JSON.stringify(payload),
             });
         } catch (err) {
             console.warn('[HTTP Autosave] Draft save failed:', err.message);
@@ -132,10 +137,10 @@ function StudentCouncilForm() {
     }, []);
 
     // Debounced autosave on input change
-    const triggerAutosave = useCallback((posVal, csVal, sopVal, miVal) => {
+    const triggerAutosave = useCallback((posVal, csVal, sopVal, miVal, cgpaVal) => {
         if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
         autosaveTimerRef.current = setTimeout(() => {
-            saveDraftHTTP(posVal, csVal, sopVal, miVal);
+            saveDraftHTTP(posVal, csVal, sopVal, miVal, cgpaVal);
         }, 800); // 800ms debounce after typing stops
     }, [saveDraftHTTP]);
 
@@ -191,6 +196,7 @@ function StudentCouncilForm() {
                 if (d.community_service) setCommunityService(d.community_service);
                 if (d.statement_of_purpose) setStatementOfPurpose(d.statement_of_purpose);
                 if (d.more_info) setMoreInfo(d.more_info);
+                if (d.manual_cgpa) setManualCgpa(d.manual_cgpa);
             }
 
             // Restore agreed from localStorage
@@ -325,8 +331,8 @@ function StudentCouncilForm() {
             toast({ title: 'Position Required', description: 'Please select a council position before generating your workbook.', status: 'warning' });
             return;
         }
-        if (is2026Batch && !isCgpaValid) {
-            toast({ title: 'CGPA Required', description: 'Please enter a valid CGPA (0.00 – 10.00) for your 2026 batch before generating your workbook.', status: 'warning' });
+        if (needsManualCgpa && !isCgpaValid) {
+            toast({ title: 'CGPA Required', description: 'Please enter a valid CGPA (0.00 – 10.00) before generating your workbook.', status: 'warning' });
             return;
         }
         setGeneratingSheet(true);
@@ -360,8 +366,8 @@ function StudentCouncilForm() {
     };
 
     const handleOpenSheet = async (url) => {
-        if (positionSelected || statementOfPurpose || communityService || moreInfo) {
-            await saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo);
+        if (positionSelected || statementOfPurpose || communityService || moreInfo || manualCgpa) {
+            await saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo, manualCgpa);
         }
         safeOpen(url);
     };
@@ -413,6 +419,7 @@ function StudentCouncilForm() {
                     community_service: communityService,
                     statement_of_purpose: statementOfPurpose,
                     more_info: moreInfo,
+                    manual_cgpa: manualCgpa,
                 }),
             });
             const data = await response.json();
@@ -449,8 +456,8 @@ function StudentCouncilForm() {
             toast({ title: 'Position Required', description: 'Please select a council position.', status: 'warning' });
             return;
         }
-        if (is2026Batch && !isCgpaValid) {
-            toast({ title: 'CGPA Required', description: 'Please enter a valid CGPA between 0.00 and 10.00 for your 2026 batch.', status: 'warning' });
+        if (needsManualCgpa && !isCgpaValid) {
+            toast({ title: 'CGPA Required', description: 'Please enter a valid CGPA between 0.00 and 10.00.', status: 'warning' });
             return;
         }
         if (!formData.readHandbook) {
@@ -468,7 +475,7 @@ function StudentCouncilForm() {
         data.append('statement_of_purpose', statementOfPurpose);
         data.append('more_info', moreInfo);
         data.append('read_handbook', formData.readHandbook);
-        if (is2026Batch && manualCgpa) {
+        if (needsManualCgpa && manualCgpa) {
             data.append('academic_score', manualCgpa);
             data.append('cgpa', manualCgpa);
         }
@@ -674,13 +681,13 @@ function StudentCouncilForm() {
                                         <Badge colorScheme="purple" fontSize={{ base: 'xs', md: 'sm' }} px={3} py={1} borderRadius="md">
                                             CGPA: {studentCgpa.toFixed(2)}
                                         </Badge>
-                                    ) : is2026Batch && manualCgpa && !isNaN(parseFloat(manualCgpa)) ? (
+                                    ) : manualCgpa && !isNaN(parseFloat(manualCgpa)) ? (
                                         <Badge colorScheme="purple" fontSize={{ base: 'xs', md: 'sm' }} px={3} py={1} borderRadius="md">
                                             CGPA (Self-Reported): {parseFloat(manualCgpa).toFixed(2)}
                                         </Badge>
-                                    ) : is2026Batch ? (
+                                    ) : needsManualCgpa ? (
                                         <Badge colorScheme="orange" fontSize={{ base: 'xs', md: 'sm' }} px={3} py={1} borderRadius="md">
-                                            2026 Batch — Manual CGPA Required
+                                            Manual CGPA Required
                                         </Badge>
                                     ) : null}
                                     {!photoExists && (
@@ -738,6 +745,39 @@ function StudentCouncilForm() {
                                         </Select>
                                     </FormControl>
                                 </Section>
+
+                                {/* ── Dynamic CGPA Section for Missing Records ── */}
+                                {needsManualCgpa && (
+                                    <Section title="Academic CGPA">
+                                        <FormControl isRequired isInvalid={!isCgpaValid}>
+                                            <FormLabel fontWeight="bold" fontSize="sm">
+                                                Cumulative Grade Point Average (CGPA) — Mandatory
+                                            </FormLabel>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                max="10"
+                                                placeholder="Enter your CGPA out of 10.00 (e.g. 8.45)"
+                                                value={manualCgpa}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setManualCgpa(val);
+                                                    triggerAutosave(positionSelected, communityService, statementOfPurpose, moreInfo, val);
+                                                }}
+                                                onBlur={() => saveDraftHTTP(positionSelected, communityService, statementOfPurpose, moreInfo, manualCgpa)}
+                                                size="lg"
+                                                borderRadius="xl"
+                                                bg={useColorModeValue('white', 'gray.700')}
+                                            />
+                                            <FormHelperText color={!isCgpaValid ? 'red.500' : mutedTextColor}>
+                                                {!isCgpaValid
+                                                    ? 'A valid CGPA between 0.00 and 10.00 is required before unlocking your workbook.'
+                                                    : 'Since your academic CGPA record is not available in the database, entering your official CGPA is mandatory.'}
+                                            </FormHelperText>
+                                        </FormControl>
+                                    </Section>
+                                )}
 
                                 {/* ── Community Service ── */}
                                 <Section title="Community Service">

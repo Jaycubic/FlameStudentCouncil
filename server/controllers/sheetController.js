@@ -204,6 +204,27 @@ async function updateSheetPositionCell(sheetId, positionSelected, masterUser) {
     }
 }
 
+// ─── Surgical update of cell B8 (CGPA) in 'Personal Information' ──────────────
+async function updateSheetCgpaCell(sheetId, cgpaValue, masterUser) {
+    try {
+        if (!sheetId || cgpaValue == null || String(cgpaValue).trim() === '') return;
+        const scriptPath = path.join(__dirname, '../scripts/update_cgpa_cell.py');
+        const result = await runPythonScript(scriptPath, [
+            sheetId,
+            masterUser.access_token,
+            masterUser.refresh_token,
+            String(cgpaValue),
+        ]);
+        if (result.success) {
+            log.info({ sheetId, cgpaValue }, '[SheetCGPA] Surgical cell B8 update succeeded');
+        } else {
+            log.warn({ sheetId, error: result.error }, '[SheetCGPA] Surgical cell B8 update returned failure');
+        }
+    } catch (err) {
+        log.error({ sheetId, err: err.message }, '[SheetCGPA] Non-fatal error');
+    }
+}
+
 // ─── Surgical update of cell B3 ('Statement of Purpose' sheet) ────────────────
 async function updateSheetSOPCell(sheetId, statementOfPurpose, masterUser) {
     try {
@@ -695,13 +716,15 @@ const sheetController = {
             return res.status(500).json({ success: false, message: 'Internal server error.' });
         }
     },
+};
 
+module.exports = {
+    ...sheetController,
     revokeStudentAccess,
     insertPhotoFormula,
     updateSheetPositionCell,
     updateSheetSOPCell,
+    updateSheetCgpaCell,
     insertSopSheetTab,
     insertMoreInfoSheetTab,
 };
-
-module.exports = sheetController;

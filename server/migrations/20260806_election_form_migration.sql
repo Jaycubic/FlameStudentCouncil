@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS app.election_drafts (
     community_service       TEXT,
     statement_of_purpose    TEXT,
     more_info               TEXT,
+    manual_cgpa             VARCHAR(255),
     created_at              TIMESTAMPTZ DEFAULT NOW(),
     updated_at              TIMESTAMPTZ DEFAULT NOW()
 );
@@ -64,6 +65,7 @@ ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS cultural_direct
 ALTER TABLE app.election_form_responses ADD COLUMN IF NOT EXISTS notification_status VARCHAR(50) DEFAULT 'pending';
 ALTER TABLE app.election_form_responses ADD CONSTRAINT election_form_responses_email_key UNIQUE (email);
 ALTER TABLE app.election_drafts ADD COLUMN IF NOT EXISTS more_info TEXT;
+ALTER TABLE app.election_drafts ADD COLUMN IF NOT EXISTS manual_cgpa VARCHAR(255);
 
 -- 4. Create ElectionAttachment (single generic attachment table)
 CREATE TABLE IF NOT EXISTS app.election_attachments (

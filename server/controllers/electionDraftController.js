@@ -18,7 +18,7 @@ const electionDraftController = {
     async saveDraft(req, res) {
         try {
             const email = req.user.email;
-            const { position_selected, community_service, statement_of_purpose, more_info, moreInfo } = req.body;
+            const { position_selected, community_service, statement_of_purpose, more_info, moreInfo, manual_cgpa } = req.body;
             const moreInfoVal = more_info ?? moreInfo;
 
             let draft = await ElectionDraft.findOne({ where: { email } });
@@ -29,6 +29,7 @@ const electionDraftController = {
                     community_service:    community_service    ?? draft.community_service,
                     statement_of_purpose: statement_of_purpose ?? draft.statement_of_purpose,
                     more_info:            moreInfoVal          ?? draft.more_info,
+                    manual_cgpa:          manual_cgpa          ?? draft.manual_cgpa,
                 });
             } else {
                 draft = await ElectionDraft.create({
@@ -37,6 +38,7 @@ const electionDraftController = {
                     community_service:    community_service    ?? null,
                     statement_of_purpose: statement_of_purpose ?? null,
                     more_info:            moreInfoVal          ?? null,
+                    manual_cgpa:          manual_cgpa          ?? null,
                 });
                 created = true;
             }
@@ -50,6 +52,22 @@ const electionDraftController = {
                         User.findOne({ where: { email: 'student.awards@flame.edu.in' } }).then(masterUser => {
                             if (masterUser?.access_token) {
                                 updateSheetPositionCell(sheet.user_sheet_id, position_selected, masterUser).catch(() => {});
+                            }
+                        });
+                    }
+                }).catch(() => {});
+            }
+
+            // Async surgical Google Sheet update of CGPA cell B8 (non-blocking)
+            // Only runs when manual_cgpa was explicitly provided in this request
+            if (manual_cgpa != null && String(manual_cgpa).trim() !== '') {
+                const { AcademicUserSheet, User } = require('../models');
+                const { updateSheetCgpaCell } = require('./sheetController');
+                AcademicUserSheet.findOne({ where: { email } }).then(sheet => {
+                    if (sheet?.user_sheet_id) {
+                        User.findOne({ where: { email: 'student.awards@flame.edu.in' } }).then(masterUser => {
+                            if (masterUser?.access_token) {
+                                updateSheetCgpaCell(sheet.user_sheet_id, manual_cgpa, masterUser).catch(() => {});
                             }
                         });
                     }
@@ -75,7 +93,7 @@ const electionDraftController = {
             const email = req.user.email;
             const draft = await ElectionDraft.findOne({
                 where: { email },
-                attributes: ['position_selected', 'community_service', 'statement_of_purpose', 'updated_at'],
+                attributes: ['position_selected', 'community_service', 'statement_of_purpose', 'more_info', 'manual_cgpa', 'updated_at'],
             });
 
             if (!draft) {

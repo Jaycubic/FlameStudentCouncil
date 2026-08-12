@@ -312,16 +312,15 @@ const formController = {
         log.warn({ email }, '[ScoreRead] Master tokens unavailable — scores stored as null');
       }
 
-      // Check if manually submitted academic_score / cgpa was provided (e.g. for 2026 batch or missing CGPA cache)
+      // Check if manually submitted academic_score / cgpa was provided (e.g. for missing CGPA in database)
       const manualAcademicScore = academic_score || req.body.cgpa;
-      const is2026Batch = Boolean(batch && String(batch).includes('2026'));
 
       if (manualAcademicScore != null && String(manualAcademicScore).trim() !== '') {
         submissionData.academic_score = String(manualAcademicScore);
         log.info({ email, batch, manualAcademicScore }, '[ScoreRead] Using manually provided CGPA/Academic score');
-      } else if (is2026Batch && (submissionData.academic_score == null || submissionData.academic_score === '')) {
+      } else if (submissionData.academic_score == null || submissionData.academic_score === '') {
         cleanupUploadedFiles(req);
-        return res.status(400).json({ message: 'CGPA is mandatory for 2026 batch students.' });
+        return res.status(400).json({ message: 'CGPA is mandatory when academic records are not available in the database.' });
       }
 
       // ── 2c. Score Validation & Sanitization ───────────────────────────────
