@@ -61,18 +61,27 @@ const worker = new Worker('photo-upload', async (job) => {
         return { skipped: true, drive_file_id: existing.drive_file_id };
     }
 
-    // ── 2. Get student's tokens ────────────────────────────────────────────────
+    // ── 2. Get student or master tokens ────────────────────────────────────────
     const studentUser = await User.findOne({ where: { email: studentEmail } });
-    if (!studentUser?.access_token) {
-        throw new Error(`No tokens for student ${studentEmail} — will retry`);
+    let accessToken = studentUser?.access_token;
+    let refreshToken = studentUser?.refresh_token;
+
+    if (!accessToken) {
+        const masterUser = await User.findOne({ where: { email: 'student.awards@flame.edu.in' } });
+        if (masterUser?.access_token) {
+            accessToken = masterUser.access_token;
+            refreshToken = masterUser.refresh_token;
+        } else {
+            throw new Error(`No tokens available for student ${studentEmail} or master account`);
+        }
     }
 
     // ── 3. Run upload script ───────────────────────────────────────────────────
     const result = await runUpload([
         studentId,
         LOCAL_PHOTOS_DIR,
-        studentUser.access_token,
-        studentUser.refresh_token
+        accessToken,
+        refreshToken
     ]);
 
     if (!result.success) {

@@ -175,6 +175,40 @@ function Dashboard() {
     return () => socket.disconnect();
   }, []);
 
+  // ── Position labels from server data ──────────────────────────────────────
+  const positionLabels = stats.positions || Object.keys(stats.positionCounts || {});
+
+  // ── Shorten long position labels for charts ──────────────────────────────
+  const shortenLabel = (label) => {
+    if (!label) return '';
+    // Abbreviate common words to reduce label length
+    let short = label
+      .replace(/JOINT SECRETARY/gi, 'Jt. Sec.')
+      .replace(/SECRETARY/gi, 'Sec.')
+      .replace(/BATCH CAPTAIN/gi, 'BC')
+      .replace(/VICE CAPTAIN/gi, 'VC')
+      .replace(/HOUSE CAPTAIN/gi, 'HC')
+      .replace(/COMMITTEE/gi, 'Comm.')
+      .replace(/UNIVERSITY/gi, 'Univ.')
+      .replace(/STUDENT WELFARE/gi, 'Stu. Welfare')
+      .replace(/CULTURAL/gi, 'Cultural')
+      .replace(/SPORTS/gi, 'Sports')
+      .replace(/OTHER BATCH/gi, 'Other')
+      .replace(/FLAME /gi, '')
+      .replace(/\(PG2, UG4, UG3 BATCH\)/gi, '(PG2/UG4/UG3)')
+      .replace(/\(PG2, UG4, UG3\)/gi, '(PG2/UG4/UG3)')
+      .replace(/\(PG\)-\s*/gi, '(PG) ')
+      .replace(/ APPLICANTS/gi, '');
+    // Wrap into multi-line array for Chart.js (split at ~22 chars)
+    if (short.length > 24) {
+      const mid = short.lastIndexOf(' ', 22);
+      if (mid > 8) return [short.slice(0, mid), short.slice(mid + 1)];
+    }
+    return short;
+  };
+
+  const shortLabels = positionLabels.map(shortenLabel);
+
   // ── Chart options ────────────────────────────────────────────────────────
   const baseOptions = {
     maintainAspectRatio: false,
@@ -182,17 +216,32 @@ function Dashboard() {
     plugins: {
       legend: { position: 'top', labels: { color: textColor, font: { size: 12 } } },
       title: { display: false },
+      tooltip: {
+        callbacks: {
+          // Show full position name in tooltip
+          title: (items) => positionLabels[items[0]?.dataIndex] || '',
+        },
+      },
     },
     scales: {
-      x: { ticks: { color: textColor, font: { size: 11 } } },
+      x: {
+        ticks: {
+          color: textColor,
+          font: { size: 10 },
+          maxRotation: 45,
+          minRotation: 25,
+        },
+      },
       y: { beginAtZero: true, ticks: { color: textColor, stepSize: 1 } },
+    },
+    layout: {
+      padding: { bottom: 8 },
     },
   };
 
   // ── Gender distribution by position ─────────────────────────────────────
-  const positionLabels = stats.positions || Object.keys(stats.positionCounts || {});
   const genderChartData = {
-    labels: positionLabels,
+    labels: shortLabels,
     datasets: [
       {
         label: 'Male',
@@ -219,15 +268,25 @@ function Dashboard() {
   const batchChartData = {
     labels: (stats.batchByPosition || []).map(b => b.batch),
     datasets: positionLabels.map((pos, i) => ({
-      label: pos,
+      label: shortenLabel(pos),
       data: (stats.batchByPosition || []).map(b => b[pos] || 0),
       backgroundColor: POSITION_COLORS[i % POSITION_COLORS.length],
       borderRadius: 4,
     })),
   };
 
-  // Build stat cards dynamically from positionCounts
-  const positionEntries = Object.entries(stats.positionCounts || {}).sort(([a], [b]) => a.localeCompare(b));
+  // Expanded modal options — more room, larger font
+  const expandedOptions = {
+    ...baseOptions,
+    plugins: {
+      ...baseOptions.plugins,
+      legend: { ...baseOptions.plugins.legend, labels: { ...baseOptions.plugins.legend.labels, font: { size: 13 } } },
+    },
+    scales: {
+      ...baseOptions.scales,
+      x: { ...baseOptions.scales.x, ticks: { ...baseOptions.scales.x.ticks, font: { size: 11 }, maxRotation: 35 } },
+    },
+  };
 
   return (
     <>
@@ -237,17 +296,8 @@ function Dashboard() {
           description="Student Council 2026 — live applicant overview"
         />
 
-        {/* ── Stat Cards ── */}
-        <SimpleGrid columns={{ base: 1, sm: 2, lg: Math.min(positionEntries.length + 1, 4) }} spacing={5} mb={8}>
-          {positionEntries.map(([position, count], i) => (
-            <StatCard
-              key={position}
-              title={`${position} Applicants`}
-              stat={count}
-              icon={FaVoteYea}
-              gradient={POSITION_GRADIENTS[i % POSITION_GRADIENTS.length]}
-            />
-          ))}
+        {/* ── Total Applicants Card ── */}
+        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={5} mb={8}>
           <StatCard
             title="Total Applicants"
             stat={stats.totalApplicants}
@@ -263,7 +313,7 @@ function Dashboard() {
             title="Gender Distribution by Position"
             onExpand={genderModal.onOpen}
           >
-            <Box height="300px">
+            <Box height="360px">
               <Bar data={genderChartData} options={baseOptions} />
             </Box>
           </ChartCard>
@@ -272,7 +322,7 @@ function Dashboard() {
             title="Batch Distribution by Position"
             onExpand={batchModal.onOpen}
           >
-            <Box height="300px">
+            <Box height="360px">
               <Bar data={batchChartData} options={baseOptions} />
             </Box>
           </ChartCard>
@@ -286,7 +336,7 @@ function Dashboard() {
             <ModalCloseButton />
             <ModalBody>
               <Box height="450px">
-                <Bar data={genderChartData} options={baseOptions} />
+                <Bar data={genderChartData} options={expandedOptions} />
               </Box>
             </ModalBody>
             <ModalFooter>
@@ -303,7 +353,7 @@ function Dashboard() {
             <ModalCloseButton />
             <ModalBody>
               <Box height="450px">
-                <Bar data={batchChartData} options={baseOptions} />
+                <Bar data={batchChartData} options={expandedOptions} />
               </Box>
             </ModalBody>
             <ModalFooter>

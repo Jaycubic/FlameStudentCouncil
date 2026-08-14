@@ -509,13 +509,12 @@ const sheetController = {
 
             // ── Fallback: original generate_sheet.py path ────────────────────
             const studentUser = await User.findOne({ where: { email: userEmail } });
-            if (!studentUser?.access_token) {
-                return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
-            }
+            const studentAccessToken  = studentUser?.access_token  || masterUser.access_token;
+            const studentRefreshToken = studentUser?.refresh_token || masterUser.refresh_token;
 
             const scriptArgs = [
                 type, userEmail,
-                studentUser.access_token, studentUser.refresh_token,
+                studentAccessToken, studentRefreshToken,
                 MASTER_EMAIL,
                 masterUser.access_token,  masterUser.refresh_token,
                 FOLDER_ID,
