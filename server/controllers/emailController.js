@@ -61,7 +61,7 @@ function buildEmailHtml(bodyHtml) {
   <div class="wrap">
     <div class="hdr">
       <h1>🏆 Student Council</h1>
-      <p>Official Notification &nbsp;·&nbsp; student.awards@flame.edu.in</p>
+      <p>Official Notification &nbsp;·&nbsp; ${process.env.EMAIL_USER}</p>
     </div>
     <div class="body">${bodyHtml}</div>
     <div class="ftr">

@@ -17,12 +17,12 @@ const oAuth2Client = new google.auth.OAuth2(
 
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
+  host: process.env.EMAIL_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.EMAIL_PORT || "587"),
   secure: false,
   auth: {
-    user: "jofreyjohnmrutu01@gmail.com",
-    pass: "gpgb shae oafd oprq",
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
@@ -35,7 +35,7 @@ const generateVerificationCode = () => {
 const sendVerificationEmail = async (email, code) => {
   try {
     await transporter.sendMail({
-      from: '"FLAME Infirmary" <jofreyjohnmrutu01@gmail.com>',
+      from: `"Student Council" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Your Verification Code",
       html: `

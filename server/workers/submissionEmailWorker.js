@@ -89,7 +89,7 @@ function buildConfirmationEmail({ studentName, positionSelected, submissionId })
 
       <p style="font-size:13px; color:#64748b; margin:0;">
         If you have any questions, please contact us at
-        <a href="mailto:student.awards@flame.edu.in" style="color:#2563eb;">student.awards@flame.edu.in</a>
+        <a href="mailto:${process.env.EMAIL_USER}" style="color:#2563eb;">${process.env.EMAIL_USER}</a>
       </p>
     </div>
 
