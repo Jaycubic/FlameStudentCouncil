@@ -199,6 +199,12 @@ const VERIFY_LOCK_TIME = 7200; // 2 hours
 const MAX_2FA_ATTEMPTS = 5;
 const _2FA_LOCK_TIME = 7200; // 2 hours
 
+// Students allowed to login via email+password+verification instead of Google SSO
+const BYPASS_SSO_EMAILS = new Set([
+  'abhinav.s@flame.edu.in',
+  'naman.sheth@flame.edu.in',
+]);
+
 const authController = {
   async register(req, res) {
     try {
@@ -288,11 +294,12 @@ const authController = {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       console.log('User role:', role.name);
-      if (role.name !== 'admin' && role.name !== 'SportsVisitingFaculty' && role.name !== 'SportsFaculty') {
+      const isBypassSSOStudent = BYPASS_SSO_EMAILS.has(email.toLowerCase());
+      if (role.name !== 'admin' && role.name !== 'SportsVisitingFaculty' && role.name !== 'SportsFaculty' && !isBypassSSOStudent) {
         console.log('Google sign-in required for role:', role.name);
         return res.status(403).json({ message: 'Please use Google Sign-In for your role' });
       }
-      if (role.name === 'admin' || role.name === 'SportsVisitingFaculty' || role.name === 'SportsFaculty') {
+      if (role.name === 'admin' || role.name === 'SportsVisitingFaculty' || role.name === 'SportsFaculty' || isBypassSSOStudent) {
         if (!password) {
           console.log('Password required for role:', role.name);
           return res.status(400).json({ message: 'Password is required for this role' });
@@ -390,7 +397,8 @@ const authController = {
         token_expires: null,
         updated_at: new Date()
       });
-      if (role.name === 'admin' || role.name === 'SportsVisitingFaculty' || role.name === 'SportsFaculty') {
+      const isBypassSSOStudent = BYPASS_SSO_EMAILS.has(user.email.toLowerCase());
+      if (role.name === 'admin' || role.name === 'SportsVisitingFaculty' || role.name === 'SportsFaculty' || isBypassSSOStudent) {
         const is2FAEnabled = await get2FASettingForRole(user.role_id);
         if (is2FAEnabled) {
           if (!user.two_fa_setup) {
