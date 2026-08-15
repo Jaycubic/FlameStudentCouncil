@@ -143,6 +143,8 @@ def row_to_cells(record, cols, ri):
             if col in HYPERLINK_COLS and val:
                 label = HYPERLINK_COLS[col]
                 val = f'=HYPERLINK("{val}", "{label}")'
+            elif col == 'Workbook Link' and not val:
+                val = 'Matrix Not Opened'
         cells.append(val)
     return cells
 
