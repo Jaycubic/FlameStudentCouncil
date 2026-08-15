@@ -312,12 +312,35 @@ const formController = {
         log.warn({ email }, '[ScoreRead] Master tokens unavailable — scores stored as null');
       }
 
-      // Check if manually submitted academic_score / cgpa was provided (e.g. for missing CGPA in database)
+      // ── 2a. CGPA tamper protection ────────────────────────────────────────
+      // If the student exists in StudentCgpaCache with a non-null CGPA,
+      // override whatever the workbook returned with the trusted system value.
+      // This prevents students from editing cell B3 in the workbook to inflate
+      // their academic score.
+      let cgpaCacheTrusted = false;
+      if (studentId) {
+        const cgpaCacheRecord = await StudentCgpaCache.findOne({
+          where: { student_id: String(studentId) },
+          attributes: ['cgpa'],
+        });
+        if (cgpaCacheRecord?.cgpa != null) {
+          const trustedCgpa = String(cgpaCacheRecord.cgpa);
+          if (submissionData.academic_score != null && submissionData.academic_score !== trustedCgpa) {
+            log.warn({ email, studentId, workbookCgpa: submissionData.academic_score, trustedCgpa },
+              '[CGPA] ⚠️ Overriding workbook academic_score with trusted StudentCgpaCache value');
+          }
+          submissionData.academic_score = trustedCgpa;
+          cgpaCacheTrusted = true;
+        }
+      }
+
+      // ── 2b. Manual CGPA fallback (only when NOT in StudentCgpaCache) ──────
+      // Students whose CGPA is not in the system are still allowed to enter manually.
       const manualAcademicScore = academic_score || req.body.cgpa;
 
-      if (manualAcademicScore != null && String(manualAcademicScore).trim() !== '') {
+      if (!cgpaCacheTrusted && manualAcademicScore != null && String(manualAcademicScore).trim() !== '') {
         submissionData.academic_score = String(manualAcademicScore);
-        log.info({ email, batch, manualAcademicScore }, '[ScoreRead] Using manually provided CGPA/Academic score');
+        log.info({ email, batch, manualAcademicScore }, '[ScoreRead] Using manually provided CGPA/Academic score (student not in cache)');
       } else if (submissionData.academic_score == null || submissionData.academic_score === '') {
         cleanupUploadedFiles(req);
         return res.status(400).json({ message: 'CGPA is mandatory when academic records are not available in the database.' });

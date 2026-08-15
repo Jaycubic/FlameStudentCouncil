@@ -124,6 +124,9 @@ require('./workers/submissionProcessingWorker');
 // Start independent Student DB sync worker (hourly cron + boot sync)
 require('./workers/studentSyncWorker');
 
+// Start CGPA integrity audit worker (6-hourly cron + boot audit)
+require('./workers/cgpaAuditWorker');
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
