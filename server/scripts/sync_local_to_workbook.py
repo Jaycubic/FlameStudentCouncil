@@ -155,13 +155,13 @@ def build_unmerge_request(sheet_gid, num_data_rows):
 def build_merge_requests(sheet_gid, rows, start_row_index=1):
     """
     Return a list of Sheets API mergeCells requests for column A,
-    grouping consecutive rows with the same email.
-    rows must be sorted so same-student rows are adjacent (sorted by email in JS).
+    grouping consecutive rows with the same student_id.
+    rows must be sorted so same-student rows are adjacent.
     """
     requests = []
     current = start_row_index
 
-    for _email, grp in groupby(rows, key=lambda r: r.get('email', '')):
+    for _sid, grp in groupby(rows, key=lambda r: r.get('student_id', '')):
         group_rows = list(grp)
         count      = len(group_rows)
         if count > 1:

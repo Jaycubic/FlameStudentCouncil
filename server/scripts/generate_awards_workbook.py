@@ -390,13 +390,50 @@ def main():
             print(f"[WARN] Could not retrieve sheet metadata for protection: {protect_err}", file=sys.stderr)
 
         # ─── Post-upload: rewrite Photo column (col A) via Sheets API ─────────
-        photo_data = []
+        # Match photos by student_id (col B) to avoid order-mismatch bugs.
+        # Build student_id → photo_url map from our in-memory data.
+        sid_photo_maps = {}
         for tab_name, rows in tab_rows_map.items():
-            if not rows:
-                continue
-            values = [['Photo']]   # header
+            photo_map = {}
             for record in rows:
-                formula = get_photo_formula(record.get('photo_url', ''))
+                sid = str(record.get('student_id', '')).strip()
+                if sid:
+                    photo_map[sid] = record.get('photo_url', '')
+            sid_photo_maps[tab_name] = photo_map
+
+        # Read student_id column (B) from each tab in the uploaded spreadsheet
+        read_ranges = [f"'{tn}'!B:B" for tn in tab_rows_map.keys()]
+        try:
+            batch_result = execute_with_retry(
+                sheets_service.spreadsheets().values().batchGet(
+                    spreadsheetId=spreadsheet_id,
+                    ranges=read_ranges,
+                )
+            )
+            range_results = batch_result.get('valueRanges', [])
+        except Exception as _read_err:
+            print(f"[WARN] Could not read student_id column for photo matching: {_read_err}", file=sys.stderr)
+            range_results = []
+
+        photo_data = []
+        for i, tab_name in enumerate(tab_rows_map.keys()):
+            photo_map = sid_photo_maps.get(tab_name, {})
+            if not photo_map:
+                continue
+
+            if i < len(range_results):
+                col_b_values = range_results[i].get('values', [])
+            else:
+                col_b_values = []
+
+            if len(col_b_values) < 2:
+                continue
+
+            values = [['Photo']]   # header
+            for row_data in col_b_values[1:]:
+                sid = str(row_data[0]).strip() if row_data else ''
+                photo_url = photo_map.get(sid, '')
+                formula = get_photo_formula(photo_url)
                 values.append([formula])
             photo_data.append({'range': f"'{tab_name}'!A1", 'values': values})
 

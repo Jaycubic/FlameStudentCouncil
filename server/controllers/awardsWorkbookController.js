@@ -242,7 +242,7 @@ async function openOrCreate(req, res) {
             try {
                 const photoScriptPath = path.join(__dirname, '../scripts/insert_workbook_photos.py');
                 const photoPayload = {
-                    'All Responses': data.all.map(r => ({ photo_url: r.photo_url || '', email: r.email || '' })),
+                    'All Responses': data.all.map(r => ({ photo_url: r.photo_url || '', email: r.email || '', student_id: r.student_id || '' })),
                 };
 
                 for (const [tab, rows] of Object.entries(photoPayload)) {

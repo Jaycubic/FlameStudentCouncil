@@ -8,7 +8,12 @@
 # which never expires — unlike Google Drive URLs that break when a student's
 # OAuth token is revoked.
 #
-# Also applies mergeCells on the AllAwards tab so same-student rows share
+# PHOTO MATCHING: Photos are matched to rows by student_id (column B in the
+# spreadsheet), NOT by array index. This prevents the mismatch bug caused by
+# different sort orders between the controller (email-sorted) and the Python
+# workbook generator (score-sorted).
+#
+# Also applies mergeCells on the All Responses tab so same-student rows share
 # one photo cell.
 #
 # Usage:
@@ -19,10 +24,7 @@
 #
 # photo_data_base64: base64-encoded JSON:
 # {
-#   "AllAwards":        [{ "photo_url": "https://flamestudentcouncil.in/api/photos/<sid>", "email": "..." }, ...],
-#   "SportsAward":      [{ "photo_url": "...", "email": "..." }, ...],
-#   "CulturalAward":    [{ "photo_url": "...", "email": "..." }, ...],
-#   "TrailblazerAward": [{ "photo_url": "...", "email": "..." }, ...]
+#   "All Responses": [{ "photo_url": "https://...", "email": "...", "student_id": "..." }, ...],
 # }
 # If photo_url is empty for a student, their Photo cell is left blank (no broken image).
 #
@@ -90,12 +92,12 @@ def get_photo_formula(photo_url):
     return f'=IMAGE("{photo_url}")'
 
 
-def build_merge_requests(sheet_gid, rows, start_row_index=1):
+def build_merge_requests(sheet_gid, student_ids, start_row_index=1):
     """Build Sheets API mergeCells requests for column A (Photo),
-    grouping consecutive rows with the same email."""
+    grouping consecutive rows with the same student_id."""
     requests = []
     current  = start_row_index
-    for _email, grp in groupby(rows, key=lambda r: r.get('email', '')):
+    for _sid, grp in groupby(student_ids):
         group_rows = list(grp)
         count      = len(group_rows)
         if count > 1:
@@ -161,19 +163,71 @@ def main():
     try:
         sheets_service = build('sheets', 'v4', credentials=creds)
 
-        # ── 1. Write =IMAGE() formulas to column A on every tab ───────────────
-        value_data = []
+        # ── Build student_id → photo_url map from input payload ──────────────
+        # This decouples photo assignment from array order entirely.
+        sid_photo_maps = {}
         for tab_name, rows in photo_data.items():
-            if not rows:
-                continue
-            values = [['Photo']]    # row 1: header
+            photo_map = {}
             for record in rows:
-                formula = get_photo_formula(record.get('photo_url', ''))
-                values.append([formula])    # rows 2..N: data
+                sid = str(record.get('student_id', '')).strip()
+                if sid:
+                    photo_map[sid] = record.get('photo_url', '')
+            sid_photo_maps[tab_name] = photo_map
+
+        # ── Read student_id column (B) from each tab in the actual spreadsheet ──
+        # This tells us the real row order after any sorting the generator applied.
+        read_ranges = [f"'{tab_name}'!B:B" for tab_name in photo_data.keys()]
+        if read_ranges:
+            batch_result = execute_with_retry(
+                sheets_service.spreadsheets().values().batchGet(
+                    spreadsheetId=spreadsheet_id,
+                    ranges=read_ranges,
+                )
+            )
+            range_results = batch_result.get('valueRanges', [])
+        else:
+            range_results = []
+
+        # ── Write =IMAGE() formulas to column A, matched by student_id ───────
+        value_data = []
+        tab_student_id_order = {}   # tab_name → [student_ids in spreadsheet order]
+
+        for i, tab_name in enumerate(photo_data.keys()):
+            photo_map = sid_photo_maps.get(tab_name, {})
+            if not photo_map:
+                continue
+
+            # Get the student_id column values from the spreadsheet
+            if i < len(range_results):
+                col_b_values = range_results[i].get('values', [])
+            else:
+                col_b_values = []
+
+            if len(col_b_values) < 2:
+                # No data rows in the sheet — skip
+                print(f"[PhotoInsert] {tab_name}: no data rows found in column B — skipping", file=sys.stderr)
+                continue
+
+            # col_b_values[0] = header ('student_id'), col_b_values[1:] = data
+            values = [['Photo']]   # header row
+            sheet_student_ids = []
+
+            for row_data in col_b_values[1:]:
+                sid = str(row_data[0]).strip() if row_data else ''
+                sheet_student_ids.append(sid)
+                # Look up the photo for THIS student_id
+                photo_url = photo_map.get(sid, '')
+                formula = get_photo_formula(photo_url)
+                values.append([formula])
+
             value_data.append({
                 'range':  f"'{tab_name}'!A1",
                 'values': values,
             })
+            tab_student_id_order[tab_name] = sheet_student_ids
+
+            matched = sum(1 for sid in sheet_student_ids if photo_map.get(sid))
+            print(f"[PhotoInsert] {tab_name}: matched {matched}/{len(sheet_student_ids)} rows by student_id", file=sys.stderr)
 
         if value_data:
             result = execute_with_retry(
@@ -188,9 +242,9 @@ def main():
             updated_cells = result.get('totalUpdatedCells', 0)
             print(f"[PhotoInsert] Sheets API updated {updated_cells} cells", file=sys.stderr)
 
-        # ── 2. Merge All Responses column A for same-student rows ─────────────────
-        all_rows = photo_data.get('All Responses', [])
-        if all_rows:
+        # ── Merge All Responses column A for same-student rows ───────────────
+        all_sids = tab_student_id_order.get('All Responses', [])
+        if all_sids:
             meta     = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
             gid_map  = {
                 s['properties']['title']: s['properties']['sheetId']
@@ -199,7 +253,7 @@ def main():
             all_gid  = gid_map.get('All Responses')
 
             if all_gid is not None:
-                merge_reqs = build_merge_requests(all_gid, all_rows, start_row_index=1)
+                merge_reqs = build_merge_requests(all_gid, all_sids, start_row_index=1)
                 if merge_reqs:
                     execute_with_retry(
                         sheets_service.spreadsheets().batchUpdate(
