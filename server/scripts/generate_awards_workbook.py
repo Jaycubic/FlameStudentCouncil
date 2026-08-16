@@ -18,13 +18,14 @@
 #
 # Returns: { success, sheet_id, url }
 
-import sys, json, os, time, base64, socket, tempfile
+import sys, json, os, time, base64, socket, tempfile, re
 from datetime import datetime
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 
 try:
     import openpyxl
@@ -32,9 +33,7 @@ try:
     from openpyxl.utils import get_column_letter
 except ImportError:
     print(json.dumps({"success": False, "error": "openpyxl not installed"}))
-    sys.exit(1)
-
-from googleapiclient.http import MediaFileUpload
+    sys.exit(0)
 
 socket.setdefaulttimeout(120)
 
@@ -53,6 +52,9 @@ HYPERLINK_COLS = {
     'Workbook Link': 'Student Workbook',
     'Attachment':    'View PDF',
 }
+
+# Regex to strip illegal characters for openpyxl / XML export
+ILLEGAL_CHAR_REGEX = re.compile(r'[\000-\010]|[\013-\014]|[\016-\037]')
 
 # ─── Column definitions (data columns after the Photo column) ─────────────────
 ELECTION_COLS = [
@@ -110,6 +112,13 @@ def get_photo_formula(photo_url):
     return f'=IMAGE("{photo_url}")'
 
 
+def sanitize_string(val):
+    """Remove control characters that break openpyxl XML export."""
+    if isinstance(val, str):
+        return ILLEGAL_CHAR_REGEX.sub('', val)
+    return val
+
+
 def row_to_cells(record, cols, ri):
     """Extract values for the given column list from a record dict."""
     cells = []
@@ -139,12 +148,19 @@ def row_to_cells(record, cols, ri):
                     val = datetime.fromisoformat(str(val)).strftime('%Y-%m-%d')
                 except Exception:
                     pass
+
             # Wrap URL columns in =HYPERLINK() so cell shows a short label
             if col in HYPERLINK_COLS and val:
                 label = HYPERLINK_COLS[col]
                 val = f'=HYPERLINK("{val}", "{label}")'
             elif col == 'Workbook Link' and not val:
                 val = 'Matrix Not Opened'
+            else:
+                val = sanitize_string(str(val))
+                # If a plain text field starts with '=' or '+' or '-' (e.g., bullet points), prefix with single quote
+                if val.startswith(('=', '+', '-')) and col not in VERIFIED_COLS and col not in HYPERLINK_COLS:
+                    val = f"'{val}"
+
         cells.append(val)
     return cells
 
@@ -255,10 +271,12 @@ def protect_sheet_columns(sheets_service, spreadsheet_id, sheet_gid):
         ]
     }
     try:
-        sheets_service.spreadsheets().batchUpdate(
-            spreadsheetId=spreadsheet_id,
-            body=body
-        ).execute()
+        execute_with_retry(
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body=body
+            )
+        )
     except Exception as e:
         print(f"[WARN] Could not add sheet protection: {e}", file=sys.stderr)
 
@@ -266,74 +284,79 @@ def protect_sheet_columns(sheets_service, spreadsheet_id, sheet_gid):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 4:
-        print(json.dumps({
-            "success": False,
-            "error": "Usage: master_access_token master_refresh_token folder_id (json_data_base64 via stdin)"
-        }))
-        return
-
-    master_access_token  = sys.argv[1]
-    master_refresh_token = sys.argv[2]
-    folder_id            = sys.argv[3]
-
+    tmp_path = None
     try:
-        json_data_b64 = sys.stdin.read().strip()
-    except Exception as e:
-        print(json.dumps({"success": False, "error": f"Failed to read stdin: {e}"}))
-        return
+        if len(sys.argv) < 4:
+            print(json.dumps({
+                "success": False,
+                "error": "Usage: master_access_token master_refresh_token folder_id (json_data_base64 via stdin)"
+            }))
+            return
 
-    if not json_data_b64:
-        print(json.dumps({"success": False, "error": "No data received on stdin"}))
-        return
+        master_access_token  = sys.argv[1]
+        master_refresh_token = sys.argv[2]
+        folder_id            = sys.argv[3]
 
-    try:
-        data = json.loads(base64.b64decode(json_data_b64).decode('utf-8'))
-    except Exception as e:
-        print(json.dumps({"success": False, "error": f"Invalid JSON data: {e}"}))
-        return
-
-    all_rows    = data.get('all', [])
-    by_position = data.get('byPosition', {})
-
-    def safe_score(row, key='total_verified_score'):
         try:
-            val = row.get(key)
-            if val is None or str(val).strip() == '' or str(val).strip() == '—':
+            json_data_b64 = sys.stdin.read().strip()
+        except Exception as e:
+            print(json.dumps({"success": False, "error": f"Failed to read stdin: {e}"}))
+            return
+
+        if not json_data_b64:
+            print(json.dumps({"success": False, "error": "No data received on stdin"}))
+            return
+
+        try:
+            data = json.loads(base64.b64decode(json_data_b64).decode('utf-8'))
+        except Exception as e:
+            print(json.dumps({"success": False, "error": f"Invalid JSON data: {e}"}))
+            return
+
+        all_rows    = data.get('all', [])
+        by_position = data.get('byPosition', {})
+
+        def safe_score(row, key='total_verified_score'):
+            if not isinstance(row, dict):
                 return 0.0
-            return float(val)
-        except (ValueError, TypeError):
-            return 0.0
+            try:
+                val = row.get(key)
+                if val is None or str(val).strip() == '' or str(val).strip() == '—':
+                    return 0.0
+                return float(val)
+            except (ValueError, TypeError):
+                return 0.0
 
-    all_rows.sort(key=lambda r: safe_score(r), reverse=True)
-    for pos in by_position:
-        by_position[pos].sort(key=lambda r: safe_score(r), reverse=True)
+        all_rows.sort(key=lambda r: safe_score(r), reverse=True)
+        for pos in by_position:
+            if isinstance(by_position[pos], list):
+                by_position[pos].sort(key=lambda r: safe_score(r), reverse=True)
 
-    try:
-        master_creds = build_credentials(master_access_token, master_refresh_token)
-    except Exception as e:
-        print(json.dumps({"success": False, "error": f"Token error: {e}"}))
-        return
+        try:
+            master_creds = build_credentials(master_access_token, master_refresh_token)
+        except Exception as e:
+            print(json.dumps({"success": False, "error": f"Token error: {e}"}))
+            return
 
-    # Build workbook in memory
-    wb = openpyxl.Workbook()
-    wb.remove(wb.active)   # remove default blank sheet
+        # Build workbook in memory
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)   # remove default blank sheet
 
-    # Tab definitions: (tab_name, data_cols, rows)
-    tabs = [('All Responses', ELECTION_COLS, all_rows)]
+        # Tab definitions: (tab_name, data_cols, rows)
+        tabs = [('All Responses', ELECTION_COLS, all_rows)]
 
-    tab_rows_map = {}
-    for tab_name, cols, rows in tabs:
-        ws = wb.create_sheet(tab_name)
-        write_sheet(ws, cols, rows)
-        tab_rows_map[tab_name] = rows
+        tab_rows_map = {}
+        for tab_name, cols, rows in tabs:
+            ws = wb.create_sheet(tab_name)
+            write_sheet(ws, cols, rows)
+            tab_rows_map[tab_name] = rows
 
-    # Save to temp file, then upload as Google Sheets
-    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
-    tmp.close()
-    wb.save(tmp.name)
+        # Save to temp file, then upload as Google Sheets
+        tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        wb.save(tmp_path)
 
-    try:
         drive_service  = build('drive',  'v3', credentials=master_creds)
         sheets_service = build('sheets', 'v4', credentials=master_creds)
 
@@ -343,7 +366,7 @@ def main():
             'parents':  [folder_id],
         }
         media = MediaFileUpload(
-            tmp.name,
+            tmp_path,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             resumable=True,
         )
@@ -358,10 +381,13 @@ def main():
         url            = uploaded['webViewLink']
 
         # Apply warning-only protection to each tab
-        meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-        gid_map = {s['properties']['title']: s['properties']['sheetId'] for s in meta.get('sheets', [])}
-        for gid in gid_map.values():
-            protect_sheet_columns(sheets_service, spreadsheet_id, gid)
+        try:
+            meta = execute_with_retry(sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id))
+            gid_map = {s['properties']['title']: s['properties']['sheetId'] for s in meta.get('sheets', [])}
+            for gid in gid_map.values():
+                protect_sheet_columns(sheets_service, spreadsheet_id, gid)
+        except Exception as protect_err:
+            print(f"[WARN] Could not retrieve sheet metadata for protection: {protect_err}", file=sys.stderr)
 
         # ─── Post-upload: rewrite Photo column (col A) via Sheets API ─────────
         photo_data = []
@@ -392,8 +418,11 @@ def main():
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
     finally:
-        if os.path.exists(tmp.name):
-            os.unlink(tmp.name)
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
 
 if __name__ == '__main__':

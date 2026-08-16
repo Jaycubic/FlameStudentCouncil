@@ -274,7 +274,8 @@ def main():
             )
         )
 
-        # ── 5. Re-merge AllAwards photo column for same-student rows ──────────
+        # ── 5. Re-merge All Responses photo column for same-student rows ──────────
+        all_gid = gid_map.get('All Responses')
         if all_gid is not None and all_rows:
             merge_reqs = build_merge_requests(all_gid, all_rows, start_row_index=1)
             if merge_reqs:
